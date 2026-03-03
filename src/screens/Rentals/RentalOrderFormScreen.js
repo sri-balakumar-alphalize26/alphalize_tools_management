@@ -186,8 +186,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const filteredCustomers =
     showCustomerDropdown && form.partner_name.trim().length > 0
       ? customers.filter((c) =>
-          c.name.toLowerCase().includes(form.partner_name.toLowerCase())
-        ).slice(0, 10)
+        c.name.toLowerCase().includes(form.partner_name.toLowerCase())
+      ).slice(0, 10)
       : [];
 
   const selectCustomer = (customer) => {
@@ -340,7 +340,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const calcSubtotal = () => lines.reduce((sum, l) => sum + calcLineTotal(l), 0);
   const calcLateFees = () => lines.reduce((sum, l) => sum + (parseFloat(l.late_fee_amount) || 0), 0);
   const calcDamageCharges = () => lines.reduce((sum, l) => sum + (parseFloat(l.damage_charge) || 0), 0);
-  const calcTotal = () => calcSubtotal() + calcLateFees() + calcDamageCharges() - (parseFloat(form.discount_amount) || 0);
+  const calcTotal = () => calcSubtotal() + calcLateFees() + calcDamageCharges() - (parseFloat(form.discount_amount) || 0) - (parseFloat(form.advance_amount) || 0);
 
   // ---------- WORKFLOW ACTIONS ----------
   const validateOrder = () => {
@@ -574,11 +574,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     try {
       if (odooOrderId && odooAuth) {
         await storeMarkDone(odooAuth, odooOrderId);
-        showToastMessage("Order marked as done");
-        navigation.goBack();
-        return;
       }
       setState("invoiced");
+      savedRef.current = true;
       addTimesheetEntry("note", "Checked In \u2192 Invoiced (Status)");
       showToastMessage("Order marked as done");
     } catch (e) {
@@ -1094,7 +1092,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         }));
         addOrder(odooAuth, orderValues, lineValues)
           .then(() => showToastMessage("Order auto-saved as draft"))
-          .catch(() => {})
+          .catch(() => { })
           .finally(() => navigation.dispatch(e.data.action));
       };
       doAutoSave();
@@ -1971,7 +1969,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 ) : (
                   <TouchableOpacity
                     style={{ borderWidth: 1.5, borderColor: "#FF9800", borderStyle: "dashed", borderRadius: 8, paddingVertical: 28, alignItems: "center", marginBottom: 16, backgroundColor: "#FFF8E1" }}
-                    onPress={() => openSignaturePad({ setUri: setDiscountAuthSignatureUri, setFlag: () => {} })}
+                    onPress={() => openSignaturePad({ setUri: setDiscountAuthSignatureUri, setFlag: () => { } })}
                   >
                     <Text style={{ fontSize: 22 }}>&#9997;</Text>
                     <Text style={{ color: "#FF9800", fontWeight: "600", marginTop: 4 }}>Tap to Sign</Text>
@@ -2002,7 +2000,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                         try {
                           const res = await DocumentPicker.getDocumentAsync({ type: "image/*" });
                           if (!res.canceled && res.assets?.[0]) setDiscountAuthPhotoUri(res.assets[0].uri);
-                        } catch (_) {}
+                        } catch (_) { }
                       }}
                     >
                       <Text style={{ fontSize: 18 }}>&#128206;</Text>
@@ -2584,6 +2582,12 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     <View style={styles.lineTotalRow}>
                       <Text style={styles.lineTotalLabel}>Discount</Text>
                       <Text style={styles.lineTotalValue}>-${parseFloat(form.discount_amount).toFixed(2)}</Text>
+                    </View>
+                  )}
+                  {parseFloat(form.advance_amount) > 0 && (
+                    <View style={styles.lineTotalRow}>
+                      <Text style={styles.lineTotalLabel}>Advance</Text>
+                      <Text style={[styles.lineTotalValue, { color: "#4CAF50" }]}>-${parseFloat(form.advance_amount).toFixed(2)}</Text>
                     </View>
                   )}
                   <View style={[styles.lineTotalRow, styles.grandTotalRow]}>
