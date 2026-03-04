@@ -539,19 +539,16 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
             const lineOdooId = line.odoo_id;
             const photoUri = toolPhotoUris[i];
             const timestamp = toolPhotoTimestamps[i];
-            if (lineOdooId && photoUri) {
-              const photoB64 = await uriToBase64(photoUri);
-              if (photoB64) {
-                const updateVals = {
-                  checkout_tool_image: photoB64,
-                  checkout_condition: line.checkout_condition
-                };
-                if (timestamp) updateVals.checkout_tool_image_timestamp = timestamp;
-                await updateOrderLineValues(odooAuth, lineOdooId, updateVals);
-              } else {
-                // If no photo, still send condition
-                await updateOrderLineValues(odooAuth, lineOdooId, { checkout_condition: line.checkout_condition });
+            if (lineOdooId) {
+              const updateVals = { checkout_condition: line.checkout_condition };
+              if (photoUri) {
+                const photoB64 = await uriToBase64(photoUri);
+                if (photoB64) {
+                  updateVals.checkout_tool_image = photoB64;
+                  if (timestamp) updateVals.checkout_tool_image_timestamp = timestamp;
+                }
               }
+              await updateOrderLineValues(odooAuth, lineOdooId, updateVals);
             }
           }
           await storeCheckoutOrder(odooAuth, odooOrderId);
@@ -671,19 +668,11 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const lineOdooId = line.odoo_id;
-          const photoUri = toolCheckinPhotoUris[i]; // Use checkin photo URI
-          const timestamp = toolCheckinPhotoTimestamps[i]; // Use checkin photo timestamp
           if (lineOdooId) {
             const updateVals = {
               checkin_condition: line.checkin_condition,
             };
-            if (photoUri) {
-              const photoB64 = await uriToBase64(photoUri);
-              if (photoB64) {
-                updateVals.checkin_tool_image = photoB64;
-                if (timestamp) updateVals.checkin_tool_image_timestamp = timestamp;
-              }
-            }
+            // Tool photos removed from check-in per user request
             await updateOrderLineValues(odooAuth, lineOdooId, updateVals);
           }
         }
@@ -735,12 +724,12 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const buildInvoiceHtml = (type, assets = {}) => {
     const isCheckin = type === "checkin";
     const subtotal = calcSubtotal();
-    const lateFees = calcLateFees();
-    const damageCharges = calcDamageCharges();
-    const discount = parseFloat(form.discount_amount) || 0;
+    const lateFees = isCheckin ? calcLateFees() : 0;
+    const damageCharges = isCheckin ? calcDamageCharges() : 0;
+    const discount = isCheckin ? (parseFloat(form.discount_amount) || 0) : 0;
     const advance = parseFloat(form.advance_amount) || 0;
     const grandTotal = subtotal + lateFees + damageCharges - discount;
-    const amountDue = grandTotal - (form.advance_returned ? 0 : advance);
+    const amountDue = grandTotal - (isCheckin && form.advance_returned ? 0 : advance);
     const totalAmt = grandTotal; // For compatibility with existing total row display
     const cur = "$";
 
@@ -765,7 +754,6 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         <td class="text-end">${cur}${(parseFloat(l.unit_price) || 0).toFixed(2)}</td>
         <td class="text-end">${parseInt(l.planned_duration) || 1}</td>
         <td class="text-end">${cur}${rentalCost.toFixed(2)}</td>
-        <td class="text-end">${discountInfo}</td>
       </tr>`;
     }).join("");
 
@@ -895,7 +883,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     ${!isCheckin ? `<table class="tools">
       <thead><tr>
         <th>#</th><th>Tool</th><th>Serial No.</th><th>Condition</th>
-        <th class="text-end">Price/Day</th><th class="text-end">Duration (Days)</th><th class="text-end">Total</th><th class="text-end">Discount</th>
+        <th class="text-end">Price/Day</th><th class="text-end">Duration (Days)</th><th class="text-end">Total</th>
       </tr></thead>
       <tbody>${checkoutToolRows}</tbody>
     </table>` : `<table class="tools">
@@ -931,10 +919,10 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     <div class="sig-row">
       <div class="sig-col">
         ${(() => {
-        const sigImg = isCheckin ? (assets.checkinSignature || assets.checkoutSignature) : (assets.checkoutSignature || assets.checkinSignature);
+        const sigImg = isCheckin ? assets.checkinSignature : assets.checkoutSignature;
         const sigName = form.partner_name || "";
         const sigTime = isCheckin
-          ? (form.checkin_signature_time || form.date_checkin || form.date_checkout || new Date().toLocaleString())
+          ? (form.checkin_signature_time || form.date_checkin || new Date().toLocaleString())
           : (form.checkout_signature_time
             ? new Date(form.checkout_signature_time).toLocaleString()
             : form.date_checkout || form.date_order || new Date().toLocaleString());
@@ -946,22 +934,23 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       </div>
       <div class="sig-col">
         ${(() => {
-        const authImg = isCheckin ? (assets.checkinAuthoritySignature || assets.discountAuthSignature) : (assets.discountAuthSignature || assets.checkinAuthoritySignature);
-        const authName = isCheckin ? (form.responsible || "Admin") : (discountAuthName || form.responsible || "Admin");
+        const authImg = isCheckin ? assets.checkinAuthoritySignature : null;
+        const authName = isCheckin ? (form.responsible || "Admin") : "";
         const authTime = isCheckin
           ? (form.checkin_signature_time
             ? new Date(form.checkin_signature_time).toLocaleString()
             : form.date_checkin || new Date().toLocaleString())
-          : (form.discount_auth_signature_time
-            ? new Date(form.discount_auth_signature_time).toLocaleString()
-            : form.date_order || new Date().toLocaleString());
+          : "";
+
+        if (!isCheckin) return ""; // Only show authority signature on check-in invoice
+
         if (authImg) {
           return `<img src="${authImg}" style="width:220px;height:90px;object-fit:contain;margin-bottom:6px;"/><div><strong>Authority</strong></div><div>${authName}</div><div style="font-size:11px;color:#666">${authTime}</div>`;
         }
         return `<hr/><div><strong>Authority Signature</strong></div><div>${authName}</div><div style="font-size:11px;color:#666">${authTime}</div>`;
       })()}
       </div>
-      ${assets.discountAuthSignature ? `<div class="sig-col">
+      ${isCheckin && assets.discountAuthSignature ? `<div class="sig-col">
         <img src="${assets.discountAuthSignature}" style="width:220px;height:90px;object-fit:contain;margin-bottom:6px;"/>
         <div><strong>Discount Authorizer</strong></div>
         <div>${discountAuthName || ""}</div>
@@ -1363,6 +1352,13 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 }
                 if (li.checkin_tool_image_timestamp) {
                   checkinTimeMap[idx] = li.checkin_tool_image_timestamp;
+                }
+                // Sync conditions too
+                if (li.checkout_condition) {
+                  updateLine(idx, "checkout_condition", li.checkout_condition);
+                }
+                if (li.checkin_condition) {
+                  updateLine(idx, "checkin_condition", li.checkin_condition);
                 }
               }
             });
@@ -2028,24 +2024,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   {renderConditionChips(line.checkin_condition, (v) => updateLine(idx, "checkin_condition", v))}
                 </View>
 
-                {/* Check-in Tool Photo */}
-                <View style={ciStyles.fieldBlock}>
-                  <Text style={ciStyles.fieldLabel}>Check-in Tool Photo</Text>
-                  {toolCheckinPhotoUris[idx] ? (
-                    <View style={styles.capturedImageWrap}>
-                      <Image source={{ uri: toolCheckinPhotoUris[idx] }} style={styles.capturedImage} />
-                      {toolCheckinPhotoTimestamps[idx] && <Text style={styles.photoTimestamp}>{toolCheckinPhotoTimestamps[idx]}</Text>}
-                      <TouchableOpacity style={styles.photoRemoveBtn} onPress={() => removeCheckinToolPhoto(idx)}>
-                        <Text style={styles.photoRemoveBtnText}>X</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity style={coStyles.captureBtn} onPress={() => openCameraForCheckinToolPhoto(idx)}>
-                      <Text style={{ fontSize: 22, marginBottom: 2 }}>{"\uD83D\uDCF7"}</Text>
-                      <Text style={coStyles.captureBtnText}>Capture Check-in Tool Photo</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                {/* Check-in Tool Photo removed per user request */}
 
                 {/* Late Fee Section */}
                 <View style={ciStyles.lateFeeSectionCard}>
@@ -2712,7 +2691,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     </TouchableOpacity>
                   ))}
                   {/* Always offer Create New option at the bottom if enough chars typed */}
-                  {form.partner_name.trim().length > 2 && (
+                  {state === "draft" && form.partner_name.trim().length > 2 && (
                     <TouchableOpacity
                       onPress={ensurePartnerId}
                       style={[styles.dropdownItem, { backgroundColor: "#f0f7ff", borderTopWidth: 1, borderTopColor: "#d0e0ff" }]}
@@ -2723,7 +2702,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   )}
                 </ScrollView>
               )}
-              {showCustomerDropdown && form.partner_name.trim().length > 0 && filteredCustomers.length === 0 && (
+              {state === "draft" && showCustomerDropdown && form.partner_name.trim().length > 0 && filteredCustomers.length === 0 && (
                 <View style={styles.dropdown}>
                   <Text style={styles.dropdownEmpty}>No customers found</Text>
                   <TouchableOpacity
@@ -2746,6 +2725,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 </View>
               )}
             </View>
+
 
             {/* FORCE CREATE BUTTON */}
             {state === "draft" && !form.partner_id && form.partner_name.trim().length > 2 && (

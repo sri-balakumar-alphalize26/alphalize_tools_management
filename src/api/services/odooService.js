@@ -279,11 +279,16 @@ export const updateOrderLineValues = async (auth, lineId, values) => {
 
 export const fetchOrderLineImages = async (auth, lineIds) => {
   if (!lineIds || !lineIds.length) return [];
-  const records = await odooRead(auth, "rental.order.line", lineIds.map(Number), ORDER_LINE_IMAGE_FIELDS);
+  const fields = [...ORDER_LINE_IMAGE_FIELDS, "checkout_condition", "checkin_condition"];
+  const records = await odooRead(auth, "rental.order.line", lineIds.map(Number), fields);
   return records.map((r) => ({
     id: r.id,
     checkout_tool_image: r.checkout_tool_image || false,
     checkout_tool_image_timestamp: r.checkout_tool_image_timestamp || false,
+    checkin_tool_image: r.checkin_tool_image || false,
+    checkin_tool_image_timestamp: r.checkin_tool_image_timestamp || false,
+    checkout_condition: r.checkout_condition || "",
+    checkin_condition: r.checkin_condition || "",
   }));
 };
 
