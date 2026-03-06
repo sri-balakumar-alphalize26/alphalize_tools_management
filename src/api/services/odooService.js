@@ -17,7 +17,7 @@ export const fetchCategories = async (auth) => {
     "rental.tool.category",
     [["active", "=", true]],
     ["name", "code", "description", "parent_id", "tool_count", "child_count"],
-    { order: "sequence, name" }
+    { order: "name" }
   );
   return records.map((r) => ({
     id: String(r.id),
@@ -39,7 +39,7 @@ const TOOL_FIELDS = [
   "location", "state", "category_id", "total_qty", "available_qty",
   "rental_price_per_day", "late_fee_per_day",
   "purchase_price", "purchase_date", "description",
-  "total_rental_count", "total_revenue", "active",
+  "total_rental_count", "total_revenue", "active", "image",
 ];
 
 export const fetchTools = async (auth, domain = []) => {
@@ -92,9 +92,29 @@ export const updateTool = async (auth, id, values) => {
   if (values.purchase_price !== undefined) odooValues.purchase_price = parseFloat(values.purchase_price) || 0;
   if (values.purchase_date !== undefined) odooValues.purchase_date = values.purchase_date || false;
   if (values.description !== undefined) odooValues.description = values.description || false;
+  if (values.image !== undefined) odooValues.image = values.image || false;
 
   await odooWrite(auth, "rental.tool", [Number(id)], odooValues);
   return true;
+};
+
+// Generate serialized products (like the Odoo wizard)
+export const generateSerializedProducts = async (auth, { productName, listPrice, lateFeePerDay, categoryId, serialNumbers }) => {
+  const created = [];
+  for (const serial of serialNumbers) {
+    const vals = {
+      name: productName,
+      default_code: serial,
+      list_price: parseFloat(listPrice) || 0,
+      rental_late_fee_per_day: parseFloat(lateFeePerDay) || 0,
+      is_rental_tool: true,
+      type: "consu",
+    };
+    if (categoryId) vals.rental_category_id = Number(categoryId);
+    const newId = await odooCreate(auth, "product.product", vals);
+    created.push(newId);
+  }
+  return created;
 };
 
 const mapTool = (r) => ({
@@ -119,6 +139,7 @@ const mapTool = (r) => ({
   description: r.description || "",
   total_rental_count: r.total_rental_count || 0,
   total_revenue: String(r.total_revenue || "0"),
+  image: r.image || null,
 });
 
 // =============================================
@@ -549,29 +570,68 @@ export const fetchPricingRules = async (auth) => {
   const records = await odooSearchRead(
     auth,
     "rental.pricing",
-    [["active", "=", true]],
+    [["active", "=", true], ["is_primary_pricing", "=", true]],
     [
-      "name", "tool_id", "category_id", "period_type", "price",
+      "name", "product_name", "tool_id", "category_id", "period_type", "price",
       "late_fee_per_day", "min_duration", "max_duration",
-      "is_primary_pricing", "notes",
+      "serial_count", "is_primary_pricing", "notes",
     ],
     { order: "sequence, name" }
   );
-  return records.map((r) => ({
-    id: String(r.id),
-    odoo_id: r.id,
-    name: r.name || "",
-    tool_id: r.tool_id ? r.tool_id[0] : null,
-    tool_name: r.tool_id ? r.tool_id[1] : "",
-    category_name: r.category_id ? r.category_id[1] : "",
-    period_type: r.period_type || "day",
-    price: r.price || 0,
-    late_fee_per_day: r.late_fee_per_day || 0,
-    min_duration: r.min_duration || 0,
-    max_duration: r.max_duration || 0,
-    is_primary_pricing: r.is_primary_pricing || false,
-    notes: r.notes || "",
-  }));
+
+  // Fetch tool categories for rules where category_id is not set directly
+  const toolIds = records
+    .filter((r) => !r.category_id && r.tool_id)
+    .map((r) => r.tool_id[0]);
+  let toolCategoryMap = {};
+  if (toolIds.length > 0) {
+    const tools = await odooSearchRead(
+      auth,
+      "rental.tool",
+      [["id", "in", toolIds]],
+      ["id", "category_id"]
+    );
+    tools.forEach((t) => {
+      if (t.category_id) toolCategoryMap[t.id] = t.category_id[1];
+    });
+  }
+
+  return records.map((r) => {
+    const catName = r.category_id
+      ? r.category_id[1]
+      : r.tool_id
+        ? toolCategoryMap[r.tool_id[0]] || ""
+        : "";
+    return {
+      id: String(r.id),
+      odoo_id: r.id,
+      name: r.name || "",
+      product_name: r.product_name || r.name || "",
+      tool_id: r.tool_id ? r.tool_id[0] : null,
+      tool_name: r.tool_id ? r.tool_id[1] : "",
+      category_name: catName,
+      period_type: r.period_type || "day",
+      price: r.price || 0,
+      late_fee_per_day: r.late_fee_per_day || 0,
+      min_duration: r.min_duration || 0,
+      max_duration: r.max_duration || 0,
+      serial_count: r.serial_count || 1,
+      is_primary_pricing: r.is_primary_pricing || false,
+      notes: r.notes || "",
+    };
+  });
+};
+
+export const updatePricingRule = async (auth, id, values) => {
+  const odooValues = {};
+  if (values.period_type !== undefined) odooValues.period_type = values.period_type;
+  if (values.price !== undefined) odooValues.price = parseFloat(values.price) || 0;
+  if (values.late_fee_per_day !== undefined) odooValues.late_fee_per_day = parseFloat(values.late_fee_per_day) || 0;
+  if (values.min_duration !== undefined) odooValues.min_duration = parseFloat(values.min_duration) || 0;
+  if (values.max_duration !== undefined) odooValues.max_duration = parseFloat(values.max_duration) || 0;
+  if (values.notes !== undefined) odooValues.notes = values.notes || false;
+  await odooWrite(auth, "rental.pricing", [Number(id)], odooValues);
+  return true;
 };
 
 export default {
@@ -581,6 +641,7 @@ export default {
   fetchToolById,
   createTool,
   updateTool,
+  generateSerializedProducts,
   fetchOrders,
   fetchOrderById,
   fetchOrderDataById,
@@ -601,4 +662,5 @@ export default {
   createCustomer,
   updateCustomer,
   fetchPricingRules,
+  updatePricingRule,
 };

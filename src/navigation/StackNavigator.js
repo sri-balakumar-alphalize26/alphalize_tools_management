@@ -9,6 +9,7 @@ import OptionsScreen from "@screens/Home/Options/OptionsScreen";
 import ToolManagementScreen from "@screens/ToolManagement/ToolManagementScreen";
 import ToolCategoriesScreen from "@screens/ToolManagement/ToolCategoriesScreen";
 import PricingScreen from "@screens/ToolManagement/PricingScreen";
+import PricingFormScreen from "@screens/ToolManagement/PricingFormScreen";
 import ToolsScreen from "@screens/Tools/ToolsScreen";
 import ToolFormScreen from "@screens/Tools/ToolFormScreen";
 import RentalOrdersScreen from "@screens/Rentals/RentalOrdersScreen";
@@ -38,6 +39,7 @@ const StackNavigator = () => {
       <Stack.Screen name="ToolManagementScreen" component={ToolManagementScreen} />
       <Stack.Screen name="ToolCategoriesScreen" component={ToolCategoriesScreen} />
       <Stack.Screen name="PricingScreen" component={PricingScreen} />
+      <Stack.Screen name="PricingFormScreen" component={PricingFormScreen} />
       <Stack.Screen name="ToolsScreen" component={ToolsScreen} />
       <Stack.Screen name="ToolFormScreen" component={ToolFormScreen} />
       <Stack.Screen name="RentalOrdersScreen" component={RentalOrdersScreen} />

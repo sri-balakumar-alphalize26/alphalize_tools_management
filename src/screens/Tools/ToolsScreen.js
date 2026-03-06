@@ -5,6 +5,9 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  TextInput,
+  Image,
+  Dimensions,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView, RoundedContainer } from "@components/containers";
@@ -28,6 +31,18 @@ const STATUS_COLORS = {
   retired: "#9E9E9E",
 };
 
+const STATUS_LABELS = {
+  available: "Available",
+  rented: "Checked Out",
+  maintenance: "Maintenance",
+  retired: "Retired",
+};
+
+const NUM_COLUMNS = 2;
+const CARD_GAP = 10;
+const screenWidth = Dimensions.get("window").width;
+const cardWidth = (screenWidth - SPACING.paddingMedium * 2 - CARD_GAP) / NUM_COLUMNS;
+
 const ToolsScreen = ({ navigation, route }) => {
   const categoryName = route?.params?.categoryName || "All Tools";
   const categoryId = route?.params?.categoryId;
@@ -38,8 +53,8 @@ const ToolsScreen = ({ navigation, route }) => {
     ? allTools.filter((t) => t.category_id === categoryId)
     : allTools;
   const [activeFilter, setActiveFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Refresh tools each time this screen is focused
   useFocusEffect(
     useCallback(() => {
       if (odooAuth) {
@@ -48,10 +63,19 @@ const ToolsScreen = ({ navigation, route }) => {
     }, [odooAuth])
   );
 
-  const filteredTools =
-    activeFilter === "all"
-      ? tools
-      : tools.filter((t) => t.state === activeFilter);
+  const filteredTools = tools.filter((t) => {
+    if (activeFilter !== "all" && t.state !== activeFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      return (
+        (t.name && t.name.toLowerCase().includes(q)) ||
+        (t.code && t.code.toLowerCase().includes(q)) ||
+        (t.serial_number && t.serial_number.toLowerCase().includes(q)) ||
+        (t.barcode && t.barcode.toLowerCase().includes(q))
+      );
+    }
+    return true;
+  });
 
   const renderFilterTabs = () => (
     <View style={styles.filterRow}>
@@ -85,78 +109,55 @@ const ToolsScreen = ({ navigation, route }) => {
         navigation.navigate("ToolFormScreen", { tool: item, mode: "edit" })
       }
     >
-      <View style={styles.cardTop}>
-        <View style={styles.cardInfo}>
-          <Text style={styles.toolName}>{item.name}</Text>
-          <Text style={styles.toolCode}>{item.code || "No code"}</Text>
-          {item.brand || item.model_name ? (
-            <Text style={styles.brandText}>
-              {[item.brand, item.model_name].filter(Boolean).join(" - ")}
-            </Text>
-          ) : null}
-        </View>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: STATUS_COLORS[item.state] || COLORS.gray },
-          ]}
-        >
-          <Text style={styles.statusText}>{item.state}</Text>
-        </View>
+      {/* Status badge */}
+      <View
+        style={[
+          styles.statusBadge,
+          { backgroundColor: STATUS_COLORS[item.state] || COLORS.gray },
+        ]}
+      >
+        <Text style={styles.statusText}>
+          {STATUS_LABELS[item.state] || item.state}
+        </Text>
       </View>
 
-      <View style={styles.cardMid}>
-        {item.serial_number ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Serial:</Text>
-            <Text style={styles.detailValue}>{item.serial_number}</Text>
+      {/* Image */}
+      <View style={styles.imageWrap}>
+        {item.image ? (
+          <Image
+            source={{ uri: `data:image/png;base64,${item.image}` }}
+            style={styles.toolImage}
+            resizeMode="contain"
+          />
+        ) : (
+          <View style={styles.noImage}>
+            <Text style={styles.noImageText}>No Image</Text>
           </View>
-        ) : null}
-        {item.barcode ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Barcode:</Text>
-            <Text style={styles.detailValue}>{item.barcode}</Text>
-          </View>
-        ) : null}
-        {item.location ? (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Location:</Text>
-            <Text style={styles.detailValue}>{item.location}</Text>
-          </View>
-        ) : null}
+        )}
       </View>
 
-      <View style={styles.cardBottom}>
-        <View style={styles.qtyBox}>
-          <Text style={styles.qtyLabel}>Available</Text>
-          <Text style={styles.qtyValue}>
-            {item.available_qty ?? item.total_qty ?? 0}/
-            {item.total_qty ?? 0}
-          </Text>
-        </View>
-        <View style={styles.priceBox}>
-          {item.rental_price_per_day ? (
+      {/* Info */}
+      <View style={styles.cardInfo}>
+        <Text style={styles.toolName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.toolCode} numberOfLines={1}>{item.code || "No code"}</Text>
+
+        <View style={styles.priceRow}>
+          {parseFloat(item.rental_price_per_day) > 0 ? (
             <Text style={styles.priceText}>
-              ${parseFloat(item.rental_price_per_day).toFixed(2)}/day
+              $ {parseFloat(item.rental_price_per_day).toFixed(2)}
+              <Text style={styles.perDay}>/day</Text>
             </Text>
           ) : (
             <Text style={styles.noPriceText}>No pricing</Text>
           )}
         </View>
-      </View>
 
-      {item.total_rental_count > 0 && (
-        <View style={styles.statsRow}>
-          <Text style={styles.statText}>
-            {item.total_rental_count} rental(s)
+        {parseFloat(item.late_fee_per_day) > 0 && (
+          <Text style={styles.lateFeeText}>
+            Late: $ {parseFloat(item.late_fee_per_day).toFixed(2)}/day
           </Text>
-          {item.total_revenue > 0 && (
-            <Text style={styles.statText}>
-              Revenue: ${parseFloat(item.total_revenue).toFixed(2)}
-            </Text>
-          )}
-        </View>
-      )}
+        )}
+      </View>
     </TouchableOpacity>
   );
 
@@ -189,10 +190,27 @@ const ToolsScreen = ({ navigation, route }) => {
       />
       <RoundedContainer>
         {renderFilterTabs()}
+        <View style={styles.searchBar}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, code, serial, barcode..."
+            placeholderTextColor="#aaa"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.clearBtn}>
+              <Text style={styles.clearBtnText}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <FlatList
           data={filteredTools}
           renderItem={renderTool}
           keyExtractor={(item) => item.id}
+          numColumns={NUM_COLUMNS}
+          columnWrapperStyle={styles.gridRow}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmpty}
@@ -228,126 +246,125 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: SPACING.paddingMedium,
+    marginTop: 8,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: BORDER_RADIUS.medium,
+    backgroundColor: "#fff",
+  },
+  searchInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#333",
+  },
+  clearBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  clearBtnText: {
+    fontSize: 16,
+    color: COLORS.gray,
+    fontWeight: "600",
+  },
   list: {
     padding: SPACING.paddingMedium,
     flexGrow: 1,
   },
+  gridRow: {
+    justifyContent: "space-between",
+    marginBottom: CARD_GAP,
+  },
   card: {
     backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.medium,
-    padding: SPACING.paddingMedium,
-    marginBottom: SPACING.marginSmall,
+    width: cardWidth,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
   },
-  cardTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+  statusBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 9,
+    color: COLORS.white,
+    fontWeight: "700",
+  },
+  imageWrap: {
+    width: "100%",
+    height: cardWidth * 0.7,
+    backgroundColor: "#fafafa",
+    justifyContent: "center",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  toolImage: {
+    width: "80%",
+    height: "80%",
+  },
+  noImage: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  noImageText: {
+    fontSize: 12,
+    color: "#ccc",
+    fontStyle: "italic",
   },
   cardInfo: {
-    flex: 1,
+    padding: 10,
   },
   toolName: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "600",
     color: COLORS.black,
   },
   toolCode: {
-    fontSize: 12,
-    color: COLORS.gray,
-    marginTop: 2,
-  },
-  brandText: {
-    fontSize: 12,
-    color: COLORS.primaryThemeColor,
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  statusText: {
     fontSize: 11,
-    color: COLORS.white,
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-  cardMid: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  detailRow: {
-    flexDirection: "row",
-    marginBottom: 3,
-  },
-  detailLabel: {
-    fontSize: 12,
     color: COLORS.gray,
-    width: 65,
+    marginTop: 2,
   },
-  detailValue: {
-    fontSize: 12,
-    color: COLORS.black,
-    flex: 1,
-  },
-  cardBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  priceRow: {
     marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  qtyBox: {
-    alignItems: "center",
-  },
-  qtyLabel: {
-    fontSize: 10,
-    color: COLORS.gray,
-  },
-  qtyValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: COLORS.primaryThemeColor,
-  },
-  priceBox: {
-    alignItems: "flex-end",
   },
   priceText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.primaryThemeColor,
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.black,
+  },
+  perDay: {
+    fontSize: 12,
+    fontWeight: "400",
+    color: COLORS.gray,
   },
   noPriceText: {
     fontSize: 12,
     color: COLORS.gray,
     fontStyle: "italic",
   },
-  depositText: {
+  lateFeeText: {
     fontSize: 11,
-    color: COLORS.gray,
-    marginTop: 1,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 6,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  statText: {
-    fontSize: 11,
-    color: COLORS.gray,
+    color: "#F44336",
+    marginTop: 2,
   },
   addBtn: {
     width: 32,
