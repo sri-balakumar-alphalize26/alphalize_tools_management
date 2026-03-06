@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import React, { useState, useCallback } from "react";
-=======
-import React, { useState } from "react";
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
 import {
   View,
   Text,
@@ -10,18 +6,12 @@ import {
   FlatList,
   TouchableOpacity,
 } from "react-native";
-<<<<<<< HEAD
 import { useFocusEffect } from "@react-navigation/native";
-=======
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
 import { SafeAreaView, RoundedContainer } from "@components/containers";
 import NavigationHeader from "@components/Header/NavigationHeader";
 import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
-<<<<<<< HEAD
 import useAuthStore from "@stores/auth/useAuthStore";
-=======
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
 
 const STATES = [
   { label: "All", value: "all" },
@@ -41,19 +31,14 @@ const STATUS_COLORS = {
 const ToolsScreen = ({ navigation, route }) => {
   const categoryName = route?.params?.categoryName || "All Tools";
   const categoryId = route?.params?.categoryId;
-<<<<<<< HEAD
   const odooAuth = useAuthStore((s) => s.odooAuth);
   const allTools = useToolStore((s) => s.tools);
   const fetchTools = useToolStore((s) => s.fetchTools);
-=======
-  const allTools = useToolStore((s) => s.tools);
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
   const tools = categoryId
     ? allTools.filter((t) => t.category_id === categoryId)
     : allTools;
   const [activeFilter, setActiveFilter] = useState("all");
 
-<<<<<<< HEAD
   // Refresh tools each time this screen is focused
   useFocusEffect(
     useCallback(() => {
@@ -63,8 +48,6 @@ const ToolsScreen = ({ navigation, route }) => {
     }, [odooAuth])
   );
 
-=======
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
   const filteredTools =
     activeFilter === "all"
       ? tools

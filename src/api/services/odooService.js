@@ -153,13 +153,8 @@ const ORDER_LINE_FIELDS = [
 ];
 
 const ORDER_LINE_IMAGE_FIELDS = [
-<<<<<<< HEAD
   "checkout_tool_image",
   "checkin_tool_image",
-=======
-  "checkout_tool_image", "checkout_tool_image_timestamp",
-  "checkin_tool_image", "checkin_tool_image_timestamp"
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
 ];
 
 export const fetchOrders = async (auth, domain = []) => {
@@ -209,16 +204,12 @@ export const fetchOrderById = async (auth, id) => {
   const r = records[0];
   let lines = [];
   if (r.line_ids && r.line_ids.length > 0) {
-<<<<<<< HEAD
     try {
       lines = await odooRead(auth, "rental.order.line", r.line_ids, [...ORDER_LINE_FIELDS, ...ORDER_LINE_IMAGE_FIELDS]);
     } catch (e) {
       // Fallback if checkin_tool_image doesn't exist yet
       lines = await odooRead(auth, "rental.order.line", r.line_ids, [...ORDER_LINE_FIELDS, "checkout_tool_image"]);
     }
-=======
-    lines = await odooRead(auth, "rental.order.line", r.line_ids, [...ORDER_LINE_FIELDS, ...ORDER_LINE_IMAGE_FIELDS]);
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
   }
   // Fetch timesheet
   let timesheet = [];
@@ -235,7 +226,6 @@ export const fetchOrderById = async (auth, id) => {
   return mapOrder(r, lines, timesheet);
 };
 
-<<<<<<< HEAD
 // Lightweight fetch: order data + lines WITHOUT images (fast refresh for form screen)
 export const fetchOrderDataById = async (auth, id) => {
   const records = await odooRead(auth, "rental.order", [Number(id)], ORDER_FIELDS);
@@ -284,15 +274,6 @@ export const fetchOrderImages = async (auth, id) => {
   const r = records[0];
   return {
     // Binary image data
-=======
-// Fetch only image/signature fields for a single order (lightweight call for form screen)
-export const fetchOrderImages = async (auth, id) => {
-  const fields = [...ORDER_IMAGE_FIELDS, "discount_authorized_by"];
-  const records = await odooRead(auth, "rental.order", [Number(id)], fields);
-  if (!records.length) return null;
-  const r = records[0];
-  return {
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
     customer_signature: r.customer_signature || false,
     id_proof_image: r.id_proof_image || false,
     checkin_customer_signature: r.checkin_customer_signature || false,
@@ -300,15 +281,14 @@ export const fetchOrderImages = async (auth, id) => {
     discount_auth_signature: r.discount_auth_signature || false,
     discount_auth_photo: r.discount_auth_photo || false,
     discount_authorized_by: r.discount_authorized_by || "",
-<<<<<<< HEAD
     // Timestamps (matching actual Odoo field names)
     checkout_signature_date: r.checkout_signature_date || false,
     checkin_customer_signature_date: r.checkin_customer_signature_date || false,
     checkin_signature_date: r.checkin_signature_date || false,
     checkin_signer_name: r.checkin_signer_name || "",
     discount_applied_date: r.discount_applied_date || false,
-=======
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
+    checkout_condition: r.checkout_condition || "",
+    checkin_condition: r.checkin_condition || "",
   };
 };
 
@@ -353,31 +333,18 @@ export const updateOrderLineValues = async (auth, lineId, values) => {
 
 export const fetchOrderLineImages = async (auth, lineIds) => {
   if (!lineIds || !lineIds.length) return [];
-<<<<<<< HEAD
   const baseFields = ["checkout_tool_image", "checkout_condition", "checkin_condition"];
   const allFields = [...baseFields, "checkin_tool_image"];
   let records;
   try {
-    // Try with checkin_tool_image (available after module upgrade)
     records = await odooRead(auth, "rental.order.line", lineIds.map(Number), allFields);
   } catch (e) {
-    // Fallback: checkin_tool_image doesn't exist yet in Odoo
     records = await odooRead(auth, "rental.order.line", lineIds.map(Number), baseFields);
   }
   return records.map((r) => ({
     id: r.id,
     checkout_tool_image: r.checkout_tool_image || false,
     checkin_tool_image: r.checkin_tool_image || false,
-=======
-  const fields = [...ORDER_LINE_IMAGE_FIELDS, "checkout_condition", "checkin_condition"];
-  const records = await odooRead(auth, "rental.order.line", lineIds.map(Number), fields);
-  return records.map((r) => ({
-    id: r.id,
-    checkout_tool_image: r.checkout_tool_image || false,
-    checkout_tool_image_timestamp: r.checkout_tool_image_timestamp || false,
-    checkin_tool_image: r.checkin_tool_image || false,
-    checkin_tool_image_timestamp: r.checkin_tool_image_timestamp || false,
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
     checkout_condition: r.checkout_condition || "",
     checkin_condition: r.checkin_condition || "",
   }));
@@ -492,10 +459,6 @@ const mapOrderLine = (l) => ({
   extra_days: String(Math.max(0, (parseInt(l.actual_duration) || 0) - (parseInt(l.planned_duration) || 0))),
   late_fee_per_day: String(l.late_fee_per_day || 0),
   checkout_tool_image: l.checkout_tool_image || false,
-<<<<<<< HEAD
-=======
-  checkout_tool_image_timestamp: l.checkout_tool_image_timestamp || "",
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
 });
 
 const mapTimesheet = (t) => ({
@@ -620,10 +583,7 @@ export default {
   updateTool,
   fetchOrders,
   fetchOrderById,
-<<<<<<< HEAD
   fetchOrderDataById,
-=======
->>>>>>> f186d93c3de7914fcacd7de6d9ae3045bbc30ed5
   fetchOrderImages,
   createOrder,
   updateOrderValues,
