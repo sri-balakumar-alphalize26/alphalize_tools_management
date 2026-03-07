@@ -347,16 +347,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     setLines((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
-      // When period_type changes, auto-set planned_duration (matches Odoo onchange)
-      if (field === "period_type") {
-        updated[index].planned_duration = String(LINE_DAY_MULTIPLIERS[value] || 1);
-      }
       if (["unit_price", "planned_duration", "quantity"].includes(field) || field === "period_type") {
         const l = updated[index];
         const price = parseFloat(l.unit_price) || 0;
         const dur = parseFloat(l.planned_duration) || 1;
         const qty = parseFloat(l.quantity) || 1;
-        updated[index].line_total = (price * dur * qty).toFixed(2);
+        const multiplier = LINE_DAY_MULTIPLIERS[l.period_type || "day"] || 1;
+        const totalDays = dur * multiplier;
+        updated[index].line_total = (price * totalDays * qty).toFixed(2);
       }
       return updated;
     });
@@ -378,7 +376,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     const price = parseFloat(l.unit_price) || 0;
     const dur = parseFloat(l.planned_duration) || 1;
     const qty = parseFloat(l.quantity) || 1;
-    return price * dur * qty;
+    const multiplier = LINE_DAY_MULTIPLIERS[l.period_type || "day"] || 1;
+    return price * dur * multiplier * qty;
   };
 
   const calcSubtotal = () => lines.reduce((sum, l) => sum + calcLineTotal(l), 0);
@@ -541,14 +540,16 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           // 1. Run checkout action FIRST (changes state to checked_out)
           await storeCheckoutOrder(odooAuth, odooOrderId);
 
-          // 2. Save order-level images (signature + ID proof) AFTER checkout
-          const imageVals = {};
+          // 2. Save order-level values (advance, images) AFTER checkout
+          const orderVals = {};
+          const advanceAmt = parseFloat(form.advance_amount) || 0;
+          if (advanceAmt > 0) orderVals.advance_amount = advanceAmt;
           const sigB64 = await uriToBase64(checkoutSignatureUri);
-          if (sigB64) imageVals.customer_signature = sigB64;
+          if (sigB64) orderVals.customer_signature = sigB64;
           const idB64 = await uriToBase64(idProofUri);
-          if (idB64) imageVals.id_proof_image = idB64;
-          if (Object.keys(imageVals).length > 0) {
-            await updateOrderValues(odooAuth, odooOrderId, imageVals);
+          if (idB64) orderVals.id_proof_image = idB64;
+          if (Object.keys(orderVals).length > 0) {
+            await updateOrderValues(odooAuth, odooOrderId, orderVals);
           }
 
           // 3. Save line-level photos & conditions AFTER checkout
@@ -674,14 +675,15 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     setSaving(true);
     try {
       if (odooOrderId && odooAuth) {
-        // Save checkin images/signatures to Odoo FIRST (before state transition)
-        const imageVals = {};
+        // Save checkin values (advance_returned, images/signatures) FIRST
+        const checkinVals = {};
+        if (checkinReturnAdvance) checkinVals.advance_returned = true;
         const custSigB64 = await uriToBase64(checkinSignatureUri);
-        if (custSigB64) imageVals.checkin_customer_signature = custSigB64;
+        if (custSigB64) checkinVals.checkin_customer_signature = custSigB64;
         const authSigB64 = await uriToBase64(checkinAuthoritySignatureUri);
-        if (authSigB64) imageVals.checkin_signature = authSigB64;
-        if (Object.keys(imageVals).length > 0) {
-          await updateOrderValues(odooAuth, odooOrderId, imageVals);
+        if (authSigB64) checkinVals.checkin_signature = authSigB64;
+        if (Object.keys(checkinVals).length > 0) {
+          await updateOrderValues(odooAuth, odooOrderId, checkinVals);
         }
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
@@ -753,7 +755,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     const discount = isCheckin ? (parseFloat(form.discount_amount) || 0) : 0;
     const advance = parseFloat(form.advance_amount) || 0;
     const grandTotal = subtotal + lateFees + damageCharges - discount;
-    const amountDue = grandTotal - (isCheckin && form.advance_returned ? 0 : advance);
+    const amountDue = isCheckin ? grandTotal - (form.advance_returned ? 0 : advance) : grandTotal;
     const totalAmt = grandTotal; // For compatibility with existing total row display
     const cur = "$";
 
@@ -926,8 +928,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       ${damageCharges > 0 ? `<tr style="color:red;font-weight:bold"><td>Damage:</td><td class="text-end">${cur}${damageCharges.toFixed(2)}</td></tr>` : ""}
       ${discount > 0 ? `<tr style="color:green;font-weight:bold"><td>Discount:</td><td class="text-end">-${cur}${discount.toFixed(2)}</td></tr>` : ""}
       <tr class="grand-row"><td><strong>TOTAL:</strong></td><td class="text-end"><strong>${cur}${grandTotal.toFixed(2)}</strong></td></tr>
-      ${advance > 0 && !form.advance_returned ? `<tr><td>Advance (-):</td><td class="text-end">-${cur}${advance.toFixed(2)}</td></tr>` : ""}
-      <tr class="grand-row" style="background-color:#f9f9f9"><td><strong>Amount Due:</strong></td><td class="text-end"><strong>${cur}${amountDue.toFixed(2)}</strong></td></tr>
+      ${isCheckin && advance > 0 && !form.advance_returned ? `<tr><td>Advance (-):</td><td class="text-end">-${cur}${advance.toFixed(2)}</td></tr>` : ""}
+      ${isCheckin ? `<tr class="grand-row" style="background-color:#f9f9f9"><td><strong>Amount Due:</strong></td><td class="text-end"><strong>${cur}${amountDue.toFixed(2)}</strong></td></tr>` : ""}
     </table>
 
     ${isCheckin && advance > 0 ? `<table class="details" style="width:50%;margin-top:${isA5 ? "3px" : "10px"}">
@@ -1724,7 +1726,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 idx,
                 tool_name: l.tool_name || "Tool " + (idx + 1),
                 serial_number: l.serial_number || "-",
-                rental_cost: (parseFloat(l.unit_price) || 0) * (parseFloat(l.planned_duration) || 1) * (parseFloat(l.quantity) || 1),
+                rental_cost: (parseFloat(l.unit_price) || 0) * (parseFloat(l.planned_duration) || 1) * (LINE_DAY_MULTIPLIERS[l.period_type || "day"] || 1) * (parseFloat(l.quantity) || 1),
                 late_fee: parseFloat(l.late_fee_amount) || 0,
                 damage_charge: parseFloat(l.damage_charge) || 0,
                 discount_type: l.discount_type || "percentage",
@@ -2359,7 +2361,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     setLines((prev) => prev.map((l, idx) => {
       const dl = discountLines[idx];
       if (!dl) return l;
-      return { ...l, discount_type: dl.discount_type, discount_value: dl.discount_value };
+      return { ...l, discount_type: dl.discount_type, discount_value: dl.discount_value, discount_line_amount: calcDiscountLineAmt(dl) };
     }));
     setShowDiscountModal(false);
     showToastMessage("Applying discount...");
@@ -2382,6 +2384,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               await updateOrderLineValues(odooAuth, lineOdooId, {
                 discount_type: dl.discount_type || false,
                 discount_value: parseFloat(dl.discount_value) || 0,
+                discount_line_amount: calcDiscountLineAmt(dl),
               });
             }
           }
@@ -3076,14 +3079,6 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                             }
                             const num = parseInt(t) || 0;
                             if (num < 1) return;
-                            const periodType = line.period_type || "day";
-                            if (periodType === "day" && num >= 7) {
-                              const weeks = Math.floor(num / 7) || 1;
-                              updateLine(idx, "period_type", "week");
-                              setTimeout(() => updateLine(idx, "planned_duration", String(weeks)), 50);
-                              showToastMessage("Switched to Weekly (" + weeks + " week" + (weeks > 1 ? "s" : "") + ")");
-                              return;
-                            }
                             updateLine(idx, "planned_duration", String(num));
                           }}
                           onBlur={() => {
