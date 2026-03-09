@@ -11,7 +11,6 @@ import {
   TextInput as RNTextInput,
   KeyboardAvoidingView,
   Platform,
-  InteractionManager,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView, RoundedContainer } from "@components/containers";
@@ -156,6 +155,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const [checkinAuthoritySignatureUri, setCheckinAuthoritySignatureUri] = useState(null);
   const isAfterCheckin = ["checked_in", "done", "invoiced"].includes(existingOrder?.state);
   const [checkinReturnAdvance, setCheckinReturnAdvance] = useState(existingOrder?.advance_returned || false);
+  const [checkinExcludedIdx, setCheckinExcludedIdx] = useState([]);
+  const [checkinAlreadyReturnedIdx, setCheckinAlreadyReturnedIdx] = useState([]);
   const [checkinSignature, setCheckinSignature] = useState(false);
   const [checkinAuthoritySignature, setCheckinAuthoritySignature] = useState(false);
   const [checkinAuthoritySignatureTime, setCheckinAuthoritySignatureTime] = useState(existingOrder?.checkin_authority_signature_time || null);
@@ -198,7 +199,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const phoneDebounceRef = useRef(null);
   const emailDebounceRef = useRef(null);
 
-  const PERIOD_DURATION_MAP = { day: "1", week: "7", month: "30" };
+  const PERIOD_DURATION_MAP = { day: "1", week: "1", month: "1" };
+
+  const PERIOD_LABELS = { day: "Day", week: "Week", month: "Month" };
+  const getPeriodLabel = (periodType, count) => {
+    const label = PERIOD_LABELS[periodType] || "Day";
+    const n = parseFloat(count) || 1;
+    return n === 1 ? label : label + "s";
+  };
 
   const handleChange = (field, value) => {
     if (field === "rental_period_type") {
@@ -528,7 +536,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       ...prev,
       date_checkout: now.toLocaleString(),
       date_checkout_raw: now.toISOString(),
-      actual_duration: form.rental_duration + " Day"
+      actual_duration: form.rental_duration + " " + getPeriodLabel(form.rental_period_type, form.rental_duration)
     }));
     addTimesheetEntry("checkout", "None \u2192 " + today() + " (Actual Check-Out)");
     addTimesheetEntry("note", "Confirmed \u2192 Checked Out (Status)");
@@ -541,36 +549,31 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           // 1. Run checkout action FIRST (changes state to checked_out)
           await storeCheckoutOrder(odooAuth, odooOrderId);
 
-          // 2. Save order-level values (advance, images) AFTER checkout
+          // 2. Convert all images to base64 in parallel
+          const [sigB64, idB64, ...lineB64s] = await Promise.all([
+            uriToBase64(checkoutSignatureUri),
+            uriToBase64(idProofUri),
+            ...lines.map((_, i) => uriToBase64(toolPhotoUris[i])),
+          ]);
+
+          // 3. Save order-level values
           const orderVals = {};
           const advanceAmt = parseFloat(form.advance_amount) || 0;
           if (advanceAmt > 0) orderVals.advance_amount = advanceAmt;
-          const sigB64 = await uriToBase64(checkoutSignatureUri);
           if (sigB64) orderVals.customer_signature = sigB64;
-          const idB64 = await uriToBase64(idProofUri);
           if (idB64) orderVals.id_proof_image = idB64;
           if (Object.keys(orderVals).length > 0) {
             await updateOrderValues(odooAuth, odooOrderId, orderVals);
           }
 
-          // 3. Save line-level photos & conditions AFTER checkout
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+          // 4. Save line-level photos & conditions in parallel
+          await Promise.all(lines.map((line, i) => {
             const lineOdooId = line.odoo_id;
-            const photoUri = toolPhotoUris[i];
-
-            if (lineOdooId) {
-              const updateVals = { checkout_condition: line.checkout_condition };
-              if (photoUri) {
-                const photoB64 = await uriToBase64(photoUri);
-                if (photoB64) {
-                  updateVals.checkout_tool_image = photoB64;
-
-                }
-              }
-              await updateOrderLineValues(odooAuth, lineOdooId, updateVals);
-            }
-          }
+            if (!lineOdooId) return null;
+            const updateVals = { checkout_condition: line.checkout_condition };
+            if (lineB64s[i]) updateVals.checkout_tool_image = lineB64s[i];
+            return updateOrderLineValues(odooAuth, lineOdooId, updateVals);
+          }).filter(Boolean));
 
         }
         showToastMessage("Check-out completed");
@@ -613,51 +616,90 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       }
     }
 
-    const plannedDays = parseInt(form.rental_duration) || 0;
     // Calculate actual days between checkout and checkin. If same day, count as 1.
     const diffMs = checkoutDate ? (checkinDate.getTime() - checkoutDate.getTime()) : 0;
     const actualDays = checkoutDate
       ? Math.max(Math.round(diffMs / 86400000), 1)
-      : plannedDays || 1;
-    const extraDaysCalc = plannedDays > 0 ? Math.max(actualDays - plannedDays, 0) : 0;
+      : (parseInt(form.rental_duration) || 1);
 
     // Update form status for the invoice header
     setForm((prev) => ({
       ...prev,
-      actual_duration: String(actualDays) + " Day" + (actualDays > 1 ? "s" : ""),
+      actual_duration: String(actualDays) + " Day" + (actualDays > 1 ? "s" : "") + " (Actual)",
       date_checkin: new Date().toLocaleString(),
     }));
 
-    // Auto-populate late_fee_per_day and extra_days
+    // Auto-populate late_fee_per_day and extra_days PER LINE
     setLines((prev) => prev.map((line) => {
+      // Per-line planned days using the line's own duration and period type
+      const lineDuration = parseFloat(line.planned_duration) || 1;
+      const lineMultiplier = LINE_DAY_MULTIPLIERS[line.period_type || form.rental_period_type || "day"] || 1;
+      const linePlannedDays = Math.round(lineDuration * lineMultiplier);
+      const lineExtraDays = linePlannedDays > 0 ? Math.max(actualDays - linePlannedDays, 0) : 0;
+
+      // Robust fee lookup: line → pricing rule → tool
       const toolId = line.tool_id;
-      const tool = tools.find((t) => {
-        const tId = t.odoo_id || parseInt(t.id);
-        return tId && Number(tId) === Number(toolId);
-      });
       let fee = parseFloat(line.late_fee_per_day) || 0;
-      if (tool) {
+
+      // Try pricing rules (by tool_id or tool_name)
+      if (fee === 0 && pricingRules && pricingRules.length > 0) {
+        const periodType = line.period_type || form.rental_period_type || "day";
         const rule = pricingRules.find(
-          (r) => Number(r.tool_id) === Number(toolId) && r.period_type === form.rental_period_type
+          (r) => (Number(r.tool_id) === Number(toolId) || r.tool_name === line.tool_name) && r.period_type === periodType
+        ) || pricingRules.find(
+          (r) => (Number(r.tool_id) === Number(toolId) || r.tool_name === line.tool_name)
         );
         if (rule) fee = parseFloat(rule.late_fee_per_day) || 0;
       }
-      const lateFeeAmt = (extraDaysCalc * fee).toFixed(2);
+
+      // Try tool directly
+      if (fee === 0 && tools && tools.length > 0) {
+        const tool = tools.find((t) => {
+          const tId = t.odoo_id || parseInt(t.id);
+          return (tId && Number(tId) === Number(toolId)) || t.name === line.tool_name;
+        });
+        if (tool) fee = parseFloat(tool.late_fee_per_day) || 0;
+      }
+
+      const lateFeeAmt = (lineExtraDays * fee).toFixed(2);
       return {
         ...line,
         late_fee_per_day: String(fee),
-        extra_days: String(extraDaysCalc),
+        extra_days: String(lineExtraDays),
         actual_days: String(actualDays),
         late_fee_amount: lateFeeAmt,
       };
     }));
+    // Pre-exclude already returned lines (matching Odoo: pending = qty - returned_qty, skip if <= 0)
+    const alreadyReturned = [];
+    lines.forEach((line, i) => {
+      const qty = parseFloat(line.quantity) || 1;
+      const returned = parseFloat(line.returned_qty) || 0;
+      if (returned >= qty) alreadyReturned.push(i);
+    });
+    setCheckinAlreadyReturnedIdx(alreadyReturned);
+    setCheckinExcludedIdx(alreadyReturned);
     setShowCheckinModal(true);
   };
 
+  const removeFromCheckin = (idx) => {
+    setCheckinExcludedIdx((prev) => [...prev, idx]);
+  };
+
   const confirmCheckin = async () => {
-    const missing = lines.find((l) => !l.checkin_condition);
+    // Partial only if user manually removed lines (not counting already-returned)
+    const userExcluded = checkinExcludedIdx.filter((i) => !checkinAlreadyReturnedIdx.includes(i));
+    const isPartial = userExcluded.length > 0;
+    const visibleLines = lines.filter((_, i) => !checkinExcludedIdx.includes(i));
+
+    if (visibleLines.length === 0) {
+      Alert.alert("Error", "At least one tool must be included for check-in");
+      return;
+    }
+
+    const missing = visibleLines.find((l) => !l.checkin_condition);
     if (missing) {
-      Alert.alert("Required", "Set condition for all tools before check-in");
+      Alert.alert("Required", "Set condition for all returning tools before check-in");
       return;
     }
     if (!checkinSignatureUri) {
@@ -678,46 +720,63 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       if (odooOrderId && odooAuth) {
         // Save checkin values (advance_returned, images/signatures) FIRST
         const checkinVals = {};
-        if (checkinReturnAdvance) checkinVals.advance_returned = true;
-        const custSigB64 = await uriToBase64(checkinSignatureUri);
+        if (!isPartial && checkinReturnAdvance) checkinVals.advance_returned = true;
+        // Convert all images to base64 in parallel
+        const [custSigB64, authSigB64, ...checkinLineB64s] = await Promise.all([
+          uriToBase64(checkinSignatureUri),
+          uriToBase64(checkinAuthoritySignatureUri),
+          ...lines.map((_, i) => uriToBase64(toolCheckinPhotoUris[i])),
+        ]);
         if (custSigB64) checkinVals.checkin_customer_signature = custSigB64;
-        const authSigB64 = await uriToBase64(checkinAuthoritySignatureUri);
         if (authSigB64) checkinVals.checkin_signature = authSigB64;
         if (Object.keys(checkinVals).length > 0) {
           await updateOrderValues(odooAuth, odooOrderId, checkinVals);
         }
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
+        // Save line photos, conditions, late fee & returned_qty for VISIBLE lines only
+        await Promise.all(lines.map((line, i) => {
+          if (checkinExcludedIdx.includes(i)) return null;
           const lineOdooId = line.odoo_id;
-          if (lineOdooId) {
-            const updateVals = {
-              checkin_condition: line.checkin_condition,
-            };
-            const checkinPhotoUri = toolCheckinPhotoUris[i];
-            if (checkinPhotoUri) {
-              const photoB64 = await uriToBase64(checkinPhotoUri);
-              if (photoB64) {
-                updateVals.checkin_tool_image = photoB64;
-              }
-            }
-            await updateOrderLineValues(odooAuth, lineOdooId, updateVals);
-          }
+          if (!lineOdooId) return null;
+          const updateVals = { checkin_condition: line.checkin_condition };
+          const lateFeeAmt = parseFloat(line.late_fee_amount) || 0;
+          if (lateFeeAmt > 0) updateVals.late_fee_amount = lateFeeAmt;
+          if (checkinLineB64s[i]) updateVals.checkin_tool_image = checkinLineB64s[i];
+          // For partial: mark this line as returned
+          if (isPartial) updateVals.returned_qty = 1;
+          return updateOrderLineValues(odooAuth, lineOdooId, updateVals);
+        }).filter(Boolean));
+
+        if (!isPartial) {
+          // Full check-in: all tools returned
+          await storeCheckinOrder(odooAuth, odooOrderId);
         }
-        // Then call the checkin action
-        await storeCheckinOrder(odooAuth, odooOrderId);
+        // Partial: order stays as checked_out on Odoo (no action_checkin call)
       }
+
       setShowCheckinModal(false);
-      setState("checked_in");
       savedRef.current = true;
-      setForm((prev) => ({
-        ...prev,
-        date_checkin: new Date().toLocaleString(),
-        advance_returned: checkinReturnAdvance,
-      }));
-      setLines((prev) => prev.map((l) => ({ ...l, returned_qty: l.quantity })));
-      addTimesheetEntry("checkin", "Tools returned by " + form.partner_name);
-      addTimesheetEntry("note", "Checked Out \u2192 Checked In (Status)");
-      showToastMessage("Check-in completed");
+
+      if (isPartial) {
+        // Partial return: mark returned lines, keep order checked_out
+        const returnedNames = visibleLines.map((l) => l.tool_name).join(", ");
+        setLines((prev) => prev.map((l, i) =>
+          checkinExcludedIdx.includes(i) ? l : { ...l, returned_qty: l.quantity }
+        ));
+        addTimesheetEntry("note", "Partial return: " + returnedNames);
+        showToastMessage("Partial check-in saved. " + userExcluded.length + " tool(s) still pending.");
+      } else {
+        // Full check-in
+        setState("checked_in");
+        setForm((prev) => ({
+          ...prev,
+          date_checkin: new Date().toLocaleString(),
+          advance_returned: checkinReturnAdvance,
+        }));
+        setLines((prev) => prev.map((l) => ({ ...l, returned_qty: l.quantity })));
+        addTimesheetEntry("checkin", "Tools returned by " + form.partner_name);
+        addTimesheetEntry("note", "Checked Out \u2192 Checked In (Status)");
+        showToastMessage("Check-in completed");
+      }
     } catch (e) {
       showToastMessage("Check-in failed: " + e.message);
     } finally {
@@ -883,9 +942,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       </tr>
       <tr>
         <td><strong>Planned Duration:</strong></td>
-        <td>${form.rental_duration || "1"} Days</td>
+        <td>${form.rental_duration || "1"} ${({"day":"Day","week":"Week","month":"Month"})[form.rental_period_type] || "Day"}(s)</td>
         <td><strong>Actual Duration:</strong></td>
-        <td>${form.actual_duration || form.rental_duration + " Day(s)"}</td>
+        <td>${form.actual_duration || form.rental_duration + " " + ({"day":"Day","week":"Week","month":"Month"})[form.rental_period_type] || "Day"}</td>
       </tr>` : `<tr>
         <td><strong>Billing Period:</strong></td>
         <td>${form.rental_period_type || "day"}</td>
@@ -911,13 +970,13 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     ${!isCheckin ? `<table class="tools">
       <thead><tr>
         <th>#</th><th>Tool</th><th>Serial No.</th><th>Condition</th>
-        <th class="text-end">Price/Day</th><th class="text-end">Days</th><th class="text-end">Total</th>
+        <th class="text-end">Price/${({"day":"Day","week":"Week","month":"Month"})[form.rental_period_type] || "Day"}</th><th class="text-end">${({"day":"Days","week":"Weeks","month":"Months"})[form.rental_period_type] || "Days"}</th><th class="text-end">Total</th>
       </tr></thead>
       <tbody>${checkoutToolRows}</tbody>
     </table>` : `<table class="tools">
       <thead><tr>
         <th>#</th><th>Tool</th><th>S/N</th><th>Out</th><th>In</th>
-        <th class="text-end">Price</th><th class="text-end">Days</th><th class="text-end">Extra</th>
+        <th class="text-end">Price</th><th class="text-end">${({"day":"Days","week":"Weeks","month":"Months"})[form.rental_period_type] || "Days"}</th><th class="text-end">Extra Days</th>
         <th class="text-end">Late Fee</th><th>Damage</th><th class="text-end">Dmg $</th><th class="text-end">Disc.</th>
       </tr></thead>
       <tbody>${checkinToolRows}</tbody>
@@ -1295,7 +1354,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     };
   }, [form.partner_email, form.partner_id, odooAuth]);
 
-  // ---------- REFRESH ORDER DATA + IMAGES on every focus (single sequential flow) ----------
+  // ---------- REFRESH ORDER DATA + IMAGES on every focus (parallel image loading) ----------
   const discountAuthorizedThisVisit = useRef(false);
   const lastFocusFetch = useRef(0);
   useFocusEffect(
@@ -1306,11 +1365,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       lastFocusFetch.current = now;
       discountAuthorizedThisVisit.current = false;
       let cancelled = false;
-      // Wait for navigation animation to finish before fetching
-      const task = InteractionManager.runAfterInteractions(() => {
       (async () => {
         try {
-          // 1. Fetch fresh order data FIRST (lightweight, no images)
+          // 1. Fetch fresh order data (lightweight, no images)
           const fresh = await fetchOrderDataById(odooAuth, existingOrder.odoo_id);
           if (cancelled || !fresh) return;
           setState(fresh.state || "draft");
@@ -1344,79 +1401,65 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           setTimesheet(fresh.timesheet || []);
           setOdooOrderId(fresh.odoo_id);
 
-          // 2. Fetch order-level images (signatures, ID proof, discount)
-          const imgs = await fetchOrderImages(odooAuth, existingOrder.odoo_id);
-          if (cancelled || !imgs) return;
-          // Checkout signature & ID proof
-          if (imgs.customer_signature) {
-            setCheckoutSignatureUri(base64ToDataUri(imgs.customer_signature));
-            setCheckoutSignature(true);
-          }
-          if (imgs.id_proof_image) {
-            setIdProofUri(base64ToDataUri(imgs.id_proof_image));
-            setCheckoutIdProof(true);
-          }
-          // checkout_signature_date covers both signature and ID proof in Odoo
-          if (imgs.checkout_signature_date) {
-            setCheckoutSignatureTime(imgs.checkout_signature_date);
-            setIdProofTimestamp(imgs.checkout_signature_date);
-          } else if (freshForm.date_checkout) {
-            // Fallback to checkout date
-            if (imgs.customer_signature) setCheckoutSignatureTime(freshForm.date_checkout);
-            if (imgs.id_proof_image) setIdProofTimestamp(freshForm.date_checkout);
-          }
-          // Checkin customer signature
-          if (imgs.checkin_customer_signature) {
-            setCheckinSignatureUri(base64ToDataUri(imgs.checkin_customer_signature));
-            setCheckinSignature(true);
-          }
-          if (imgs.checkin_customer_signature_date) {
-            setCheckinSignatureTime(imgs.checkin_customer_signature_date);
-          } else if (imgs.checkin_customer_signature && freshForm.date_checkin) {
-            setCheckinSignatureTime(freshForm.date_checkin);
-          }
-          // Checkin authority signature
-          if (imgs.checkin_signature) {
-            setCheckinAuthoritySignatureUri(base64ToDataUri(imgs.checkin_signature));
-            setCheckinAuthoritySignature(true);
-          }
-          if (imgs.checkin_signature_date) {
-            setCheckinAuthoritySignatureTime(imgs.checkin_signature_date);
-          } else if (imgs.checkin_signature && freshForm.date_checkin) {
-            setCheckinAuthoritySignatureTime(freshForm.date_checkin);
-          }
-          if (imgs.checkin_signer_name) {
-            setCheckinSignerName(imgs.checkin_signer_name);
-          }
-          // Discount authorization
-          if (imgs.discount_auth_signature) {
-            setDiscountAuthSignatureUri(base64ToDataUri(imgs.discount_auth_signature));
-          } else {
-            setDiscountAuthSignatureUri(null);
-          }
-          if (imgs.discount_auth_photo) {
-            setDiscountAuthPhotoUri(base64ToDataUri(imgs.discount_auth_photo));
-          } else {
-            setDiscountAuthPhotoUri(null);
-          }
-          if (imgs.discount_applied_date) {
-            setDiscountAuthSignatureTime(imgs.discount_applied_date);
-            setDiscountAuthPhotoTime(imgs.discount_applied_date);
-          } else {
-            if (imgs.discount_auth_photo) setDiscountAuthPhotoTime(freshForm.date_checkout || freshForm.date_order);
-            if (imgs.discount_auth_signature) setDiscountAuthSignatureTime(freshForm.date_checkout || freshForm.date_order);
-          }
-          if (imgs.discount_authorized_by) {
-            setDiscountAuthName(imgs.discount_authorized_by);
-          } else {
-            setDiscountAuthName("");
+          // 2. Fetch order images + line images IN PARALLEL (not sequential)
+          const lineIds = freshLines.map((l) => l.odoo_id).filter(Boolean);
+          const [imgs, lineImgs] = await Promise.all([
+            fetchOrderImages(odooAuth, existingOrder.odoo_id).catch(() => null),
+            lineIds.length > 0 ? fetchOrderLineImages(odooAuth, lineIds).catch(() => []) : Promise.resolve([]),
+          ]);
+          if (cancelled) return;
+
+          // Apply order-level images
+          if (imgs) {
+            if (imgs.customer_signature) {
+              setCheckoutSignatureUri(base64ToDataUri(imgs.customer_signature));
+              setCheckoutSignature(true);
+            }
+            if (imgs.id_proof_image) {
+              setIdProofUri(base64ToDataUri(imgs.id_proof_image));
+              setCheckoutIdProof(true);
+            }
+            if (imgs.checkout_signature_date) {
+              setCheckoutSignatureTime(imgs.checkout_signature_date);
+              setIdProofTimestamp(imgs.checkout_signature_date);
+            } else if (freshForm.date_checkout) {
+              if (imgs.customer_signature) setCheckoutSignatureTime(freshForm.date_checkout);
+              if (imgs.id_proof_image) setIdProofTimestamp(freshForm.date_checkout);
+            }
+            if (imgs.checkin_customer_signature) {
+              setCheckinSignatureUri(base64ToDataUri(imgs.checkin_customer_signature));
+              setCheckinSignature(true);
+            }
+            if (imgs.checkin_customer_signature_date) {
+              setCheckinSignatureTime(imgs.checkin_customer_signature_date);
+            } else if (imgs.checkin_customer_signature && freshForm.date_checkin) {
+              setCheckinSignatureTime(freshForm.date_checkin);
+            }
+            if (imgs.checkin_signature) {
+              setCheckinAuthoritySignatureUri(base64ToDataUri(imgs.checkin_signature));
+              setCheckinAuthoritySignature(true);
+            }
+            if (imgs.checkin_signature_date) {
+              setCheckinAuthoritySignatureTime(imgs.checkin_signature_date);
+            } else if (imgs.checkin_signature && freshForm.date_checkin) {
+              setCheckinAuthoritySignatureTime(freshForm.date_checkin);
+            }
+            if (imgs.checkin_signer_name) setCheckinSignerName(imgs.checkin_signer_name);
+            // Discount authorization
+            setDiscountAuthSignatureUri(imgs.discount_auth_signature ? base64ToDataUri(imgs.discount_auth_signature) : null);
+            setDiscountAuthPhotoUri(imgs.discount_auth_photo ? base64ToDataUri(imgs.discount_auth_photo) : null);
+            if (imgs.discount_applied_date) {
+              setDiscountAuthSignatureTime(imgs.discount_applied_date);
+              setDiscountAuthPhotoTime(imgs.discount_applied_date);
+            } else {
+              if (imgs.discount_auth_photo) setDiscountAuthPhotoTime(freshForm.date_checkout || freshForm.date_order);
+              if (imgs.discount_auth_signature) setDiscountAuthSignatureTime(freshForm.date_checkout || freshForm.date_order);
+            }
+            setDiscountAuthName(imgs.discount_authorized_by || "");
           }
 
-          // 3. Fetch line-level images using FRESH line IDs (no race condition)
-          const lineIds = freshLines.map((l) => l.odoo_id).filter(Boolean);
-          if (lineIds.length > 0) {
-            const lineImgs = await fetchOrderLineImages(odooAuth, lineIds);
-            if (cancelled) return;
+          // Apply line-level images
+          if (lineImgs && lineImgs.length > 0) {
             const photoMap = {};
             const timeMap = {};
             const checkinPhotoMap = {};
@@ -1432,12 +1475,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   checkinPhotoMap[idx] = base64ToDataUri(li.checkin_tool_image);
                   checkinTimeMap[idx] = freshForm.date_checkin || "";
                 }
-                if (li.checkout_condition) {
-                  updateLine(idx, "checkout_condition", li.checkout_condition);
-                }
-                if (li.checkin_condition) {
-                  updateLine(idx, "checkin_condition", li.checkin_condition);
-                }
+                if (li.checkout_condition) updateLine(idx, "checkout_condition", li.checkout_condition);
+                if (li.checkin_condition) updateLine(idx, "checkin_condition", li.checkin_condition);
               }
             });
             setToolPhotoUris(photoMap);
@@ -1449,8 +1488,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           console.warn("Failed to refresh order data/images:", e.message);
         }
       })();
-      }); // end InteractionManager
-      return () => { cancelled = true; task.cancel(); };
+      return () => { cancelled = true; };
     }, [existingOrder?.odoo_id, odooAuth])
   );
 
@@ -1834,7 +1872,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 </View>
                 <View style={ciStyles.infoItem}>
                   <Text style={ciStyles.infoLabel}>Duration</Text>
-                  <Text style={ciStyles.infoValue}>{form.rental_duration} Day(s)</Text>
+                  <Text style={ciStyles.infoValue}>{form.rental_duration} {getPeriodLabel(form.rental_period_type, form.rental_duration)}(s)</Text>
                 </View>
                 <View style={ciStyles.infoItem}>
                   <Text style={ciStyles.infoLabel}>Check-Out Date</Text>
@@ -1865,7 +1903,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 {/* Pricing Info */}
                 <View style={coStyles.pricingRow}>
                   <View style={coStyles.pricingItem}>
-                    <Text style={ciStyles.lateFeeLabel}>Price / Day</Text>
+                    <Text style={ciStyles.lateFeeLabel}>Price / {PERIOD_LABELS[form.rental_period_type] || "Day"}</Text>
                     <View style={ciStyles.readOnlyBox}>
                       <Text style={ciStyles.readOnlyText}>${parseFloat(line.unit_price || 0).toFixed(2)}</Text>
                     </View>
@@ -1873,7 +1911,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   <View style={coStyles.pricingItem}>
                     <Text style={ciStyles.lateFeeLabel}>Duration</Text>
                     <View style={ciStyles.readOnlyBox}>
-                      <Text style={ciStyles.readOnlyText}>{line.planned_duration || "1"} Day(s)</Text>
+                      <Text style={ciStyles.readOnlyText}>{line.planned_duration || "1"} {getPeriodLabel(line.period_type || form.rental_period_type, line.planned_duration)}(s)</Text>
                     </View>
                   </View>
                   <View style={coStyles.pricingItem}>
@@ -2025,7 +2063,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 </View>
                 <View style={ciStyles.infoItem}>
                   <Text style={ciStyles.infoLabel}>Duration</Text>
-                  <Text style={ciStyles.infoValue}>{form.rental_duration} Day(s)</Text>
+                  <Text style={ciStyles.infoValue}>{form.rental_duration} {getPeriodLabel(form.rental_period_type, form.rental_duration)}(s)</Text>
                 </View>
                 <View style={ciStyles.infoItem}>
                   <Text style={ciStyles.infoLabel}>Check-Out</Text>
@@ -2070,8 +2108,17 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
             </View>
 
             {/* Tools Section */}
-            <Text style={ciStyles.sectionTitle}>TOOLS ({lines.length})</Text>
-            {lines.map((line, idx) => (
+            <Text style={ciStyles.sectionTitle}>TOOLS ({lines.filter((_, i) => !checkinExcludedIdx.includes(i)).length} of {lines.length})</Text>
+            {checkinExcludedIdx.filter((i) => !checkinAlreadyReturnedIdx.includes(i)).length > 0 && (
+              <View style={{ backgroundColor: "#FFF8E1", borderRadius: 8, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: "#FFE082" }}>
+                <Text style={{ color: "#F57F17", fontSize: 13, fontWeight: "600" }}>
+                  Partial Return — {checkinExcludedIdx.filter((i) => !checkinAlreadyReturnedIdx.includes(i)).length} tool(s) skipped. They will remain as pending.
+                </Text>
+              </View>
+            )}
+            {lines.map((line, idx) => {
+              if (checkinExcludedIdx.includes(idx)) return null;
+              return (
               <View key={line.id} style={ciStyles.toolCard}>
                 {/* Tool Header */}
                 <View style={ciStyles.toolHeader}>
@@ -2082,12 +2129,29 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     <Text style={ciStyles.toolName}>{line.tool_name || "Tool " + (idx + 1)}</Text>
                     {line.serial_number ? <Text style={ciStyles.toolSerial}>S/N: {line.serial_number}</Text> : null}
                   </View>
+                  {lines.length > 1 && (
+                    <TouchableOpacity
+                      style={{ backgroundColor: "#FFEBEE", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: "#EF9A9A" }}
+                      onPress={() => {
+                        Alert.alert(
+                          "Remove from Check-In",
+                          `Skip returning "${line.tool_name || "this tool"}" now? It will remain as pending.`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Remove", style: "destructive", onPress: () => removeFromCheckin(idx) },
+                          ]
+                        );
+                      }}
+                    >
+                      <Text style={{ color: "#D32F2F", fontSize: 13, fontWeight: "700" }}>Remove</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {/* Pricing Info (matching checkout) */}
                 <View style={coStyles.pricingRow}>
                   <View style={coStyles.pricingItem}>
-                    <Text style={ciStyles.lateFeeLabel}>Price / Day</Text>
+                    <Text style={ciStyles.lateFeeLabel}>Price / {PERIOD_LABELS[form.rental_period_type] || "Day"}</Text>
                     <View style={ciStyles.readOnlyBox}>
                       <Text style={ciStyles.readOnlyText}>${parseFloat(line.unit_price || 0).toFixed(2)}</Text>
                     </View>
@@ -2095,7 +2159,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   <View style={coStyles.pricingItem}>
                     <Text style={ciStyles.lateFeeLabel}>Duration</Text>
                     <View style={ciStyles.readOnlyBox}>
-                      <Text style={ciStyles.readOnlyText}>{line.planned_duration || "1"} Day(s)</Text>
+                      <Text style={ciStyles.readOnlyText}>{line.planned_duration || "1"} {getPeriodLabel(line.period_type || form.rental_period_type, line.planned_duration)}(s)</Text>
                     </View>
                   </View>
                   <View style={coStyles.pricingItem}>
@@ -2185,19 +2249,20 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   </View>
                 </View>
               </View>
-            ))}
+              );
+            })}
 
             {/* Totals */}
             <View style={ciStyles.totalsCard}>
               <View style={ciStyles.totalRow}>
                 <Text style={ciStyles.totalLabel}>Total Late Fees</Text>
                 <Text style={ciStyles.totalValue}>
-                  ${lines.reduce((sum, l) => sum + (parseFloat(l.late_fee_amount) || 0), 0).toFixed(2)}
+                  ${lines.filter((_, i) => !checkinExcludedIdx.includes(i)).reduce((sum, l) => sum + (parseFloat(l.late_fee_amount) || 0), 0).toFixed(2)}
                 </Text>
               </View>
               <View style={ciStyles.totalRow}>
                 <Text style={ciStyles.totalLabel}>Total Damage Charges</Text>
-                <Text style={ciStyles.totalValue}>${calcDamageCharges().toFixed(2)}</Text>
+                <Text style={ciStyles.totalValue}>${lines.filter((_, i) => !checkinExcludedIdx.includes(i)).reduce((sum, l) => sum + (parseFloat(l.damage_charge) || 0), 0).toFixed(2)}</Text>
               </View>
             </View>
 
@@ -2255,8 +2320,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               <TouchableOpacity style={ciStyles.cancelBtn} onPress={() => setShowCheckinModal(false)}>
                 <Text style={[ciStyles.btnText, { color: "#666" }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={ciStyles.confirmBtn} onPress={confirmCheckin}>
-                <Text style={ciStyles.btnText}>Confirm Check-In</Text>
+              <TouchableOpacity style={[ciStyles.confirmBtn, checkinExcludedIdx.filter((i) => !checkinAlreadyReturnedIdx.includes(i)).length > 0 && { backgroundColor: "#FF8F00" }]} onPress={confirmCheckin}>
+                <Text style={ciStyles.btnText}>{checkinExcludedIdx.filter((i) => !checkinAlreadyReturnedIdx.includes(i)).length > 0 ? "Save Partial Return" : "Confirm Check-In"}</Text>
               </TouchableOpacity>
             </View>
             <View style={{ height: 20 }} />
@@ -2386,24 +2451,24 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     (async () => {
       if (odooOrderId && odooAuth) {
         try {
+          const [sigB64, photoB64] = await Promise.all([
+            uriToBase64(discountAuthSignatureUri),
+            uriToBase64(discountAuthPhotoUri),
+          ]);
           const discountVals = { discount_amount: totalDiscount };
           if (discountAuthName.trim()) discountVals.discount_authorized_by = discountAuthName.trim();
-          const sigB64 = await uriToBase64(discountAuthSignatureUri);
           if (sigB64) discountVals.discount_auth_signature = sigB64;
-          const photoB64 = await uriToBase64(discountAuthPhotoUri);
           if (photoB64) discountVals.discount_auth_photo = photoB64;
           await updateOrderValues(odooAuth, odooOrderId, discountVals);
-          for (let i = 0; i < lines.length; i++) {
+          await Promise.all(lines.map((l, i) => {
             const dl = discountLines[i];
-            const lineOdooId = lines[i].odoo_id;
-            if (dl && lineOdooId) {
-              await updateOrderLineValues(odooAuth, lineOdooId, {
-                discount_type: dl.discount_type || false,
-                discount_value: parseFloat(dl.discount_value) || 0,
-                discount_line_amount: calcDiscountLineAmt(dl),
-              });
-            }
-          }
+            if (!dl || !l.odoo_id) return null;
+            return updateOrderLineValues(odooAuth, l.odoo_id, {
+              discount_type: dl.discount_type || false,
+              discount_value: parseFloat(dl.discount_value) || 0,
+              discount_line_amount: calcDiscountLineAmt(dl),
+            });
+          }).filter(Boolean));
           showToastMessage("Discount applied: $" + totalDiscount.toFixed(2));
         } catch (e) {
           console.warn("Failed to save discount data:", e.message);
@@ -2421,16 +2486,12 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     // Also clear in Odoo
     if (odooOrderId && odooAuth) {
       try {
-        await updateOrderValues(odooAuth, odooOrderId, { discount_amount: 0 });
-        for (const l of lines) {
-          const lineOdooId = l.odoo_id;
-          if (lineOdooId) {
-            await updateOrderLineValues(odooAuth, lineOdooId, {
-              discount_type: false,
-              discount_value: 0,
-            });
-          }
-        }
+        await Promise.all([
+          updateOrderValues(odooAuth, odooOrderId, { discount_amount: 0 }),
+          ...lines.filter((l) => l.odoo_id).map((l) =>
+            updateOrderLineValues(odooAuth, l.odoo_id, { discount_type: false, discount_value: 0 })
+          ),
+        ]);
       } catch (e) {
         console.warn("Failed to clear discount in Odoo:", e.message);
       }
@@ -2944,7 +3005,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               </View>
               <View style={[styles.infoRow, { marginTop: 8 }]}>
                 <Text style={styles.infoLabel}>Duration</Text>
-                <Text style={styles.infoValue}>{form.actual_duration || form.rental_duration + " Day"}</Text>
+                <Text style={styles.infoValue}>{form.actual_duration || form.rental_duration + " " + (PERIOD_LABELS[form.rental_period_type] || "Day")}</Text>
               </View>
             </View>
           )}
@@ -3299,7 +3360,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   </View>
                   <View style={styles.colHalf}>
                     <Text style={styles.detailSmallLabel}>Duration</Text>
-                    <Text style={styles.detailSmallValue}>{form.actual_duration || form.rental_duration + " Day"}</Text>
+                    <Text style={styles.detailSmallValue}>{form.actual_duration || form.rental_duration + " " + (PERIOD_LABELS[form.rental_period_type] || "Day")}</Text>
                   </View>
                 </View>
                 {form.advance_returned && (
@@ -3400,7 +3461,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               {/* Discount Breakdown */}
               <Text style={styles.detailSectionTitle}>Discount Breakdown</Text>
               {lines.map((line, idx) => {
-                const rentalCost = (parseFloat(line.unit_price) || 0) * (parseFloat(line.planned_duration) || 1) * (parseFloat(line.quantity) || 1);
+                const rentalCost = (parseFloat(line.unit_price) || 0) * (parseFloat(line.planned_duration) || 1) * (LINE_DAY_MULTIPLIERS[line.period_type || "day"] || 1) * (parseFloat(line.quantity) || 1);
                 const lateFee = parseFloat(line.late_fee_amount) || 0;
                 const dmgCharge = parseFloat(line.damage_charge) || 0;
                 const lineTotal = rentalCost + lateFee + dmgCharge;

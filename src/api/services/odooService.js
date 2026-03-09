@@ -179,7 +179,7 @@ const ORDER_LINE_IMAGE_FIELDS = [
 ];
 
 export const fetchOrders = async (auth, domain = []) => {
-  const records = await odooSearchRead(auth, "rental.order", domain, ORDER_FIELDS, { order: "id desc", limit: 50 });
+  const records = await odooSearchRead(auth, "rental.order", domain, ORDER_FIELDS, { order: "id desc", limit: 200 });
   // Collect all line IDs and fetch them in one batch for performance
   const allLineIds = [];
   const lineIdMap = {};
@@ -280,21 +280,27 @@ const ORDER_IMAGE_DATE_FIELDS = [
 ];
 
 // Fetch only image/signature fields for a single order (lightweight call for form screen)
+// In-memory image cache to avoid re-fetching binary data on every focus
+const _imageCache = {};
+const _imageCacheTime = {};
+const IMAGE_CACHE_MS = 120000; // 2 minutes
+
 export const fetchOrderImages = async (auth, id) => {
-  const baseFields = [...ORDER_IMAGE_FIELDS, "discount_authorized_by"];
+  const cacheKey = `order_${id}`;
+  if (_imageCache[cacheKey] && Date.now() - (_imageCacheTime[cacheKey] || 0) < IMAGE_CACHE_MS) {
+    return _imageCache[cacheKey];
+  }
+  const fields = [...ORDER_IMAGE_FIELDS, "discount_authorized_by", ...ORDER_IMAGE_DATE_FIELDS];
   let records;
   try {
-    // Try with all timestamp fields
-    const fields = [...baseFields, ...ORDER_IMAGE_DATE_FIELDS];
     records = await odooRead(auth, "rental.order", [Number(id)], fields);
   } catch (e) {
-    // Fallback: timestamp fields may not exist — fetch images only
-    records = await odooRead(auth, "rental.order", [Number(id)], baseFields);
+    // Fallback: timestamp fields may not exist
+    records = await odooRead(auth, "rental.order", [Number(id)], [...ORDER_IMAGE_FIELDS, "discount_authorized_by"]);
   }
   if (!records.length) return null;
   const r = records[0];
-  return {
-    // Binary image data
+  const result = {
     customer_signature: r.customer_signature || false,
     id_proof_image: r.id_proof_image || false,
     checkin_customer_signature: r.checkin_customer_signature || false,
@@ -302,7 +308,6 @@ export const fetchOrderImages = async (auth, id) => {
     discount_auth_signature: r.discount_auth_signature || false,
     discount_auth_photo: r.discount_auth_photo || false,
     discount_authorized_by: r.discount_authorized_by || "",
-    // Timestamps (matching actual Odoo field names)
     checkout_signature_date: r.checkout_signature_date || false,
     checkin_customer_signature_date: r.checkin_customer_signature_date || false,
     checkin_signature_date: r.checkin_signature_date || false,
@@ -311,6 +316,9 @@ export const fetchOrderImages = async (auth, id) => {
     checkout_condition: r.checkout_condition || "",
     checkin_condition: r.checkin_condition || "",
   };
+  _imageCache[cacheKey] = result;
+  _imageCacheTime[cacheKey] = Date.now();
+  return result;
 };
 
 export const createOrder = async (auth, values, lineValues = []) => {
@@ -344,31 +352,47 @@ export const createOrder = async (auth, values, lineValues = []) => {
 
 export const updateOrderValues = async (auth, id, values) => {
   await odooWrite(auth, "rental.order", [Number(id)], values);
+  // Invalidate image cache if images were updated
+  delete _imageCache[`order_${id}`];
+  delete _imageCacheTime[`order_${id}`];
   return true;
 };
 
 export const updateOrderLineValues = async (auth, lineId, values) => {
   await odooWrite(auth, "rental.order.line", [Number(lineId)], values);
+  // Invalidate any line image cache containing this line
+  Object.keys(_imageCache).forEach((k) => {
+    if (k.startsWith("lines_") && k.includes(String(lineId))) {
+      delete _imageCache[k];
+      delete _imageCacheTime[k];
+    }
+  });
   return true;
 };
 
 export const fetchOrderLineImages = async (auth, lineIds) => {
   if (!lineIds || !lineIds.length) return [];
-  const baseFields = ["checkout_tool_image", "checkout_condition", "checkin_condition"];
-  const allFields = [...baseFields, "checkin_tool_image"];
+  const cacheKey = `lines_${lineIds.sort().join(",")}`;
+  if (_imageCache[cacheKey] && Date.now() - (_imageCacheTime[cacheKey] || 0) < IMAGE_CACHE_MS) {
+    return _imageCache[cacheKey];
+  }
+  const allFields = ["checkout_tool_image", "checkout_condition", "checkin_condition", "checkin_tool_image"];
   let records;
   try {
     records = await odooRead(auth, "rental.order.line", lineIds.map(Number), allFields);
   } catch (e) {
-    records = await odooRead(auth, "rental.order.line", lineIds.map(Number), baseFields);
+    records = await odooRead(auth, "rental.order.line", lineIds.map(Number), allFields.slice(0, 3));
   }
-  return records.map((r) => ({
+  const result = records.map((r) => ({
     id: r.id,
     checkout_tool_image: r.checkout_tool_image || false,
     checkin_tool_image: r.checkin_tool_image || false,
     checkout_condition: r.checkout_condition || "",
     checkin_condition: r.checkin_condition || "",
   }));
+  _imageCache[cacheKey] = result;
+  _imageCacheTime[cacheKey] = Date.now();
+  return result;
 };
 
 // Workflow actions (call Odoo model methods)

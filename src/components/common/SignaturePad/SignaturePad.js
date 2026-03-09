@@ -1,56 +1,47 @@
-import React, { useRef, useState, useImperativeHandle, useEffect } from "react";
+import React, { useRef, useState, useImperativeHandle, useCallback } from "react";
 import { View, PanResponder, StyleSheet } from "react-native";
 import { captureRef } from "react-native-view-shot";
 import Svg, { Path } from "react-native-svg";
 
-// A reliable signature pad using SVG paths. It measures the view position
-// and uses pageX/pageY to compute coordinates relative to the canvas to
-// avoid offset/misalignment issues that can occur inside scrollviews
-// or complex layouts.
-
 const SignaturePad = React.forwardRef(({ style, strokeColor = "#000", strokeWidth = 3 }, ref) => {
-  const [paths, setPaths] = useState([]); // each path is array of {x,y}
-  const currentPath = useRef([]);
+  const [version, setVersion] = useState(0); // bump to trigger re-render
+  const pathsRef = useRef([]); // all completed strokes
+  const activeRef = useRef([]); // current in-progress stroke points
   const containerRef = useRef(null);
   const offset = useRef({ x: 0, y: 0 });
+  const frameRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
     clearSignature: () => {
-      setPaths([]);
-      currentPath.current = [];
+      pathsRef.current = [];
+      activeRef.current = [];
+      setVersion((v) => v + 1);
     },
     readSignature: async () => {
-      // If nothing drawn return null
-      if (paths.length === 0 && currentPath.current.length === 0) return null;
+      if (pathsRef.current.length === 0) return null;
       try {
-        const uri = await captureRef(containerRef, {
-          format: "png",
-          quality: 0.9,
-        });
-        return uri;
+        return await captureRef(containerRef, { format: "png", quality: 0.8 });
       } catch (e) {
         return null;
       }
     },
-    isEmpty: () => paths.length === 0 && currentPath.current.length === 0,
+    isEmpty: () => pathsRef.current.length === 0 && activeRef.current.length === 0,
   }));
 
-  useEffect(() => {
-    // measure container absolute position for coordinate translation
-    const measure = async () => {
-      if (containerRef.current && containerRef.current.measureInWindow) {
-        try {
-          containerRef.current.measureInWindow((x, y) => {
-            offset.current = { x, y };
-          });
-        } catch (e) {
-          // ignore
-        }
-      }
-    };
-    measure();
-    const t = setTimeout(measure, 500);
-    return () => clearTimeout(t);
+  const measureLayout = useCallback(() => {
+    if (containerRef.current?.measureInWindow) {
+      try {
+        containerRef.current.measureInWindow((x, y) => { offset.current = { x, y }; });
+      } catch (e) {}
+    }
+  }, []);
+
+  const scheduleRender = useCallback(() => {
+    if (frameRef.current) return;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      setVersion((v) => v + 1);
+    });
   }, []);
 
   const panResponder = useRef(
@@ -59,72 +50,58 @@ const SignaturePad = React.forwardRef(({ style, strokeColor = "#000", strokeWidt
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
         const { pageX, pageY } = evt.nativeEvent;
-        const x = pageX - offset.current.x;
-        const y = pageY - offset.current.y;
-        // begin a new stroke and add it to the paths array immediately
-        const newStroke = [{ x, y }];
-        currentPath.current = newStroke;
-        setPaths((prev) => [...prev, newStroke]);
+        activeRef.current = [{ x: pageX - offset.current.x, y: pageY - offset.current.y }];
+        scheduleRender();
       },
       onPanResponderMove: (evt) => {
         const { pageX, pageY } = evt.nativeEvent;
-        const x = pageX - offset.current.x;
-        const y = pageY - offset.current.y;
-        // append point to the current stroke
-        currentPath.current.push({ x, y });
-        setPaths((prev) => {
-          const copy = [...prev];
-          copy[copy.length - 1] = [...currentPath.current];
-          return copy;
-        });
+        activeRef.current.push({ x: pageX - offset.current.x, y: pageY - offset.current.y });
+        scheduleRender();
       },
       onPanResponderRelease: () => {
-        // stroke already in paths; just clear our working ref
-        currentPath.current = [];
+        if (activeRef.current.length > 0) {
+          pathsRef.current.push(activeRef.current);
+        }
+        activeRef.current = [];
+        scheduleRender();
       },
       onPanResponderTerminate: () => {
-        // similar to release
-        currentPath.current = [];
+        if (activeRef.current.length > 0) {
+          pathsRef.current.push(activeRef.current);
+        }
+        activeRef.current = [];
+        scheduleRender();
       },
     })
   ).current;
 
-  // Helper to convert point arrays to SVG path string
-  const pointsToSvgPath = (pts) => {
-    if (!pts || !pts.length) return "";
-    const d = pts.reduce((acc, p, i) => {
-      const cmd = i === 0 ? `M ${p.x.toFixed(2)} ${p.y.toFixed(2)}` : `L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
-      return acc + " " + cmd;
-    }, "");
+  const toD = (pts) => {
+    if (!pts || pts.length < 1) return "";
+    let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    for (let i = 1; i < pts.length; i++) {
+      d += ` L${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`;
+    }
     return d;
   };
+
+  // Read current paths from refs (not state) for zero-copy rendering
+  const allPaths = pathsRef.current;
+  const active = activeRef.current;
 
   return (
     <View
       ref={containerRef}
       style={[styles.container, style]}
       collapsable={false}
-      onLayout={() => {
-        // refresh measurement on layout changes
-        if (containerRef.current && containerRef.current.measureInWindow) {
-          try {
-            containerRef.current.measureInWindow((x, y) => {
-              offset.current = { x, y };
-            });
-          } catch (e) {}
-        }
-      }}
+      onLayout={measureLayout}
       {...panResponder.panHandlers}
     >
       <Svg style={StyleSheet.absoluteFill}>
-        {paths.map((pts, idx) => {
-          const d = pointsToSvgPath(pts);
-          return (
-            <Path key={idx} d={d} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          );
-        })}
-        {currentPath.current.length > 0 && (
-          <Path d={pointsToSvgPath(currentPath.current)} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        {allPaths.map((pts, idx) => (
+          <Path key={idx} d={toD(pts)} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        ))}
+        {active.length > 0 && (
+          <Path d={toD(active)} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
         )}
       </Svg>
     </View>

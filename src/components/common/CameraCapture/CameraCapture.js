@@ -7,6 +7,7 @@ const CameraCapture = ({ visible, onCapture, onClose }) => {
   const [type, setType] = useState(Camera.Constants.Type.back);
   const [preview, setPreview] = useState(null);
   const [hasPermission, setHasPermission] = useState(null);
+  const [capturing, setCapturing] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -14,16 +15,26 @@ const CameraCapture = ({ visible, onCapture, onClose }) => {
         const { status } = await Camera.requestCameraPermissionsAsync();
         setHasPermission(status === "granted");
       })();
+    } else {
+      setPreview(null);
+      setCapturing(false);
     }
   }, [visible]);
 
   const takePicture = async () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef.current || capturing) return;
+    setCapturing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.4,
+        skipProcessing: true,
+        exif: false,
+      });
       setPreview(photo.uri);
     } catch (e) {
       console.warn("Take picture error:", e);
+    } finally {
+      setCapturing(false);
     }
   };
 
@@ -43,9 +54,11 @@ const CameraCapture = ({ visible, onCapture, onClose }) => {
     onClose();
   };
 
+  if (!visible) return null;
+
   if (hasPermission === null) {
     return (
-      <Modal visible={visible} animationType="slide" statusBarTranslucent>
+      <Modal visible={visible} animationType="none" statusBarTranslucent>
         <View style={styles.container}>
           <View style={styles.permissionContainer}>
             <Text style={styles.permissionText}>Requesting camera permission...</Text>
@@ -56,7 +69,7 @@ const CameraCapture = ({ visible, onCapture, onClose }) => {
   }
 
   return (
-    <Modal visible={visible} animationType="slide" statusBarTranslucent>
+    <Modal visible={visible} animationType="none" statusBarTranslucent>
       <View style={styles.container}>
         {!hasPermission ? (
           <View style={styles.permissionContainer}>
@@ -88,13 +101,13 @@ const CameraCapture = ({ visible, onCapture, onClose }) => {
           </View>
         ) : (
           <>
-            <Camera ref={cameraRef} style={styles.camera} type={type} />
+            <Camera ref={cameraRef} style={styles.camera} type={type} ratio="4:3" />
             <View style={styles.controls}>
               <TouchableOpacity style={styles.controlBtn} onPress={handleClose}>
                 <Text style={styles.controlBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
-                <View style={styles.captureBtnInner} />
+              <TouchableOpacity style={styles.captureBtn} onPress={takePicture} disabled={capturing}>
+                <View style={[styles.captureBtnInner, capturing && { backgroundColor: "#999" }]} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.controlBtn}
