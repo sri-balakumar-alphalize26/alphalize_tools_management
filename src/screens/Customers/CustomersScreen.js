@@ -81,14 +81,6 @@ const CustomersScreen = ({ navigation }) => {
     <SafeAreaView>
       <NavigationHeader title="Customers" navigation={navigation} />
       <RoundedContainer>
-        <View style={styles.searchWrap}>
-          <TextInput
-            placeholder="Search by name, code, phone, or email..."
-            value={search}
-            onChangeText={setSearch}
-            column
-          />
-        </View>
         <FlatList
           data={filteredCustomers}
           renderItem={renderCustomer}
@@ -96,6 +88,16 @@ const CustomersScreen = ({ navigation }) => {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmpty}
+          ListHeaderComponent={
+            <View style={styles.searchWrap}>
+              <TextInput
+                placeholder="Search by name, code, phone, or email..."
+                value={search}
+                onChangeText={setSearch}
+                column
+              />
+            </View>
+          }
         />
       </RoundedContainer>
     </SafeAreaView>
@@ -104,8 +106,7 @@ const CustomersScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   searchWrap: {
-    paddingHorizontal: SPACING.paddingMedium,
-    paddingTop: 10,
+    marginBottom: 14,
   },
   list: {
     padding: SPACING.paddingMedium,

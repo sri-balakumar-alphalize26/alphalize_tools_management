@@ -28,31 +28,64 @@ const StackNavigator = () => {
   return (
     <Stack.Navigator
       initialRouteName={isLoggedIn ? "AppNavigator" : "LoginScreen"}
-      screenOptions={{ headerShown: false, animation: "fade" }}
+      screenOptions={{
+        headerShown: false,
+        animation: "slide_from_right",
+        animationDuration: 250,
+      }}
     >
-      {/* Auth */}
-      <Stack.Screen name="LoginScreen" component={LoginScreen} />
+      {/* Auth - fade in */}
+      <Stack.Screen
+        name="LoginScreen"
+        component={LoginScreen}
+        options={{ animation: "fade" }}
+      />
 
-      {/* Main App (Bottom Tabs) */}
-      <Stack.Screen name="AppNavigator" component={AppNavigator} />
+      {/* Main App (Bottom Tabs) - fade in */}
+      <Stack.Screen
+        name="AppNavigator"
+        component={AppNavigator}
+        options={{ animation: "fade" }}
+      />
 
-      {/* General */}
-      <Stack.Screen name="OptionsScreen" component={OptionsScreen} />
+      {/* General - slide from bottom */}
+      <Stack.Screen
+        name="OptionsScreen"
+        component={OptionsScreen}
+        options={{ animation: "slide_from_bottom" }}
+      />
 
-      {/* Tool Management Module */}
+      {/* Tool Management Module - slide from right */}
       <Stack.Screen name="ToolManagementScreen" component={ToolManagementScreen} />
       <Stack.Screen name="ToolCategoriesScreen" component={ToolCategoriesScreen} />
       <Stack.Screen name="PricingScreen" component={PricingScreen} />
-      <Stack.Screen name="PricingFormScreen" component={PricingFormScreen} />
       <Stack.Screen name="ToolsScreen" component={ToolsScreen} />
-      <Stack.Screen name="ToolFormScreen" component={ToolFormScreen} />
-      <Stack.Screen name="RentalOrdersScreen" component={RentalOrdersScreen} />
-      <Stack.Screen name="RentalOrderFormScreen" component={RentalOrderFormScreen} />
-      <Stack.Screen name="CustomersScreen" component={CustomersScreen} />
       <Stack.Screen name="ToolAvailabilityScreen" component={ToolAvailabilityScreen} />
       <Stack.Screen name="OrderReportsScreen" component={OrderReportsScreen} />
+      <Stack.Screen name="CustomersScreen" component={CustomersScreen} />
       <Stack.Screen name="DiscountDetailsScreen" component={DiscountDetailsScreen} />
       <Stack.Screen name="RentalDashboardScreen" component={RentalDashboardScreen} />
+
+      {/* Form screens - slide from bottom (modal feel) */}
+      <Stack.Screen
+        name="PricingFormScreen"
+        component={PricingFormScreen}
+        options={{ animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="ToolFormScreen"
+        component={ToolFormScreen}
+        options={{ animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="RentalOrdersScreen"
+        component={RentalOrdersScreen}
+      />
+      <Stack.Screen
+        name="RentalOrderFormScreen"
+        component={RentalOrderFormScreen}
+        options={{ animation: "slide_from_bottom" }}
+      />
     </Stack.Navigator>
   );
 };

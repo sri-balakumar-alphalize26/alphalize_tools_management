@@ -1,18 +1,55 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
+  Image,
   StyleSheet,
   BackHandler,
-  Text,
+  FlatList,
   TouchableOpacity,
+  Platform,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import Text from "@components/Text";
 import { RoundedContainer, SafeAreaView } from "@components/containers";
-import { COLORS } from "@constants/theme";
+import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { showToastMessage } from "@components/Toast";
 import { useAuthStore } from "@stores/auth";
+import CarouselPagination from "@components/Home/CarouselPagination";
+import ListHeader from "@components/Home/ListHeader";
+
+const MENU_ITEMS = [
+  { id: "1", title: "New Rental", screen: "RentalOrderFormScreen", icon: "add-circle", bg: "#E0F7FA", accent: "#00BCD4" },
+  { id: "2", title: "Rental Orders", screen: "RentalOrdersScreen", icon: "assignment", bg: "#E3F2FD", accent: "#2196F3" },
+  { id: "3", title: "Tools & Equipment", screen: "ToolsScreen", icon: "build", bg: "#FFF3E0", accent: "#FF9800" },
+  { id: "4", title: "Pricing Rules", screen: "PricingScreen", icon: "attach-money", bg: "#FFF8E1", accent: "#FFC107" },
+  { id: "5", title: "Tool Categories", screen: "ToolCategoriesScreen", icon: "folder-open", bg: "#E8F5E9", accent: "#4CAF50" },
+  { id: "6", title: "Customers", screen: "CustomersScreen", icon: "people", bg: "#F3E5F5", accent: "#9C27B0" },
+  { id: "7", title: "Tool Availability", screen: "ToolAvailabilityScreen", icon: "bar-chart", bg: "#E8EAF6", accent: "#3F51B5" },
+  { id: "8", title: "Order Reports", screen: "OrderReportsScreen", icon: "description", bg: "#FBE9E7", accent: "#FF5722" },
+  { id: "9", title: "Discount Details", screen: "DiscountDetailsScreen", icon: "local-offer", bg: "#FCE4EC", accent: "#E91E63" },
+  { id: "10", title: "Rental Dashboard", screen: "RentalDashboardScreen", icon: "trending-up", bg: "#E1F5FE", accent: "#03A9F4" },
+];
+
+const formatData = (data, numColumns) => {
+  const remainder = data.length % numColumns;
+  if (remainder === 0) return data;
+  const blanks = numColumns - remainder;
+  const result = [...data];
+  for (let i = 0; i < blanks; i++) {
+    result.push({ id: `blank-${i}`, empty: true });
+  }
+  return result;
+};
 
 const HomeScreen = ({ navigation }) => {
+  const user = useAuthStore((state) => state.user);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [backPressCount, setBackPressCount] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleBackPress = useCallback(() => {
     if (navigation.isFocused()) {
@@ -45,158 +82,205 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [backPressCount]);
 
-  const authUser = useAuthStore((s) => s.user);
-
-  const navigateToScreen = (screenName) => {
-    navigation.navigate(screenName);
+  const renderItem = ({ item }) => {
+    if (item.empty) {
+      return <View style={[styles.card, styles.cardInvisible]} />;
+    }
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate(item.screen)}
+      >
+        <View style={[styles.iconWrapper, { backgroundColor: item.bg }]}>
+          <MaterialIcons name={item.icon} size={30} color={item.accent} />
+        </View>
+        <View style={styles.cardTextContainer}>
+          <Text numberOfLines={2} style={styles.cardTitle}>
+            {item.title}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
     <SafeAreaView backgroundColor={COLORS.primaryThemeColor}>
       <RoundedContainer>
-        {/* Header */}
-        <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Tool Management</Text>
-          <Text style={styles.headerSubtitle}>
-            Welcome, {authUser?.username || "User"}
+        {/* Company Logo Header */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require("@assets/images/logo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.tagline}>Manage your tools & rentals</Text>
+        </View>
+
+        {/* Carousel Banner */}
+        <CarouselPagination />
+
+        {/* Date & Time */}
+        <View style={styles.greetingContainer}>
+          <MaterialIcons name="calendar-today" size={18} color={COLORS.primaryThemeColor} />
+          <Text style={styles.dateText}>
+            {currentTime.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}
           </Text>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.posSection}>
-          <View style={styles.posContainer}>
-            <View style={styles.buttonWrapper}>
-              <TouchableOpacity
-                onPress={() => navigateToScreen("OptionsScreen")}
-                activeOpacity={0.8}
-                style={styles.actionButton}
-              >
-                <View style={styles.iconCircle}>
-                  <Text style={styles.iconText}>+</Text>
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.buttonLabel}>Options</Text>
-            </View>
-
-            <View style={styles.buttonWrapper}>
-              <TouchableOpacity
-                onPress={() => navigateToScreen("Categories")}
-                activeOpacity={0.8}
-                style={styles.actionButton}
-              >
-                <View style={styles.iconCircle}>
-                  <Text style={styles.iconText}>C</Text>
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.buttonLabel}>Categories</Text>
-            </View>
-
-            <View style={styles.buttonWrapper}>
-              <TouchableOpacity
-                onPress={() => navigateToScreen("Profile")}
-                activeOpacity={0.8}
-                style={styles.actionButton}
-              >
-                <View style={styles.iconCircle}>
-                  <Text style={styles.iconText}>P</Text>
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.buttonLabel}>Profile</Text>
-            </View>
-          </View>
-
-          {/* Tool Management - new option */}
-          <View style={[styles.posContainer, { marginTop: 20 }]}>
-            <View style={styles.buttonWrapper}>
-              <TouchableOpacity
-                onPress={() => navigateToScreen("ToolManagementScreen")}
-                activeOpacity={0.8}
-                style={[styles.actionButton, styles.tmButton]}
-              >
-                <View style={[styles.iconCircle, { backgroundColor: "#FFF3E0" }]}>
-                  <Text style={styles.iconText}>🔧</Text>
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.buttonLabel}>Tool{"\n"}Management</Text>
-            </View>
+          <View style={styles.timeBadge}>
+            <MaterialIcons name="access-time" size={14} color="#fff" />
+            <Text style={styles.timeText}>
+              {currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+            </Text>
           </View>
         </View>
+
+        {/* Section Header */}
+        <ListHeader
+          title="Quick Access"
+          subtitle="Manage your tools & rentals"
+        />
+
+        {/* 2-column Menu Grid */}
+        <FlatList
+          key="grid-2"
+          data={formatData(MENU_ITEMS, 2)}
+          numColumns={2}
+          style={styles.list}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListFooterComponent={
+            <Text style={styles.footer}>Powered by Alphalize  |  v1.0.0</Text>
+          }
+        />
       </RoundedContainer>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+  greetingContainer: {
+    flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginHorizontal: 10,
+    marginTop: 8,
+    marginBottom: 4,
+    backgroundColor: "#F5F7FA",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E8ECF0",
+    gap: 8,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+  dateText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: FONT_FAMILY.urbanistSemiBold,
     color: COLORS.primaryThemeColor,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: COLORS.gray,
-    marginTop: 4,
-  },
-  posSection: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  posContainer: {
+  timeBadge: {
     flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "flex-start",
-    gap: 30,
-  },
-  buttonWrapper: {
     alignItems: "center",
-    maxWidth: 100,
+    backgroundColor: COLORS.primaryThemeColor,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 4,
   },
-  actionButton: {
-    width: 90,
-    height: 90,
-    borderRadius: 22,
+  timeText: {
+    fontSize: 12,
+    fontFamily: FONT_FAMILY.urbanistBold,
+    color: "#fff",
+  },
+  logoContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    marginHorizontal: 10,
+    marginTop: 4,
+    backgroundColor: "#F5F7FA",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E8ECF0",
+  },
+  logoImage: {
+    width: 200,
+    height: 80,
+    marginBottom: 6,
+  },
+  tagline: {
+    fontSize: 12,
+    fontFamily: FONT_FAMILY.urbanistMedium,
+    color: COLORS.gray,
+    letterSpacing: 0.3,
+  },
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: 10,
+    paddingBottom: 100,
+    paddingTop: 6,
+  },
+  card: {
+    flex: 1,
+    alignItems: "center",
+    margin: 5,
+    borderRadius: 16,
     backgroundColor: "#fff",
-    borderWidth: 2.5,
-    borderColor: "#461c8aff",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-    shadowColor: "#461c8aff",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 6,
+    minHeight: 130,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
-  tmButton: {
-    borderColor: "#E65100",
-    width: 90,
-    height: 90,
+  cardInvisible: {
+    backgroundColor: "transparent",
+    elevation: 0,
+    shadowOpacity: 0,
+    borderWidth: 0,
   },
-  iconCircle: {
+  iconWrapper: {
     width: 60,
     height: 60,
-    borderRadius: 30,
-    backgroundColor: "#f5f0ff",
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 4,
   },
-  iconText: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#461c8aff",
+  cardTextContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 10,
+    paddingHorizontal: 2,
   },
-  buttonLabel: {
-    marginTop: 10,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#461c8aff",
+  cardTitle: {
+    fontSize: 11.5,
     textAlign: "center",
-    letterSpacing: 0.3,
+    color: COLORS.primaryThemeColor,
+    fontFamily: FONT_FAMILY.urbanistBold,
+    lineHeight: 15,
+  },
+  footer: {
+    textAlign: "center",
+    fontSize: 12,
+    fontFamily: FONT_FAMILY.urbanistMedium,
+    color: "#B0B0B0",
+    marginTop: 16,
+    marginBottom: 10,
   },
 });
 
