@@ -22,6 +22,7 @@ import Text from "@components/Text";
 import { SafeAreaView } from "@components/containers";
 import { useAuthStore } from "@stores/auth";
 import { showToastMessage } from "@components/Toast";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { odooAuthenticate, odooGetDatabases } from "@api/services/odooApi";
 import { ODOO_CONFIG, getOdooUrl, setOdooUrl } from "@api/config/odooConfig";
 
@@ -71,7 +72,14 @@ const LoginScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    fetchDatabases();
+    // Load last used server URL
+    AsyncStorage.getItem("lastServerUrl").then((savedUrl) => {
+      if (savedUrl) {
+        setServerUrl(savedUrl);
+        setOdooUrl(savedUrl);
+      }
+      fetchDatabases();
+    });
   }, []);
 
   const urlTimer = useRef(null);
@@ -158,6 +166,7 @@ const LoginScreen = ({ navigation }) => {
         database: inputs.database,
       };
 
+      await AsyncStorage.setItem("lastServerUrl", serverUrl);
       setUser(userData, odooAuth, serverUrl);
       showToastMessage("Logged in");
       navigation.navigate("AppNavigator");
@@ -203,7 +212,7 @@ const LoginScreen = ({ navigation }) => {
                       value={serverUrl}
                       onChangeText={handleUrlChange}
                       onBlur={handleUrlBlur}
-                      placeholder="http://10.66.3.175:8069"
+                      placeholder="e.g. http://your-server:8069"
                       placeholderTextColor="#aaa"
                       autoCapitalize="none"
                       keyboardType="url"

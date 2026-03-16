@@ -54,6 +54,30 @@ const STATE_STEPS = [
 
 const STATE_ORDER = ["draft", "confirmed", "checked_out", "checked_in", "done", "invoiced"];
 
+const DEFAULT_TERMS_EN = [
+  "All tools and equipment are delivered in good working condition.",
+  "The customer must return the equipment in the same condition, except for normal wear and tear.",
+  "The customer is fully responsible for any damage, loss, or missing parts during the rental period.",
+  "Any damage or loss will be charged to the customer for repair or replacement.",
+  "Equipment must be returned on the agreed date; late returns may incur additional rental charges.",
+  "Equipment must not be sub-rented or transferred to another party without permission.",
+  "The supplier is not responsible for accidents or injuries caused by improper use of the equipment.",
+  "Any dispute shall be subject to the laws of the Sultanate of Oman.",
+];
+
+const DEFAULT_TERMS_AR = [
+  "يتم تسليم جميع الأدوات والمعدات بحالة عمل جيدة.",
+  "يجب على العميل إعادة المعدات بنفس الحالة، باستثناء التآكل والاستهلاك الطبيعي.",
+  "العميل مسؤول مسؤولية كاملة عن أي ضرر أو فقدان أو أجزاء مفقودة خلال فترة الإيجار.",
+  "سيتم تحميل العميل تكاليف الإصلاح أو الاستبدال في حالة حدوث أي ضرر أو فقدان.",
+  "يجب إعادة المعدات في التاريخ المتفق عليه؛ وقد يترتب على التأخير رسوم إيجار إضافية.",
+  "لا يجوز إعادة تأجير المعدات أو نقلها إلى طرف آخر دون إذن.",
+  "المورد غير مسؤول عن الحوادث أو الإصابات الناتجة عن الاستخدام غير السليم للمعدات.",
+  "أي نزاع يخضع لقوانين سلطنة عُمان.",
+];
+
+const DEFAULT_TERMS_TEXT = DEFAULT_TERMS_EN.map((t, i) => `${i + 1}. ${t}`).join("\n");
+
 const today = () => {
   const d = new Date();
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -132,7 +156,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     damage_charges: existingOrder?.damage_charges?.toString() || "0",
     discount_amount: existingOrder?.discount_amount?.toString() || "0",
     notes: existingOrder?.notes || "",
-    terms: existingOrder?.terms || "",
+    terms: existingOrder?.terms || DEFAULT_TERMS_TEXT,
   });
 
   const [lines, setLines] = useState(existingOrder?.lines || []);
@@ -141,6 +165,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const [activeTab, setActiveTab] = useState("lines");
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [tcAccepted, setTcAccepted] = useState(false);
   const isAfterCheckout = ["checked_out", "checked_in", "done", "invoiced"].includes(existingOrder?.state);
   const [checkoutIdProof, setCheckoutIdProof] = useState(false);
   const [idProofUri, setIdProofUri] = useState(null);
@@ -510,6 +535,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   };
 
   const openCheckoutWizard = () => {
+    setTcAccepted(false);
     setShowCheckoutModal(true);
   };
 
@@ -874,40 +900,40 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     }).join("");
 
     const isA5 = invoicePaperSize === "a5";
-    const sigW = isA5 ? 100 : 220;
-    const sigH = isA5 ? 40 : 90;
+    const sigW = isA5 ? 80 : 160;
+    const sigH = isA5 ? 30 : 60;
     const sigFontSize = isA5 ? "8px" : "11px";
 
     return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      @page { size: ${isA5 ? "148mm 210mm" : "A4"} portrait; margin: ${isA5 ? "6mm" : "12mm"}; }
-      body { font-family: Arial, Helvetica, sans-serif; padding: ${isA5 ? "6px" : "24px"}; color: #333; font-size: ${isA5 ? "8.5px" : "12px"}; line-height: ${isA5 ? "1.3" : "1.4"}; }
-      h2.title { text-align: center; color: #2c3e50; margin: 0 0 ${isA5 ? "2px" : "4px"} 0; font-size: ${isA5 ? "13px" : "18px"}; }
-      h4.sub { text-align: center; color: #888; margin: 0 0 ${isA5 ? "5px" : "16px"} 0; font-size: ${isA5 ? "9px" : "14px"}; }
-      .row { display: flex; gap: ${isA5 ? "8px" : "20px"}; margin-bottom: ${isA5 ? "5px" : "12px"}; }
+      @page { size: ${isA5 ? "148mm 210mm" : "A4"} portrait; margin: ${isA5 ? "4mm" : "8mm"}; }
+      body { font-family: Arial, Helvetica, sans-serif; padding: ${isA5 ? "4px" : "12px"}; color: #333; font-size: ${isA5 ? "7px" : "11px"}; line-height: ${isA5 ? "1.2" : "1.3"}; }
+      h2.title { text-align: center; color: #2c3e50; margin: 0 0 ${isA5 ? "1px" : "2px"} 0; font-size: ${isA5 ? "10px" : "16px"}; }
+      h4.sub { text-align: center; color: #888; margin: 0 0 ${isA5 ? "3px" : "8px"} 0; font-size: ${isA5 ? "7.5px" : "12px"}; }
+      .row { display: flex; gap: ${isA5 ? "6px" : "20px"}; margin-bottom: ${isA5 ? "3px" : "12px"}; }
       .col { flex: 1; }
-      .badge { text-align: center; margin-bottom: ${isA5 ? "5px" : "12px"}; }
-      .badge span { background: #714B67; color: #fff; padding: ${isA5 ? "2px 10px" : "6px 18px"}; border-radius: 4px; font-size: ${isA5 ? "8px" : "13px"}; font-weight: 700; letter-spacing: 1px; }
-      table.details { width: 100%; margin-bottom: ${isA5 ? "5px" : "12px"}; border-collapse: collapse; }
-      table.details td { padding: ${isA5 ? "1.5px 4px" : "4px 8px"}; font-size: ${isA5 ? "8px" : "12px"}; }
+      .badge { text-align: center; margin-bottom: ${isA5 ? "3px" : "12px"}; }
+      .badge span { background: #714B67; color: #fff; padding: ${isA5 ? "1px 8px" : "6px 18px"}; border-radius: 4px; font-size: ${isA5 ? "6.5px" : "13px"}; font-weight: 700; letter-spacing: 1px; }
+      table.details { width: 100%; margin-bottom: ${isA5 ? "3px" : "12px"}; border-collapse: collapse; }
+      table.details td { padding: ${isA5 ? "1px 3px" : "4px 8px"}; font-size: ${isA5 ? "6.5px" : "12px"}; }
       table.details td strong { color: #333; }
-      h5 { margin: ${isA5 ? "5px 0 3px" : "15px 0 6px"}; color: #333; font-size: ${isA5 ? "9.5px" : "14px"}; }
-      table.tools { width: 100%; border-collapse: collapse; margin-bottom: ${isA5 ? "5px" : "14px"}; font-size: ${isA5 ? "7.5px" : "11px"}; }
-      table.tools th { background: #e9ecef; color: #333; padding: ${isA5 ? "2.5px 3px" : "6px 8px"}; text-align: left; font-size: ${isA5 ? "7px" : "10px"}; border: 1px solid #dee2e6; }
-      table.tools td { padding: ${isA5 ? "2px 3px" : "5px 8px"}; border: 1px solid #dee2e6; }
+      h5 { margin: ${isA5 ? "3px 0 2px" : "15px 0 6px"}; color: #333; font-size: ${isA5 ? "8px" : "14px"}; }
+      table.tools { width: 100%; border-collapse: collapse; margin-bottom: ${isA5 ? "3px" : "14px"}; font-size: ${isA5 ? "6.5px" : "11px"}; }
+      table.tools th { background: #e9ecef; color: #333; padding: ${isA5 ? "1.5px 2px" : "6px 8px"}; text-align: left; font-size: ${isA5 ? "6px" : "10px"}; border: 1px solid #dee2e6; }
+      table.tools td { padding: ${isA5 ? "1.5px 2px" : "5px 8px"}; border: 1px solid #dee2e6; }
       .text-end { text-align: right; }
       table.totals { width: ${isA5 ? "55%" : "50%"}; margin-left: auto; border-collapse: collapse; }
-      table.totals td { padding: ${isA5 ? "2px 4px" : "4px 8px"}; font-size: ${isA5 ? "8.5px" : "12px"}; }
+      table.totals td { padding: ${isA5 ? "1.5px 3px" : "4px 8px"}; font-size: ${isA5 ? "7px" : "12px"}; }
       .grand-row { border-top: 2px solid #000; }
-      .grand-row td { font-size: ${isA5 ? "9.5px" : "14px"}; font-weight: 700; }
-      .late-banner { background: #fff3cd; border: 1px solid #ffc107; padding: ${isA5 ? "3px 6px" : "8px 12px"}; margin-bottom: ${isA5 ? "4px" : "10px"}; border-radius: 4px; font-size: ${isA5 ? "7.5px" : "12px"}; }
+      .grand-row td { font-size: ${isA5 ? "7.5px" : "14px"}; font-weight: 700; }
+      .late-banner { background: #fff3cd; border: 1px solid #ffc107; padding: ${isA5 ? "2px 4px" : "8px 12px"}; margin-bottom: ${isA5 ? "3px" : "10px"}; border-radius: 4px; font-size: ${isA5 ? "6.5px" : "12px"}; }
       .late-banner strong { color: #856404; }
       .late-banner span { color: #856404; }
-      .sig-row { display: flex; margin-top: ${isA5 ? "12px" : "40px"}; }
+      .sig-row { display: flex; margin-top: ${isA5 ? "5px" : "14px"}; }
       .sig-col { flex: 1; text-align: center; }
-      .sig-col hr { border: none; border-top: 1px solid #333; width: 80%; margin: 0 auto ${isA5 ? "2px" : "4px"}; }
-      .footer { margin-top: ${isA5 ? "8px" : "20px"}; font-size: ${isA5 ? "6.5px" : "9px"}; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: ${isA5 ? "3px" : "6px"}; }
+      .sig-col hr { border: none; border-top: 1px solid #333; width: 80%; margin: 0 auto ${isA5 ? "1px" : "4px"}; }
+      .footer { margin-top: ${isA5 ? "3px" : "6px"}; font-size: ${isA5 ? "5.5px" : "8px"}; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: ${isA5 ? "1px" : "3px"}; }
     </style></head><body>
 
     <h2 class="title">${isCheckin ? "CHECK-IN INVOICE" : "CHECKOUT INVOICE"}</h2>
@@ -999,7 +1025,18 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
 
     ${!isCheckin && advance > 0 ? `<table class="totals"><tr><td>Advance Collected:</td><td class="text-end">${cur}${advance.toFixed(2)}</td></tr></table>` : ""}
 
-    ${form.terms ? `<h5>Terms &amp; Conditions</h5><div style="font-size:${isA5 ? "7px" : "11px"};color:#555">${form.terms}</div>` : ""}
+    <div style="margin-top:${isA5 ? "3px" : "8px"};border-top:1px solid #ccc;padding-top:${isA5 ? "2px" : "6px"};">
+      <h5 style="margin:0 0 ${isA5 ? "1px" : "4px"} 0;font-size:${isA5 ? "6.5px" : "10px"};">Terms &amp; Conditions / الشروط والأحكام</h5>
+      <table style="width:100%;border-collapse:collapse;font-size:${isA5 ? "6px" : "8px"};color:#444;">
+        <tbody>
+          ${DEFAULT_TERMS_EN.map((t, i) => `<tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:${isA5 ? "0.5px 1px" : "1px 4px"};vertical-align:top;font-weight:600;width:3%;">${i + 1}.</td>
+            <td style="padding:${isA5 ? "0.5px 1px" : "1px 4px"};vertical-align:top;line-height:${isA5 ? "1.2" : "1.3"};width:50%;">${t}</td>
+            <td style="padding:${isA5 ? "0.5px 1px" : "1px 4px"};vertical-align:top;text-align:right;direction:rtl;line-height:${isA5 ? "1.2" : "1.4"};width:47%;">${DEFAULT_TERMS_AR[i]}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
 
     <div class="sig-row">
       <div class="sig-col">
@@ -2001,9 +2038,57 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               </View>
             )}
 
+            {/* Terms & Conditions */}
+            <Text style={ciStyles.sectionTitle}>TERMS & CONDITIONS <Text style={{ color: "#F44336" }}>*</Text></Text>
+            <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#e0e0e0" }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#333", marginBottom: 8 }}>Terms & Conditions</Text>
+              {DEFAULT_TERMS_EN.map((term, i) => (
+                <Text key={"en" + i} style={{ fontSize: 11.5, color: "#444", marginBottom: 4, lineHeight: 17 }}>
+                  {i + 1}. {term}
+                </Text>
+              ))}
+              <View style={{ borderTopWidth: 1, borderTopColor: "#e0e0e0", marginVertical: 10 }} />
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#333", marginBottom: 8, textAlign: "right" }}>الشروط والأحكام</Text>
+              {DEFAULT_TERMS_AR.map((term, i) => (
+                <Text key={"ar" + i} style={{ fontSize: 11.5, color: "#444", marginBottom: 4, lineHeight: 18, textAlign: "right", writingDirection: "rtl" }}>
+                  {i + 1}. {term}
+                </Text>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={{ flexDirection: "row", alignItems: "center", marginBottom: 14, paddingVertical: 6 }}
+              onPress={() => {
+                if (tcAccepted) {
+                  setTcAccepted(false);
+                  setCheckoutSignatureUri(null);
+                  setCheckoutSignature(false);
+                } else {
+                  setTcAccepted(true);
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={{
+                width: 22, height: 22, borderRadius: 4, borderWidth: 2,
+                borderColor: tcAccepted ? "#1565C0" : "#999",
+                backgroundColor: tcAccepted ? "#1565C0" : "#fff",
+                alignItems: "center", justifyContent: "center", marginRight: 10,
+              }}>
+                {tcAccepted && <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>{"\u2713"}</Text>}
+              </View>
+              <Text style={{ fontSize: 12.5, color: "#333", flex: 1 }}>
+                I have read and agree to the Terms & Conditions{"\n"}
+                <Text style={{ writingDirection: "rtl" }}>لقد قرأت وأوافق على الشروط والأحكام</Text>
+              </Text>
+            </TouchableOpacity>
+
             {/* Customer Signature */}
             <Text style={ciStyles.sectionTitle}>CUSTOMER SIGNATURE <Text style={{ color: "#F44336" }}>*</Text></Text>
-            {checkoutSignatureUri ? (
+            {!tcAccepted ? (
+              <View style={{ backgroundColor: "#FFF3E0", borderRadius: 8, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#FFE0B2" }}>
+                <Text style={{ fontSize: 12, color: "#E65100", textAlign: "center" }}>Please accept the Terms & Conditions above to sign</Text>
+              </View>
+            ) : checkoutSignatureUri ? (
               <View style={styles.capturedImageWrap}>
                 <Image source={{ uri: checkoutSignatureUri }} style={styles.capturedSignature} />
                 {checkoutSignatureTime && <Text style={styles.photoTimestamp}>Signed: {new Date(checkoutSignatureTime).toLocaleString()}</Text>}
