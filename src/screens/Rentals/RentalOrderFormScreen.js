@@ -1119,7 +1119,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
 
     ${!isCheckin && advance > 0 ? `<table class="totals"><tr><td>Advance Collected:</td><td class="text-end">${cur}${advance.toFixed(2)}</td></tr></table>` : ""}
 
-    <div style="margin-top:${isA5 ? "3px" : "8px"};border-top:1px solid #ccc;padding-top:${isA5 ? "2px" : "6px"};">
+    ${!isCheckin ? `<div style="margin-top:${isA5 ? "3px" : "8px"};border-top:1px solid #ccc;padding-top:${isA5 ? "2px" : "6px"};">
       <h5 style="margin:0 0 ${isA5 ? "1px" : "4px"} 0;font-size:${isA5 ? "6.5px" : "10px"};">Terms &amp; Conditions / الشروط والأحكام</h5>
       <table style="width:100%;border-collapse:collapse;font-size:${isA5 ? "6px" : "8px"};color:#444;">
         <tbody>
@@ -1130,7 +1130,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           </tr>`).join("")}
         </tbody>
       </table>
-    </div>
+    </div>` : ""}
 
     <div class="sig-row" style="${!isCheckin ? 'justify-content:center;' : ''}">
       <div class="sig-col" style="${!isCheckin ? 'flex:none;min-width:200px;' : ''}">
