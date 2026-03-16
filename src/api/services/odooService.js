@@ -1,3 +1,4 @@
+import * as FileSystem from "expo-file-system";
 import {
   odooSearchRead,
   odooCreate,
@@ -5,6 +6,7 @@ import {
   odooRead,
   odooCallMethod,
   downloadReportPdf,
+  sendWhatsAppDocument,
 } from "./odooApi";
 
 // =============================================
@@ -419,6 +421,44 @@ export const downloadCheckoutInvoice = async (auth, orderId) => {
 
 export const downloadCheckinInvoice = async (auth, orderId) => {
   return downloadReportPdf(auth, "tools_rental_management.report_checkin_invoice", Number(orderId));
+};
+
+// Send invoice PDF via WhatsApp
+export const sendInvoiceWhatsApp = async (auth, orderId, invoiceType, customerPhone) => {
+  const reportName = invoiceType === "checkout"
+    ? "tools_rental_management.report_checkout_invoice"
+    : "tools_rental_management.report_checkin_invoice";
+
+  const pdfUri = await downloadReportPdf(auth, reportName, Number(orderId));
+  const base64Data = await FileSystem.readAsStringAsync(pdfUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  const filename = `${invoiceType === "checkout" ? "Checkout" : "CheckIn"}_Invoice_${orderId}.pdf`;
+  return sendWhatsAppDocument(auth, customerPhone, base64Data, filename, filename);
+};
+
+// Re-export for direct use
+export { sendWhatsAppDocument };
+
+// Fetch company details from Odoo
+export const fetchCompanyDetails = async (auth) => {
+  const result = await odooSearchRead(auth, "res.company", [], ["name", "phone", "email", "street", "street2", "city", "zip", "state_id", "country_id"], 1);
+  if (result && result.length > 0) {
+    const c = result[0];
+    return {
+      name: c.name || "Tool Management",
+      phone: c.phone || "",
+      email: c.email || "",
+      street: c.street || "",
+      street2: c.street2 || "",
+      city: c.city || "",
+      zip: c.zip || "",
+      state: c.state_id ? c.state_id[1] : "",
+      country: c.country_id ? c.country_id[1] : "",
+    };
+  }
+  return { name: "Tool Management", phone: "", email: "", street: "", street2: "", city: "", zip: "", state: "", country: "" };
 };
 
 // Checkout wizard

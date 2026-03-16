@@ -268,6 +268,29 @@ export const downloadReportPdf = async (auth, reportName, resId) => {
   throw new Error("Failed to download report (HTTP " + result.status + ")");
 };
 
+export const sendWhatsAppDocument = async (auth, phone, fileBase64, filename, caption = '') => {
+  await ensureWebSession(auth);
+  const headers = { 'Content-Type': 'application/json' };
+  if (sessionCookie) headers['Cookie'] = sessionCookie;
+
+  requestId += 1;
+  const response = await axios.post(`${ODOO_URL}/whatsapp/send/document`, {
+    jsonrpc: '2.0',
+    method: 'call',
+    id: requestId,
+    params: { phone, file_base64: fileBase64, filename, caption }
+  }, { headers, timeout: 120000 });
+
+  if (response.data.error) {
+    const err = response.data.error;
+    throw new Error(err.data?.message || err.message || 'WhatsApp send failed');
+  }
+  if (response.data.result && response.data.result.success) {
+    return response.data.result;
+  }
+  throw new Error(response.data.result?.error || 'WhatsApp send failed');
+};
+
 export default {
   authenticate: odooAuthenticate,
   getDatabases: odooGetDatabases,
@@ -281,4 +304,5 @@ export default {
   callMethod: odooCallMethod,
   fieldsGet: odooFieldsGet,
   downloadReportPdf,
+  sendWhatsAppDocument,
 };

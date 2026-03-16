@@ -5,6 +5,10 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Modal,
+  Alert,
+  ScrollView,
+  TextInput as RNTextInput,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView, RoundedContainer } from "@components/containers";
@@ -13,12 +17,108 @@ import { TextInput } from "@components/common/TextInput";
 import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { updateCustomer } from "@api/services/odooService";
+import { isEmail, isPhone } from "@utils/validation/validation";
+
+const COUNTRY_CODES = [
+  { code: "+93", name: "Afghanistan" }, { code: "+355", name: "Albania" }, { code: "+213", name: "Algeria" },
+  { code: "+376", name: "Andorra" }, { code: "+244", name: "Angola" }, { code: "+54", name: "Argentina" },
+  { code: "+374", name: "Armenia" }, { code: "+61", name: "Australia" }, { code: "+43", name: "Austria" },
+  { code: "+994", name: "Azerbaijan" }, { code: "+973", name: "Bahrain" }, { code: "+880", name: "Bangladesh" },
+  { code: "+375", name: "Belarus" }, { code: "+32", name: "Belgium" }, { code: "+501", name: "Belize" },
+  { code: "+229", name: "Benin" }, { code: "+975", name: "Bhutan" }, { code: "+591", name: "Bolivia" },
+  { code: "+387", name: "Bosnia" }, { code: "+267", name: "Botswana" }, { code: "+55", name: "Brazil" },
+  { code: "+673", name: "Brunei" }, { code: "+359", name: "Bulgaria" }, { code: "+226", name: "Burkina Faso" },
+  { code: "+257", name: "Burundi" }, { code: "+855", name: "Cambodia" }, { code: "+237", name: "Cameroon" },
+  { code: "+1", name: "Canada" }, { code: "+238", name: "Cape Verde" }, { code: "+236", name: "Central African Republic" },
+  { code: "+235", name: "Chad" }, { code: "+56", name: "Chile" }, { code: "+86", name: "China" },
+  { code: "+57", name: "Colombia" }, { code: "+269", name: "Comoros" }, { code: "+243", name: "Congo DR" },
+  { code: "+242", name: "Congo" }, { code: "+506", name: "Costa Rica" }, { code: "+385", name: "Croatia" },
+  { code: "+53", name: "Cuba" }, { code: "+357", name: "Cyprus" }, { code: "+420", name: "Czech Republic" },
+  { code: "+45", name: "Denmark" }, { code: "+253", name: "Djibouti" }, { code: "+593", name: "Ecuador" },
+  { code: "+20", name: "Egypt" }, { code: "+503", name: "El Salvador" }, { code: "+240", name: "Equatorial Guinea" },
+  { code: "+291", name: "Eritrea" }, { code: "+372", name: "Estonia" }, { code: "+251", name: "Ethiopia" },
+  { code: "+679", name: "Fiji" }, { code: "+358", name: "Finland" }, { code: "+33", name: "France" },
+  { code: "+241", name: "Gabon" }, { code: "+220", name: "Gambia" }, { code: "+995", name: "Georgia" },
+  { code: "+49", name: "Germany" }, { code: "+233", name: "Ghana" }, { code: "+30", name: "Greece" },
+  { code: "+502", name: "Guatemala" }, { code: "+224", name: "Guinea" }, { code: "+592", name: "Guyana" },
+  { code: "+509", name: "Haiti" }, { code: "+504", name: "Honduras" }, { code: "+852", name: "Hong Kong" },
+  { code: "+36", name: "Hungary" }, { code: "+354", name: "Iceland" }, { code: "+91", name: "India" },
+  { code: "+62", name: "Indonesia" }, { code: "+98", name: "Iran" }, { code: "+964", name: "Iraq" },
+  { code: "+353", name: "Ireland" }, { code: "+972", name: "Israel" }, { code: "+39", name: "Italy" },
+  { code: "+225", name: "Ivory Coast" }, { code: "+1876", name: "Jamaica" }, { code: "+81", name: "Japan" },
+  { code: "+962", name: "Jordan" }, { code: "+7", name: "Kazakhstan" }, { code: "+254", name: "Kenya" },
+  { code: "+965", name: "Kuwait" }, { code: "+996", name: "Kyrgyzstan" }, { code: "+856", name: "Laos" },
+  { code: "+371", name: "Latvia" }, { code: "+961", name: "Lebanon" }, { code: "+266", name: "Lesotho" },
+  { code: "+231", name: "Liberia" }, { code: "+218", name: "Libya" }, { code: "+423", name: "Liechtenstein" },
+  { code: "+370", name: "Lithuania" }, { code: "+352", name: "Luxembourg" }, { code: "+853", name: "Macau" },
+  { code: "+261", name: "Madagascar" }, { code: "+265", name: "Malawi" }, { code: "+60", name: "Malaysia" },
+  { code: "+960", name: "Maldives" }, { code: "+223", name: "Mali" }, { code: "+356", name: "Malta" },
+  { code: "+222", name: "Mauritania" }, { code: "+230", name: "Mauritius" }, { code: "+52", name: "Mexico" },
+  { code: "+373", name: "Moldova" }, { code: "+377", name: "Monaco" }, { code: "+976", name: "Mongolia" },
+  { code: "+382", name: "Montenegro" }, { code: "+212", name: "Morocco" }, { code: "+258", name: "Mozambique" },
+  { code: "+95", name: "Myanmar" }, { code: "+264", name: "Namibia" }, { code: "+977", name: "Nepal" },
+  { code: "+31", name: "Netherlands" }, { code: "+64", name: "New Zealand" }, { code: "+505", name: "Nicaragua" },
+  { code: "+227", name: "Niger" }, { code: "+234", name: "Nigeria" }, { code: "+850", name: "North Korea" },
+  { code: "+389", name: "North Macedonia" }, { code: "+47", name: "Norway" }, { code: "+968", name: "Oman" },
+  { code: "+92", name: "Pakistan" }, { code: "+507", name: "Panama" }, { code: "+675", name: "Papua New Guinea" },
+  { code: "+595", name: "Paraguay" }, { code: "+51", name: "Peru" }, { code: "+63", name: "Philippines" },
+  { code: "+48", name: "Poland" }, { code: "+351", name: "Portugal" }, { code: "+974", name: "Qatar" },
+  { code: "+40", name: "Romania" }, { code: "+7", name: "Russia" }, { code: "+250", name: "Rwanda" },
+  { code: "+966", name: "Saudi Arabia" }, { code: "+221", name: "Senegal" }, { code: "+381", name: "Serbia" },
+  { code: "+65", name: "Singapore" }, { code: "+421", name: "Slovakia" }, { code: "+386", name: "Slovenia" },
+  { code: "+252", name: "Somalia" }, { code: "+27", name: "South Africa" }, { code: "+82", name: "South Korea" },
+  { code: "+211", name: "South Sudan" }, { code: "+34", name: "Spain" }, { code: "+94", name: "Sri Lanka" },
+  { code: "+249", name: "Sudan" }, { code: "+597", name: "Suriname" }, { code: "+46", name: "Sweden" },
+  { code: "+41", name: "Switzerland" }, { code: "+963", name: "Syria" }, { code: "+886", name: "Taiwan" },
+  { code: "+992", name: "Tajikistan" }, { code: "+255", name: "Tanzania" }, { code: "+66", name: "Thailand" },
+  { code: "+228", name: "Togo" }, { code: "+216", name: "Tunisia" }, { code: "+90", name: "Turkey" },
+  { code: "+993", name: "Turkmenistan" }, { code: "+256", name: "Uganda" }, { code: "+380", name: "Ukraine" },
+  { code: "+971", name: "UAE" }, { code: "+44", name: "United Kingdom" }, { code: "+1", name: "United States" },
+  { code: "+598", name: "Uruguay" }, { code: "+998", name: "Uzbekistan" }, { code: "+58", name: "Venezuela" },
+  { code: "+84", name: "Vietnam" }, { code: "+967", name: "Yemen" }, { code: "+260", name: "Zambia" },
+  { code: "+263", name: "Zimbabwe" },
+];
+
+const splitPhoneCountryCode = (fullPhone) => {
+  if (!fullPhone) return { code: "+91", local: "" };
+  let phone = fullPhone.replace(/[\s\-()]/g, "");
+  if (!phone.startsWith("+")) return { code: "+91", local: phone };
+  for (let len = 4; len >= 1; len--) {
+    const prefix = phone.substring(0, len + 1);
+    const match = COUNTRY_CODES.find((c) => c.code === prefix);
+    if (match) return { code: match.code, local: phone.substring(len + 1) };
+  }
+  return { code: "+91", local: phone.replace("+", "") };
+};
 
 const CustomersScreen = ({ navigation }) => {
   const odooAuth = useAuthStore((s) => s.odooAuth);
   const customers = useToolStore((s) => s.customers);
   const fetchCustomers = useToolStore((s) => s.fetchCustomers);
   const [search, setSearch] = useState("");
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editCustomer, setEditCustomer] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editCountryCode, setEditCountryCode] = useState("+91");
+  const [saving, setSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState(null);
+  const [emailError, setEmailError] = useState(null);
+
+  // Country picker state
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+
+  const filteredCountryCodes = countrySearch.trim()
+    ? COUNTRY_CODES.filter((c) =>
+        c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+        c.code.includes(countrySearch)
+      )
+    : COUNTRY_CODES;
 
   useFocusEffect(
     useCallback(() => {
@@ -37,8 +137,73 @@ const CustomersScreen = ({ navigation }) => {
       c.email?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const openEditModal = (customer) => {
+    const { code, local } = splitPhoneCountryCode(customer.phone || "");
+    setEditCustomer(customer);
+    setEditName(customer.name || "");
+    setEditPhone(local);
+    setEditCountryCode(code);
+    setEditEmail(customer.email || "");
+    setPhoneError(null);
+    setEmailError(null);
+    setShowEditModal(true);
+  };
+
+  const handlePhoneChange = (text) => {
+    const digitsOnly = text.replace(/\D/g, "");
+    if (digitsOnly.length > 10) return;
+    setEditPhone(digitsOnly);
+    setPhoneError(null);
+  };
+
+  const handleEmailChange = (text) => {
+    setEditEmail(text);
+    setEmailError(null);
+  };
+
+  const handleSave = async () => {
+    if (!editName.trim()) {
+      Alert.alert("Error", "Customer name is required");
+      return;
+    }
+
+    // Validate phone
+    if (editPhone) {
+      const pErr = isPhone(editPhone);
+      if (pErr) {
+        setPhoneError(pErr);
+        return;
+      }
+    }
+
+    // Validate email
+    if (editEmail) {
+      const eErr = isEmail(editEmail);
+      if (eErr) {
+        setEmailError(eErr);
+        return;
+      }
+    }
+
+    if (!editCustomer || !odooAuth) return;
+    setSaving(true);
+    try {
+      await updateCustomer(odooAuth, editCustomer.odoo_id || parseInt(editCustomer.id), {
+        name: editName.trim(),
+        phone: editPhone ? editCountryCode + editPhone : "",
+        email: editEmail.trim(),
+      });
+      await fetchCustomers(odooAuth);
+      setShowEditModal(false);
+    } catch (e) {
+      Alert.alert("Error", "Failed to update: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const renderCustomer = ({ item }) => (
-    <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={() => openEditModal(item)}>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>
           {(item.name || "C").charAt(0).toUpperCase()}
@@ -100,6 +265,121 @@ const CustomersScreen = ({ navigation }) => {
           }
         />
       </RoundedContainer>
+
+      {/* Edit Customer Modal */}
+      <Modal visible={showEditModal} animationType="fade" transparent onRequestClose={() => setShowEditModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Customer</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <Text style={styles.modalClose}>X</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.fieldLabel}>Name *</Text>
+            <RNTextInput
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Customer name"
+              placeholderTextColor="#999"
+              style={styles.input}
+            />
+
+            <Text style={styles.fieldLabel}>Phone</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <TouchableOpacity
+                onPress={() => setShowCountryPicker(true)}
+                style={styles.countryCodeBtn}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>{editCountryCode}</Text>
+                <Text style={{ fontSize: 9, color: "#888", marginLeft: 5 }}>{"\u25BC"}</Text>
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <RNTextInput
+                  value={editPhone}
+                  onChangeText={handlePhoneChange}
+                  placeholder="Phone number (10 digits)"
+                  placeholderTextColor="#999"
+                  keyboardType="phone-pad"
+                  style={styles.input}
+                />
+              </View>
+            </View>
+            {phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
+
+            <Text style={styles.fieldLabel}>Email</Text>
+            <RNTextInput
+              value={editEmail}
+              onChangeText={handleEmailChange}
+              placeholder="Email address"
+              placeholderTextColor="#999"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+            {emailError && <Text style={styles.errorText}>{emailError}</Text>}
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving}
+              style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+            >
+              <Text style={styles.saveBtnText}>{saving ? "Saving..." : "Save"}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setShowEditModal(false)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Country Code Picker Modal */}
+      <Modal visible={showCountryPicker} animationType="fade" transparent onRequestClose={() => setShowCountryPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: "70%" }]}>
+            <Text style={styles.modalTitle}>Select Country Code</Text>
+            <RNTextInput
+              placeholder="Search country name or code..."
+              value={countrySearch}
+              onChangeText={setCountrySearch}
+              placeholderTextColor="#888"
+              autoFocus={true}
+              style={{ borderWidth: 1.5, borderColor: "#1565C0", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, marginTop: 10, marginBottom: 12, fontSize: 15, backgroundColor: "#fff", color: "#333" }}
+            />
+            <ScrollView style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+              {filteredCountryCodes.map((item, idx) => (
+                <TouchableOpacity
+                  key={item.name + idx}
+                  onPress={() => { setEditCountryCode(item.code); setShowCountryPicker(false); setCountrySearch(""); }}
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    paddingVertical: 12,
+                    paddingHorizontal: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#f0f0f0",
+                    backgroundColor: editCountryCode === item.code ? "#E3F2FD" : "#fff",
+                    borderRadius: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: editCountryCode === item.code ? "700" : "400", color: editCountryCode === item.code ? "#1565C0" : "#333" }}>
+                    {item.name}
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: editCountryCode === item.code ? "#1565C0" : "#666" }}>
+                    {item.code}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity onPress={() => { setShowCountryPicker(false); setCountrySearch(""); }} style={{ marginTop: 10, paddingVertical: 10, alignItems: "center", backgroundColor: "#F5F5F5", borderRadius: 8 }}>
+              <Text style={{ color: "#666", fontWeight: "600" }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -193,6 +473,89 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: "center",
     paddingHorizontal: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    width: "85%",
+    padding: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#333",
+  },
+  modalClose: {
+    fontSize: 20,
+    color: "#999",
+    fontWeight: "700",
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 4,
+    marginTop: 10,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: "#333",
+    backgroundColor: "#fff",
+  },
+  countryCodeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    height: 43,
+    paddingHorizontal: 12,
+  },
+  errorText: {
+    color: "red",
+    fontSize: 12,
+    marginTop: 3,
+  },
+  saveBtn: {
+    backgroundColor: "#1565C0",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  saveBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  cancelBtn: {
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  cancelBtnText: {
+    color: "#666",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 

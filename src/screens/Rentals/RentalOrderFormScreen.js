@@ -27,7 +27,7 @@ import * as Sharing from "expo-sharing";
 import * as Print from "expo-print";
 import SignaturePad from "@components/common/SignaturePad/SignaturePad";
 import CameraCapture from "@components/common/CameraCapture/CameraCapture";
-import { updateOrderValues, updateOrderLineValues, fetchOrderDataById, fetchOrderImages, fetchOrderLineImages, downloadCheckoutInvoice, downloadCheckinInvoice, updateCustomer } from "@api/services/odooService";
+import { updateOrderValues, updateOrderLineValues, fetchOrderDataById, fetchOrderImages, fetchOrderLineImages, downloadCheckoutInvoice, downloadCheckinInvoice, updateCustomer, sendInvoiceWhatsApp, sendWhatsAppDocument, fetchCompanyDetails } from "@api/services/odooService";
 import { isEmail, isPhone } from "@utils/validation/validation";
 
 const PERIOD_TYPES = [
@@ -216,13 +216,113 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const [invoicePaperSize, setInvoicePaperSize] = useState("a4");
   const [invoiceDownloading, setInvoiceDownloading] = useState(false);
   const [invoicePrinting, setInvoicePrinting] = useState(false);
+  const [invoiceSendingWA, setInvoiceSendingWA] = useState(false);
   const [phoneError, setPhoneError] = useState(null);
   const [emailError, setEmailError] = useState(null);
+  const [countryCode, setCountryCode] = useState("+91");
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
   const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState({ name: "Tool Management", phone: "", email: "", street: "", street2: "", city: "", zip: "", state: "", country: "" });
 
   // Debounce refs for auto-saving phone and email
   const phoneDebounceRef = useRef(null);
   const emailDebounceRef = useRef(null);
+
+  const COUNTRY_CODES = [
+    { code: "+93", name: "Afghanistan" }, { code: "+355", name: "Albania" }, { code: "+213", name: "Algeria" },
+    { code: "+376", name: "Andorra" }, { code: "+244", name: "Angola" }, { code: "+54", name: "Argentina" },
+    { code: "+374", name: "Armenia" }, { code: "+61", name: "Australia" }, { code: "+43", name: "Austria" },
+    { code: "+994", name: "Azerbaijan" }, { code: "+973", name: "Bahrain" }, { code: "+880", name: "Bangladesh" },
+    { code: "+375", name: "Belarus" }, { code: "+32", name: "Belgium" }, { code: "+501", name: "Belize" },
+    { code: "+229", name: "Benin" }, { code: "+975", name: "Bhutan" }, { code: "+591", name: "Bolivia" },
+    { code: "+387", name: "Bosnia" }, { code: "+267", name: "Botswana" }, { code: "+55", name: "Brazil" },
+    { code: "+673", name: "Brunei" }, { code: "+359", name: "Bulgaria" }, { code: "+226", name: "Burkina Faso" },
+    { code: "+257", name: "Burundi" }, { code: "+855", name: "Cambodia" }, { code: "+237", name: "Cameroon" },
+    { code: "+1", name: "Canada" }, { code: "+238", name: "Cape Verde" }, { code: "+236", name: "Central African Republic" },
+    { code: "+235", name: "Chad" }, { code: "+56", name: "Chile" }, { code: "+86", name: "China" },
+    { code: "+57", name: "Colombia" }, { code: "+269", name: "Comoros" }, { code: "+243", name: "Congo DR" },
+    { code: "+242", name: "Congo" }, { code: "+506", name: "Costa Rica" }, { code: "+385", name: "Croatia" },
+    { code: "+53", name: "Cuba" }, { code: "+357", name: "Cyprus" }, { code: "+420", name: "Czech Republic" },
+    { code: "+45", name: "Denmark" }, { code: "+253", name: "Djibouti" }, { code: "+593", name: "Ecuador" },
+    { code: "+20", name: "Egypt" }, { code: "+503", name: "El Salvador" }, { code: "+240", name: "Equatorial Guinea" },
+    { code: "+291", name: "Eritrea" }, { code: "+372", name: "Estonia" }, { code: "+251", name: "Ethiopia" },
+    { code: "+679", name: "Fiji" }, { code: "+358", name: "Finland" }, { code: "+33", name: "France" },
+    { code: "+241", name: "Gabon" }, { code: "+220", name: "Gambia" }, { code: "+995", name: "Georgia" },
+    { code: "+49", name: "Germany" }, { code: "+233", name: "Ghana" }, { code: "+30", name: "Greece" },
+    { code: "+502", name: "Guatemala" }, { code: "+224", name: "Guinea" }, { code: "+592", name: "Guyana" },
+    { code: "+509", name: "Haiti" }, { code: "+504", name: "Honduras" }, { code: "+852", name: "Hong Kong" },
+    { code: "+36", name: "Hungary" }, { code: "+354", name: "Iceland" }, { code: "+91", name: "India" },
+    { code: "+62", name: "Indonesia" }, { code: "+98", name: "Iran" }, { code: "+964", name: "Iraq" },
+    { code: "+353", name: "Ireland" }, { code: "+972", name: "Israel" }, { code: "+39", name: "Italy" },
+    { code: "+225", name: "Ivory Coast" }, { code: "+1876", name: "Jamaica" }, { code: "+81", name: "Japan" },
+    { code: "+962", name: "Jordan" }, { code: "+7", name: "Kazakhstan" }, { code: "+254", name: "Kenya" },
+    { code: "+965", name: "Kuwait" }, { code: "+996", name: "Kyrgyzstan" }, { code: "+856", name: "Laos" },
+    { code: "+371", name: "Latvia" }, { code: "+961", name: "Lebanon" }, { code: "+266", name: "Lesotho" },
+    { code: "+231", name: "Liberia" }, { code: "+218", name: "Libya" }, { code: "+423", name: "Liechtenstein" },
+    { code: "+370", name: "Lithuania" }, { code: "+352", name: "Luxembourg" }, { code: "+853", name: "Macau" },
+    { code: "+261", name: "Madagascar" }, { code: "+265", name: "Malawi" }, { code: "+60", name: "Malaysia" },
+    { code: "+960", name: "Maldives" }, { code: "+223", name: "Mali" }, { code: "+356", name: "Malta" },
+    { code: "+222", name: "Mauritania" }, { code: "+230", name: "Mauritius" }, { code: "+52", name: "Mexico" },
+    { code: "+373", name: "Moldova" }, { code: "+377", name: "Monaco" }, { code: "+976", name: "Mongolia" },
+    { code: "+382", name: "Montenegro" }, { code: "+212", name: "Morocco" }, { code: "+258", name: "Mozambique" },
+    { code: "+95", name: "Myanmar" }, { code: "+264", name: "Namibia" }, { code: "+977", name: "Nepal" },
+    { code: "+31", name: "Netherlands" }, { code: "+64", name: "New Zealand" }, { code: "+505", name: "Nicaragua" },
+    { code: "+227", name: "Niger" }, { code: "+234", name: "Nigeria" }, { code: "+850", name: "North Korea" },
+    { code: "+389", name: "North Macedonia" }, { code: "+47", name: "Norway" }, { code: "+968", name: "Oman" },
+    { code: "+92", name: "Pakistan" }, { code: "+507", name: "Panama" }, { code: "+675", name: "Papua New Guinea" },
+    { code: "+595", name: "Paraguay" }, { code: "+51", name: "Peru" }, { code: "+63", name: "Philippines" },
+    { code: "+48", name: "Poland" }, { code: "+351", name: "Portugal" }, { code: "+974", name: "Qatar" },
+    { code: "+40", name: "Romania" }, { code: "+7", name: "Russia" }, { code: "+250", name: "Rwanda" },
+    { code: "+966", name: "Saudi Arabia" }, { code: "+221", name: "Senegal" }, { code: "+381", name: "Serbia" },
+    { code: "+65", name: "Singapore" }, { code: "+421", name: "Slovakia" }, { code: "+386", name: "Slovenia" },
+    { code: "+252", name: "Somalia" }, { code: "+27", name: "South Africa" }, { code: "+82", name: "South Korea" },
+    { code: "+211", name: "South Sudan" }, { code: "+34", name: "Spain" }, { code: "+94", name: "Sri Lanka" },
+    { code: "+249", name: "Sudan" }, { code: "+597", name: "Suriname" }, { code: "+46", name: "Sweden" },
+    { code: "+41", name: "Switzerland" }, { code: "+963", name: "Syria" }, { code: "+886", name: "Taiwan" },
+    { code: "+992", name: "Tajikistan" }, { code: "+255", name: "Tanzania" }, { code: "+66", name: "Thailand" },
+    { code: "+228", name: "Togo" }, { code: "+216", name: "Tunisia" }, { code: "+90", name: "Turkey" },
+    { code: "+993", name: "Turkmenistan" }, { code: "+256", name: "Uganda" }, { code: "+380", name: "Ukraine" },
+    { code: "+971", name: "UAE" }, { code: "+44", name: "United Kingdom" }, { code: "+1", name: "United States" },
+    { code: "+598", name: "Uruguay" }, { code: "+998", name: "Uzbekistan" }, { code: "+58", name: "Venezuela" },
+    { code: "+84", name: "Vietnam" }, { code: "+967", name: "Yemen" }, { code: "+260", name: "Zambia" },
+    { code: "+263", name: "Zimbabwe" },
+  ];
+
+  const filteredCountryCodes = countrySearch.trim()
+    ? COUNTRY_CODES.filter((c) =>
+        c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+        c.code.includes(countrySearch)
+      )
+    : COUNTRY_CODES;
+
+  // Split a full phone like "+919074837168" into { code: "+91", local: "9074837168" }
+  const splitPhoneCountryCode = (fullPhone) => {
+    if (!fullPhone) return { code: "+91", local: "" };
+    let phone = fullPhone.replace(/[\s\-()]/g, "");
+    if (!phone.startsWith("+")) return { code: "+91", local: phone };
+    // Try matching longest country codes first (4 digits, then 3, 2, 1)
+    for (let len = 4; len >= 1; len--) {
+      const prefix = phone.substring(0, len + 1); // +1 for the "+"
+      const match = COUNTRY_CODES.find((c) => c.code === prefix);
+      if (match) return { code: match.code, local: phone.substring(len + 1) };
+    }
+    return { code: "+91", local: phone.replace("+", "") };
+  };
+
+  // On mount, split existing phone into country code + local number
+  useEffect(() => {
+    const phone = existingOrder?.partner_phone || "";
+    if (phone) {
+      const { code, local } = splitPhoneCountryCode(phone);
+      setCountryCode(code);
+      setForm((prev) => ({ ...prev, partner_phone: local }));
+    }
+    // Fetch company details from Odoo
+    if (odooAuth) {
+      fetchCompanyDetails(odooAuth).then((info) => setCompanyInfo(info)).catch(() => {});
+    }
+  }, []);
 
   const PERIOD_DURATION_MAP = { day: "1", week: "1", month: "1" };
 
@@ -266,10 +366,12 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       : [];
 
   const selectCustomer = (customer) => {
+    const { code, local } = splitPhoneCountryCode(customer.phone || "");
+    setCountryCode(code);
     setForm((prev) => ({
       ...prev,
       partner_name: customer.name,
-      partner_phone: customer.phone || "",
+      partner_phone: local,
       partner_email: customer.email || "",
       partner_id: customer.odoo_id || parseInt(customer.id) || null,
     }));
@@ -449,7 +551,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     try {
       const newId = await addCustomer(odooAuth, {
         name: form.partner_name.trim(),
-        phone: form.partner_phone || "",
+        phone: form.partner_phone ? countryCode + form.partner_phone : "",
         email: form.partner_email || "",
       });
       setIsNewCustomer(true);
@@ -938,19 +1040,17 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
 
     <h2 class="title">${isCheckin ? "CHECK-IN INVOICE" : "CHECKOUT INVOICE"}</h2>
     <h4 class="sub">${form.name || "New Order"}</h4>
+    ${(form.customer_id || form.partner_id) ? `<div class="badge"><span>Customer ID: ${form.customer_id || form.partner_id}</span></div>` : ""}
 
     <div class="row">
       <div class="col">
-        <strong>Rental Company:</strong><br/>
-        Tool Management
+        <strong>${companyInfo.name}</strong>${companyInfo.street ? "<br/>" + companyInfo.street : ""}${companyInfo.street2 ? ", " + companyInfo.street2 : ""}${companyInfo.city ? "<br/>" + companyInfo.city : ""}${companyInfo.state ? ", " + companyInfo.state : ""}${companyInfo.zip ? " " + companyInfo.zip : ""}${companyInfo.country ? "<br/>" + companyInfo.country : ""}${companyInfo.phone ? "<br/>Ph: " + companyInfo.phone : ""}${companyInfo.email ? "<br/>" + companyInfo.email : ""}
       </div>
-      <div class="col">
+      <div class="col" style="text-align:right;">
         <strong>Customer:</strong><br/>
-        ${form.partner_name || "-"}${form.partner_phone ? "<br/>Ph: " + form.partner_phone : ""}${form.partner_email ? "<br/>" + form.partner_email : ""}
+        ${form.partner_name || "-"}${form.partner_phone ? "<br/>Ph: " + (form.partner_phone.startsWith("+") ? form.partner_phone : countryCode + form.partner_phone) : ""}${form.partner_email ? "<br/>" + form.partner_email : ""}
       </div>
     </div>
-
-    ${(form.customer_id || form.partner_id) ? `<div class="badge"><span>Customer ID: ${form.customer_id || form.partner_id}</span></div>` : ""}
 
 
     <table class="details">
@@ -963,23 +1063,17 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       ${isCheckin ? `<tr>
         <td><strong>Check-In Date:</strong></td>
         <td>${form.date_checkin || "-"}</td>
-        <td><strong>Billing Period:</strong></td>
-        <td>${form.rental_period_type || "day"}</td>
-      </tr>
-      <tr>
-        <td><strong>Planned Duration:</strong></td>
-        <td>${form.rental_duration || "1"} ${({"day":"Day","week":"Week","month":"Month"})[form.rental_period_type] || "Day"}(s)</td>
-        <td><strong>Actual Duration:</strong></td>
-        <td>${form.actual_duration || form.rental_duration + " " + ({"day":"Day","week":"Week","month":"Month"})[form.rental_period_type] || "Day"}</td>
-      </tr>` : `<tr>
-        <td><strong>Billing Period:</strong></td>
-        <td>${form.rental_period_type || "day"}</td>
         <td><strong>Duration (Days):</strong></td>
         <td>${form.rental_duration || "1"}</td>
       </tr>
       <tr>
-        <td><strong>Planned Return:</strong></td>
-        <td>${form.date_planned_checkin || "-"}</td>
+        <td><strong>Actual Duration:</strong></td>
+        <td>${form.actual_duration || form.rental_duration + " " + ({"day":"Day","week":"Week","month":"Month"})[form.rental_period_type] || "Day"}</td>
+        <td><strong>Advance:</strong></td>
+        <td>${cur}${advance.toFixed(2)}</td>
+      </tr>` : `<tr>
+        <td><strong>Duration (Days):</strong></td>
+        <td>${form.rental_duration || "1"}</td>
         <td><strong>Advance:</strong></td>
         <td>${cur}${advance.toFixed(2)}</td>
       </tr>`}
@@ -1038,8 +1132,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       </table>
     </div>
 
-    <div class="sig-row">
-      <div class="sig-col">
+    <div class="sig-row" style="${!isCheckin ? 'justify-content:center;' : ''}">
+      <div class="sig-col" style="${!isCheckin ? 'flex:none;min-width:200px;' : ''}">
         ${(() => {
         const sigImg = isCheckin ? assets.checkinSignature : assets.checkoutSignature;
         const sigName = form.partner_name || "";
@@ -1054,24 +1148,20 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         return `<hr/><div><strong>Customer Signature</strong></div><div>${sigName}</div><div style="font-size:${sigFontSize};color:#666">${sigTime}</div>`;
       })()}
       </div>
-      <div class="sig-col">
+      ${isCheckin ? `<div class="sig-col">
         ${(() => {
-        const authImg = isCheckin ? assets.checkinAuthoritySignature : null;
-        const authName = isCheckin ? (checkinSignerName || form.responsible || "") : "";
-        const authTime = isCheckin
-          ? (form.checkin_signature_time
+        const authImg = assets.checkinAuthoritySignature;
+        const authName = checkinSignerName || form.responsible || "";
+        const authTime = form.checkin_signature_time
             ? new Date(form.checkin_signature_time).toLocaleString()
-            : form.date_checkin || new Date().toLocaleString())
-          : "";
-
-        if (!isCheckin) return "";
+            : form.date_checkin || new Date().toLocaleString();
 
         if (authImg) {
           return `<img src="${authImg}" style="width:${sigW}px;height:${sigH}px;object-fit:contain;margin-bottom:2px;"/><div><strong>Authority</strong></div><div>${authName}</div><div style="font-size:${sigFontSize};color:#666">${authTime}</div>`;
         }
         return `<hr/><div><strong>Authority Signature</strong></div><div>${authName}</div><div style="font-size:${sigFontSize};color:#666">${authTime}</div>`;
       })()}
-      </div>
+      </div>` : ""}
       ${isCheckin && assets.discountAuthSignature ? `<div class="sig-col">
         <img src="${assets.discountAuthSignature}" style="width:${sigW}px;height:${sigH}px;object-fit:contain;margin-bottom:2px;"/>
         <div><strong>Discount Auth.</strong></div>
@@ -1213,6 +1303,42 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleInvoiceWhatsApp = async () => {
+    const customerPhone = form.partner_phone ? countryCode.replace("+", "") + form.partner_phone : "";
+    if (!customerPhone) {
+      showToastMessage("No phone number found for this customer");
+      return;
+    }
+    setInvoiceSendingWA(true);
+    try {
+      // Get PDF: try Odoo server first, fall back to local generation
+      let pdfUri = await fetchOdooPdf();
+      if (!pdfUri) {
+        pdfUri = await generateLocalPdf();
+      }
+      if (!pdfUri) {
+        showToastMessage("Could not generate PDF");
+        return;
+      }
+
+      // Read PDF as base64
+      const base64Data = await FileSystem.readAsStringAsync(pdfUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const filename = `${invoiceType === "checkout" ? "Checkout" : "CheckIn"}_Invoice_${(form.name || "order").replace(/\//g, "-")}.pdf`;
+
+      // Send via WhatsApp API
+      await sendWhatsAppDocument(odooAuth, customerPhone, base64Data, filename, filename);
+      setShowInvoiceModal(false);
+      showToastMessage("WhatsApp sent to " + customerPhone);
+    } catch (e) {
+      showToastMessage("WhatsApp error: " + e.message);
+    } finally {
+      setInvoiceSendingWA(false);
+    }
+  };
+
   const actionCancel = () => {
     Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
       { text: "No", style: "cancel" },
@@ -1325,7 +1451,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
 
     phoneDebounceRef.current = setTimeout(async () => {
       try {
-        await updateCustomer(odooAuth, form.partner_id, { phone: form.partner_phone });
+        await updateCustomer(odooAuth, form.partner_id, { phone: countryCode + form.partner_phone });
         if (isNewCustomer) {
           showToastMessage("Phone number saved");
         }
@@ -1413,7 +1539,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
             customer_id: fresh.customer_id || "",
             partner_id: fresh.partner_id || null,
             partner_name: fresh.partner_name || "",
-            partner_phone: fresh.partner_phone || "",
+            partner_phone: splitPhoneCountryCode(fresh.partner_phone || "").local,
             partner_email: fresh.partner_email || "",
             responsible: fresh.responsible || "Admin",
             date_order: fresh.date_order || today(),
@@ -1562,7 +1688,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           try {
             partnerId = await addCustomer(odooAuth, {
               name: curForm.partner_name.trim(),
-              phone: curForm.partner_phone || "",
+              phone: curForm.partner_phone ? countryCode + curForm.partner_phone : "",
               email: curForm.partner_email || "",
             });
           } catch (_) {
@@ -2938,7 +3064,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 <View style={styles.selectedCustomerRow}>
                   <View style={styles.selectedCustomerInfo}>
                     <Text style={styles.selectedCustomerName} numberOfLines={1}>{form.partner_name}</Text>
-                    {form.partner_phone ? <Text style={styles.selectedCustomerSub} numberOfLines={1}>{form.partner_phone}</Text> : null}
+                    {form.partner_phone ? <Text style={styles.selectedCustomerSub} numberOfLines={1}>{form.partner_phone.startsWith("+") ? form.partner_phone : countryCode + " " + form.partner_phone}</Text> : null}
                     {form.partner_email ? <Text style={styles.selectedCustomerSub} numberOfLines={1}>{form.partner_email}</Text> : null}
                   </View>
                   {isEditable && (
@@ -3034,31 +3160,63 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 </View>
               </TouchableOpacity>
             )}
-            <View style={styles.row2Col}>
-              <View style={styles.colHalf}>
-                <TextInput
-                  label="Phone"
-                  placeholder="Phone number (10 digits)"
-                  value={form.partner_phone}
-                  onChangeText={(t) => handleChange("partner_phone", t)}
-                  keyboardType="phone-pad"
-                  editable={isEditable}
-                  column
-                />
-                {phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
+            {/* Phone with Country Code */}
+            <View style={{ marginBottom: 3 }}>
+              <Text style={{ fontSize: 16, color: "#1565C0", fontWeight: "600", marginVertical: 5 }}>Phone</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => isEditable && setShowCountryPicker(true)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "white",
+                    borderWidth: 0.8,
+                    borderColor: "#BBB7B7",
+                    borderRadius: 6,
+                    height: 38,
+                    paddingHorizontal: 12,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>{countryCode}</Text>
+                  <Text style={{ fontSize: 9, color: "#888", marginLeft: 5 }}>{"\u25BC"}</Text>
+                </TouchableOpacity>
+                <View style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "white",
+                  borderWidth: 0.8,
+                  borderColor: "#BBB7B7",
+                  borderRadius: 6,
+                  height: 38,
+                  paddingHorizontal: 15,
+                }}>
+                  <RNTextInput
+                    placeholder="Phone number (10 digits)"
+                    placeholderTextColor="#666666"
+                    value={form.partner_phone}
+                    onChangeText={(t) => handleChange("partner_phone", t)}
+                    keyboardType="phone-pad"
+                    editable={isEditable}
+                    style={{ flex: 1, color: "#000", fontSize: 14 }}
+                  />
+                </View>
               </View>
-              <View style={styles.colHalf}>
-                <TextInput
-                  label="Email"
-                  placeholder="Email address"
-                  value={form.partner_email}
-                  onChangeText={(t) => handleChange("partner_email", t)}
-                  keyboardType="email-address"
-                  editable={isEditable}
-                  column
-                />
-                {emailError && <Text style={styles.errorText}>{emailError}</Text>}
-              </View>
+              {phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
+            </View>
+
+            {/* Email */}
+            <View style={{ marginBottom: 8 }}>
+              <TextInput
+                label="Email"
+                placeholder="Email address"
+                value={form.partner_email}
+                onChangeText={(t) => handleChange("partner_email", t)}
+                keyboardType="email-address"
+                editable={isEditable}
+                column
+              />
+              {emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
 
             {form.customer_id ? (
@@ -3819,6 +3977,52 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         </View>
       </Modal>
 
+      {/* COUNTRY CODE PICKER MODAL */}
+      <Modal visible={showCountryPicker} animationType="fade" transparent onRequestClose={() => setShowCountryPicker(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
+          <View style={{ backgroundColor: "#fff", borderRadius: 16, width: "85%", maxHeight: "70%", padding: 16, elevation: 10 }}>
+            <Text style={{ fontSize: 16, fontWeight: "700", color: "#333", marginBottom: 10 }}>Select Country Code</Text>
+            <RNTextInput
+              placeholder="Search country name or code..."
+              value={countrySearch}
+              onChangeText={setCountrySearch}
+              placeholderTextColor="#888"
+              autoFocus={true}
+              style={{ borderWidth: 1.5, borderColor: "#1565C0", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12, fontSize: 15, backgroundColor: "#fff", color: "#333" }}
+            />
+            <ScrollView style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+              {filteredCountryCodes.map((item, idx) => (
+                <TouchableOpacity
+                  key={item.name + idx}
+                  onPress={() => { setCountryCode(item.code); setShowCountryPicker(false); setCountrySearch(""); }}
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    paddingVertical: 12,
+                    paddingHorizontal: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#f0f0f0",
+                    backgroundColor: countryCode === item.code ? "#E3F2FD" : "#fff",
+                    borderRadius: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: countryCode === item.code ? "700" : "400", color: countryCode === item.code ? "#1565C0" : "#333" }}>
+                    {item.name}
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: countryCode === item.code ? "#1565C0" : "#666" }}>
+                    {item.code}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity onPress={() => { setShowCountryPicker(false); setCountrySearch(""); }} style={{ marginTop: 10, paddingVertical: 10, alignItems: "center", backgroundColor: "#F5F5F5", borderRadius: 8 }}>
+              <Text style={{ color: "#666", fontWeight: "600" }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* INVOICE PRINT MODAL */}
       <Modal visible={showInvoiceModal} animationType="slide" transparent onRequestClose={() => setShowInvoiceModal(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
@@ -3870,7 +4074,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               {/* Download PDF */}
               <TouchableOpacity
                 onPress={handleInvoiceDownload}
-                disabled={invoiceDownloading || invoicePrinting}
+                disabled={invoiceDownloading || invoicePrinting || invoiceSendingWA}
                 style={{
                   flex: 1,
                   backgroundColor: invoiceType === "checkout" ? "#1565C0" : "#7B1FA2",
@@ -3888,7 +4092,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               {/* Print */}
               <TouchableOpacity
                 onPress={handleInvoicePrint}
-                disabled={invoiceDownloading || invoicePrinting}
+                disabled={invoiceDownloading || invoicePrinting || invoiceSendingWA}
                 style={{
                   flex: 1,
                   backgroundColor: "#FF9800",
@@ -3903,6 +4107,24 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Send WhatsApp */}
+            <TouchableOpacity
+              onPress={handleInvoiceWhatsApp}
+              disabled={invoiceDownloading || invoicePrinting || invoiceSendingWA}
+              style={{
+                backgroundColor: "#25D366",
+                paddingVertical: 14,
+                borderRadius: 10,
+                alignItems: "center",
+                marginBottom: 10,
+                opacity: invoiceSendingWA ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
+                {invoiceSendingWA ? "Sending..." : "Send WhatsApp"}
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setShowInvoiceModal(false)}
