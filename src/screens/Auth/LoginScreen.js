@@ -12,6 +12,7 @@ import {
   Platform,
   TextInput as RNTextInput,
   ActivityIndicator,
+  Switch,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -28,6 +29,7 @@ import { ODOO_CONFIG, getOdooUrl, setOdooUrl } from "@api/config/odooConfig";
 
 const LoginScreen = ({ navigation }) => {
   const setUser = useAuthStore((state) => state.login);
+  const savedAuth = useAuthStore((state) => state.odooAuth);
 
   const [serverUrl, setServerUrl] = useState(getOdooUrl());
   const [inputs, setInputs] = useState({
@@ -42,6 +44,7 @@ const LoginScreen = ({ navigation }) => {
   const [showDbDropdown, setShowDbDropdown] = useState(false);
   const [serverStatus, setServerStatus] = useState(null); // null | "success" | "error"
   const [loadingDbs, setLoadingDbs] = useState(false);
+  const [autoFill, setAutoFill] = useState(false);
 
   const fetchDatabases = () => {
     setLoadingDbs(true);
@@ -121,6 +124,26 @@ const LoginScreen = ({ navigation }) => {
     setInputs((prevState) => ({ ...prevState, [input]: text }));
   };
 
+  const handleAutoFill = async (value) => {
+    setAutoFill(value);
+    if (value) {
+      try {
+        const saved = await AsyncStorage.getItem("savedCredentials");
+        if (saved) {
+          const { username, password, database } = JSON.parse(saved);
+          setInputs((prev) => ({
+            ...prev,
+            username: username || prev.username,
+            password: password || prev.password,
+            database: database || prev.database,
+          }));
+        }
+      } catch (e) {}
+    } else {
+      setInputs((prev) => ({ ...prev, username: "", password: "" }));
+    }
+  };
+
   const handleError = (error, input) => {
     setErrors((prevState) => ({ ...prevState, [input]: error }));
   };
@@ -167,6 +190,11 @@ const LoginScreen = ({ navigation }) => {
       };
 
       await AsyncStorage.setItem("lastServerUrl", serverUrl);
+      await AsyncStorage.setItem("savedCredentials", JSON.stringify({
+        username: inputs.username,
+        password: inputs.password,
+        database: inputs.database,
+      }));
       setUser(userData, odooAuth, serverUrl);
       showToastMessage("Logged in");
       navigation.navigate("AppNavigator");
@@ -328,6 +356,17 @@ const LoginScreen = ({ navigation }) => {
                   {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
                 </Animated.View>
 
+                {/* Auto Fill Toggle */}
+                <View style={styles.autoFillRow}>
+                  <Text style={styles.autoFillLabel}>Auto Fill Credentials</Text>
+                  <Switch
+                    value={autoFill}
+                    onValueChange={handleAutoFill}
+                    trackColor={{ false: "#D0D0D0", true: COLORS.primaryThemeColor }}
+                    thumbColor={autoFill ? "#fff" : "#f4f3f4"}
+                  />
+                </View>
+
                 {/* Login Button */}
                 <View style={styles.buttonContainer}>
                   <Button title="Login" onPress={validate} loading={loading} />
@@ -336,7 +375,7 @@ const LoginScreen = ({ navigation }) => {
             </View>
 
             {/* Footer */}
-            <Text style={styles.footer}>Powered by Alphalize  |  v1.0.0</Text>
+            <Text style={styles.footer}>Powered by 369ai  |  v1.0.0</Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -347,7 +386,7 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: "#F2F3F7",
+    backgroundColor: "transparent",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 24,
@@ -358,9 +397,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    width: 260,
-    height: 100,
+    width: 320,
+    height: 128,
     marginTop: 70,
+    borderWidth: 0,
+    backgroundColor: "transparent",
   },
   cardWrapper: {
     marginTop: 90,
@@ -489,6 +530,20 @@ const styles = StyleSheet.create({
     fontFamily: FONT_FAMILY.urbanistMedium,
     color: COLORS.gray,
     marginTop: 3,
+  },
+  autoFillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+  },
+  autoFillLabel: {
+    fontSize: 13,
+    fontFamily: FONT_FAMILY.urbanistMedium,
+    color: COLORS.primaryThemeColor,
   },
   buttonContainer: {
     marginTop: 10,

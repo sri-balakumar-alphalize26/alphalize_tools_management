@@ -25,6 +25,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Print from "expo-print";
+import { Asset } from "expo-asset";
 import SignaturePad from "@components/common/SignaturePad/SignaturePad";
 import CameraCapture from "@components/common/CameraCapture/CameraCapture";
 import { updateOrderValues, updateOrderLineValues, fetchOrderDataById, fetchOrderImages, fetchOrderLineImages, downloadCheckoutInvoice, downloadCheckinInvoice, updateCustomer, sendInvoiceWhatsApp, sendWhatsAppDocument, fetchCompanyDetails } from "@api/services/odooService";
@@ -1009,8 +1010,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      @page { size: ${isA5 ? "148mm 210mm" : "A4"} portrait; margin: ${isA5 ? "4mm" : "8mm"}; }
+      @page { size: ${isA5 ? "148mm 210mm" : "A4"} portrait; margin: ${isA5 ? "4mm" : "8mm"}; margin-top: ${isA5 ? "20mm" : "28mm"}; }
       body { font-family: Arial, Helvetica, sans-serif; padding: ${isA5 ? "4px" : "12px"}; color: #333; font-size: ${isA5 ? "7px" : "11px"}; line-height: ${isA5 ? "1.2" : "1.3"}; }
+      .page-header { position: fixed; top: 0; left: 0; right: 0; text-align: center; padding: ${isA5 ? "3px 0" : "6px 0"}; background: #fff; border-bottom: 1px solid #eee; }
       h2.title { text-align: center; color: #2c3e50; margin: 0 0 ${isA5 ? "1px" : "2px"} 0; font-size: ${isA5 ? "10px" : "16px"}; }
       h4.sub { text-align: center; color: #888; margin: 0 0 ${isA5 ? "3px" : "8px"} 0; font-size: ${isA5 ? "7.5px" : "12px"}; }
       .row { display: flex; gap: ${isA5 ? "6px" : "20px"}; margin-bottom: ${isA5 ? "3px" : "12px"}; }
@@ -1038,6 +1040,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       .footer { margin-top: ${isA5 ? "3px" : "6px"}; font-size: ${isA5 ? "5.5px" : "8px"}; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: ${isA5 ? "1px" : "3px"}; }
     </style></head><body>
 
+    ${assets.logo ? `<div class="page-header"><img src="${assets.logo}" style="width:${isA5 ? "60px" : "100px"};height:auto;" /></div>` : ""}
     <h2 class="title">${isCheckin ? "CHECK-IN INVOICE" : "CHECKOUT INVOICE"}</h2>
     <h4 class="sub">${form.name || "New Order"}</h4>
     ${(form.customer_id || form.partner_id) ? `<div class="badge"><span>Customer ID: ${form.customer_id || form.partner_id}</span></div>` : ""}
@@ -1171,6 +1174,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     </div>
 
     <div class="footer">Generated from Tool Management App &mdash; ${new Date().toLocaleString()}</div>
+    ${assets.cornerImage ? `<div style="text-align:right;margin-top:${isA5 ? "4px" : "10px"};"><img src="${assets.cornerImage}" style="width:${isA5 ? "130px" : "250px"};height:auto;" /></div>` : ""}
     </body></html>`;
   };
 
@@ -1217,6 +1221,22 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     assets.checkinSignature = await resolveImageDataUri(checkinSignatureUri || existingOrder?.checkin_customer_signature);
     assets.checkinAuthoritySignature = await resolveImageDataUri(checkinAuthoritySignatureUri || existingOrder?.checkin_signature);
     assets.discountAuthSignature = await resolveImageDataUri(discountAuthSignatureUri || existingOrder?.discount_auth_signature);
+    try {
+      const logoAsset = Asset.fromModule(require("@assets/images/logo.png"));
+      await logoAsset.downloadAsync();
+      const logoB64 = await uriToBase64(logoAsset.localUri);
+      assets.logo = logoB64 ? base64ToDataUri(logoB64, "image/jpeg") : null;
+    } catch (e) {
+      assets.logo = null;
+    }
+    try {
+      const cornerAsset = Asset.fromModule(require("@assets/images/invoice_corner.jpeg"));
+      await cornerAsset.downloadAsync();
+      const cornerB64 = await uriToBase64(cornerAsset.localUri);
+      assets.cornerImage = cornerB64 ? base64ToDataUri(cornerB64, "image/jpeg") : null;
+    } catch (e) {
+      assets.cornerImage = null;
+    }
 
     const html = buildInvoiceHtml(invoiceType, assets);
     const printOptions = { html, base64: false };
@@ -4028,6 +4048,10 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
           <View style={{ backgroundColor: "#fff", borderRadius: 16, width: "85%", padding: 20, elevation: 10 }}>
             {/* Header */}
+            <Image
+              source={require("@assets/images/logo.png")}
+              style={{ width: 240, height: 96, resizeMode: "contain", alignSelf: "center", marginBottom: 10 }}
+            />
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <Text style={{ fontSize: 18, fontWeight: "700", color: "#333" }}>
                 {invoiceType === "checkout" ? "Checkout Invoice" : "Check-In Invoice"}

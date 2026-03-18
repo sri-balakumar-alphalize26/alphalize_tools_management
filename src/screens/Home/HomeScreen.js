@@ -114,7 +114,6 @@ const HomeScreen = ({ navigation }) => {
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.tagline}>Manage your tools & rentals</Text>
         </View>
 
         {/* Carousel Banner */}
@@ -151,7 +150,7 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={
-            <Text style={styles.footer}>Powered by Alphalize  |  v1.0.0</Text>
+            <Text style={styles.footer}>Powered by 369ai  |  v1.0.0</Text>
           }
         />
       </RoundedContainer>
@@ -200,15 +199,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginHorizontal: 10,
     marginTop: 4,
-    backgroundColor: "#F5F7FA",
+    backgroundColor: "transparent",
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E8ECF0",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   logoImage: {
-    width: 200,
-    height: 80,
+    width: 320,
+    height: 128,
     marginBottom: 6,
+    backgroundColor: "transparent",
   },
   tagline: {
     fontSize: 12,
