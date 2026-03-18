@@ -136,14 +136,14 @@ const RentalOrdersScreen = ({ navigation }) => {
             </Text>
           )}
           <Text style={styles.amountText}>
-            ${item.total_amount?.toFixed(2) || "0.00"}
+            ر.ع.{item.total_amount?.toFixed(3) || "0.00"}
           </Text>
         </View>
 
         {parseFloat(item.advance_amount) > 0 && (
           <View style={styles.depositRow}>
             <Text style={styles.depositText}>
-              Advance: ${parseFloat(item.advance_amount).toFixed(2)}
+              Advance: ر.ع.{parseFloat(item.advance_amount).toFixed(3)}
             </Text>
             {item.advance_returned && (
               <Text style={styles.depositReturned}>Returned</Text>

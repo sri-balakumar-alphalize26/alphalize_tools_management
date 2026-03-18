@@ -144,7 +144,7 @@ const ToolsScreen = ({ navigation, route }) => {
         <View style={styles.priceRow}>
           {parseFloat(item.rental_price_per_day) > 0 ? (
             <Text style={styles.priceText}>
-              $ {parseFloat(item.rental_price_per_day).toFixed(2)}
+              ر.ع.{parseFloat(item.rental_price_per_day).toFixed(3)}
               <Text style={styles.perDay}>/day</Text>
             </Text>
           ) : (
@@ -154,7 +154,7 @@ const ToolsScreen = ({ navigation, route }) => {
 
         {parseFloat(item.late_fee_per_day) > 0 && (
           <Text style={styles.lateFeeText}>
-            Late: $ {parseFloat(item.late_fee_per_day).toFixed(2)}/day
+            Late: ر.ع.{parseFloat(item.late_fee_per_day).toFixed(3)}/day
           </Text>
         )}
       </View>

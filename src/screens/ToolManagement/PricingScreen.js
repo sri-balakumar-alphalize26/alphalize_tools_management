@@ -214,9 +214,9 @@ const PricingScreen = ({ navigation }) => {
           </Text>
         </View>
       </View>
-      <Text style={styles.cellPrice}>$ {item.price?.toFixed(2)}</Text>
+      <Text style={styles.cellPrice}>ر.ع.{item.price?.toFixed(3)}</Text>
       <Text style={styles.cellLateFee}>
-        {item.late_fee_per_day > 0 ? `$ ${item.late_fee_per_day.toFixed(2)}` : "—"}
+        {item.late_fee_per_day > 0 ? `ر.ع.${item.late_fee_per_day.toFixed(3)}` : "—"}
       </Text>
     </TouchableOpacity>
   );

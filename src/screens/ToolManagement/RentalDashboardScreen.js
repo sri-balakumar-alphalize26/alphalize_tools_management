@@ -224,9 +224,9 @@ const GraphView = ({ orders, selectedMeasure, setSelectedMeasure, graphType, set
 
     const data = { labels: displayLabels, datasets: [{ data: chartData.values.length > 0 ? chartData.values : [0] }] };
     if (graphType === "line") {
-      return <LineChart data={data} width={CHART_WIDTH} height={260} chartConfig={chartConfig} bezier style={gs.chart} fromZero yAxisLabel={selectedMeasure === "count" ? "" : "$ "} />;
+      return <LineChart data={data} width={CHART_WIDTH} height={260} chartConfig={chartConfig} bezier style={gs.chart} fromZero yAxisLabel={selectedMeasure === "count" ? "" : "ر.ع."} />;
     }
-    return <BarChart data={data} width={CHART_WIDTH} height={260} chartConfig={chartConfig} style={gs.chart} fromZero showValuesOnTopOfBars yAxisLabel={selectedMeasure === "count" ? "" : "$ "} />;
+    return <BarChart data={data} width={CHART_WIDTH} height={260} chartConfig={chartConfig} style={gs.chart} fromZero showValuesOnTopOfBars yAxisLabel={selectedMeasure === "count" ? "" : "ر.ع."} />;
   };
 
   return (
@@ -485,7 +485,7 @@ const PivotView = ({ orders }) => {
             <View style={pv.vLineD} />
             {activeMeasures.map((mk) => (
               <View key={`gt-${mk}`} style={[pv.mCell, { width: colWidth }]}>
-                <Text style={pv.totalValue}>$ {sumMeasure(orders, mk).toFixed(2)}</Text>
+                <Text style={pv.totalValue}>ر.ع.{sumMeasure(orders, mk).toFixed(3)}</Text>
               </View>
             ))}
             {periodTypes.map((pt) => (
@@ -493,7 +493,7 @@ const PivotView = ({ orders }) => {
                 <View style={pv.vLineD} />
                 {activeMeasures.map((mk) => (
                   <View key={`gt-${pt}-${mk}`} style={[pv.mCell, { width: colWidth }]}>
-                    <Text style={pv.totalValue}>$ {sumMeasure(allOrdersForPt(pt), mk).toFixed(2)}</Text>
+                    <Text style={pv.totalValue}>ر.ع.{sumMeasure(allOrdersForPt(pt), mk).toFixed(3)}</Text>
                   </View>
                 ))}
               </React.Fragment>
@@ -512,7 +512,7 @@ const PivotView = ({ orders }) => {
                 <View style={pv.vLineD} />
                 {activeMeasures.map((mk) => (
                   <View key={`${month}-${mk}`} style={[pv.mCell, { width: colWidth }]}>
-                    <Text style={pv.cellValue}>$ {sumMeasure(allInMonth, mk).toFixed(2)}</Text>
+                    <Text style={pv.cellValue}>ر.ع.{sumMeasure(allInMonth, mk).toFixed(3)}</Text>
                   </View>
                 ))}
                 {periodTypes.map((pt) => (
@@ -520,7 +520,7 @@ const PivotView = ({ orders }) => {
                     <View style={pv.vLineD} />
                     {activeMeasures.map((mk) => (
                       <View key={`${month}-${pt}-${mk}`} style={[pv.mCell, { width: colWidth }]}>
-                        <Text style={pv.cellValue}>$ {sumMeasure(months[month][pt] || [], mk).toFixed(2)}</Text>
+                        <Text style={pv.cellValue}>ر.ع.{sumMeasure(months[month][pt] || [], mk).toFixed(3)}</Text>
                       </View>
                     ))}
                   </React.Fragment>
@@ -607,7 +607,7 @@ const ListView = ({ orders, navigation }) => {
           </View>
         </View>
         <View style={lv.vLine} />
-        <Text style={[lv.cell, { flex: 1.2, fontWeight: "600" }]}>$ {(item.total_amount || 0).toFixed(2)}</Text>
+        <Text style={[lv.cell, { flex: 1.2, fontWeight: "600" }]}>ر.ع.{(item.total_amount || 0).toFixed(3)}</Text>
       </TouchableOpacity>
     );
   };
@@ -756,7 +756,7 @@ const CalendarView = ({ orders, navigation }) => {
                   {hasOrders && (
                     <View>
                       <Text style={[cv.orderCount, isSelected && { color: "#fff" }]}>{cell.orders.length} order{cell.orders.length > 1 ? "s" : ""}</Text>
-                      <Text style={[cv.orderAmount, isSelected && { color: "#ddd" }]}>$ {totalAmt.toFixed(0)}</Text>
+                      <Text style={[cv.orderAmount, isSelected && { color: "#ddd" }]}>ر.ع.{totalAmt.toFixed(0)}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -782,7 +782,7 @@ const CalendarView = ({ orders, navigation }) => {
                   </View>
                 </View>
                 <Text style={cv.orderCustomer}>{o.partner_name || "-"}</Text>
-                <Text style={cv.orderTotal}>$ {(o.total_amount || 0).toFixed(2)}</Text>
+                <Text style={cv.orderTotal}>ر.ع.{(o.total_amount || 0).toFixed(3)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -861,7 +861,7 @@ const RentalDashboardScreen = ({ navigation }) => {
           <td style="padding:6px 8px;border:1px solid #ddd">${o.partner_name || "-"}</td>
           <td style="padding:6px 8px;border:1px solid #ddd;text-align:center">${o.date_order ? o.date_order.split(" ")[0] : "-"}</td>
           <td style="padding:6px 8px;border:1px solid #ddd;text-align:center">${o.rental_period_type || "-"}</td>
-          <td style="padding:6px 8px;border:1px solid #ddd;text-align:right;font-weight:600">$ ${(o.total_amount || 0).toFixed(2)}</td>
+          <td style="padding:6px 8px;border:1px solid #ddd;text-align:right;font-weight:600">ر.ع.${(o.total_amount || 0).toFixed(3)}</td>
           <td style="padding:6px 8px;border:1px solid #ddd;text-align:center"><span style="background:${sc};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px">${st}</span></td>
         </tr>`;
       }).join("");
@@ -918,7 +918,7 @@ const RentalDashboardScreen = ({ navigation }) => {
             <View style={styles.summaryRow}>
               <View style={[styles.sCard, { borderLeftColor: "#714B67" }]}>
                 <Text style={styles.sLabel}>TOTAL REVENUE</Text>
-                <Text style={[styles.sNum, { color: "#714B67" }]}>$ {summary.total.toFixed(2)}</Text>
+                <Text style={[styles.sNum, { color: "#714B67" }]}>ر.ع.{summary.total.toFixed(3)}</Text>
               </View>
               <View style={[styles.sCard, { borderLeftColor: "#42A5F5" }]}>
                 <Text style={styles.sLabel}>TOTAL ORDERS</Text>
@@ -926,7 +926,7 @@ const RentalDashboardScreen = ({ navigation }) => {
               </View>
               <View style={[styles.sCard, { borderLeftColor: "#66BB6A" }]}>
                 <Text style={styles.sLabel}>AVG. ORDER</Text>
-                <Text style={[styles.sNum, { color: "#66BB6A" }]}>$ {summary.avg.toFixed(2)}</Text>
+                <Text style={[styles.sNum, { color: "#66BB6A" }]}>ر.ع.{summary.avg.toFixed(3)}</Text>
               </View>
             </View>
             <View style={styles.summaryRow}>
@@ -936,11 +936,11 @@ const RentalDashboardScreen = ({ navigation }) => {
               </View>
               <View style={[styles.sCard, { borderLeftColor: "#FF7043" }]}>
                 <Text style={styles.sLabel}>LATE FEES</Text>
-                <Text style={[styles.sNum, { color: "#FF7043" }]}>$ {summary.late.toFixed(2)}</Text>
+                <Text style={[styles.sNum, { color: "#FF7043" }]}>ر.ع.{summary.late.toFixed(3)}</Text>
               </View>
               <View style={[styles.sCard, { borderLeftColor: "#AB47BC" }]}>
                 <Text style={styles.sLabel}>DISCOUNTS</Text>
-                <Text style={[styles.sNum, { color: "#AB47BC" }]}>$ {summary.disc.toFixed(2)}</Text>
+                <Text style={[styles.sNum, { color: "#AB47BC" }]}>ر.ع.{summary.disc.toFixed(3)}</Text>
               </View>
             </View>
             <GraphView

@@ -78,9 +78,9 @@ const buildReportHtml = (data) => {
       <td style="padding:6px;text-align:center;border:1px solid #ddd;color:#28a745;font-weight:bold;">${r.available_qty}</td>
       <td style="padding:6px;text-align:center;border:1px solid #ddd;color:#dc3545;font-weight:bold;">${r.checked_out_qty}</td>
       <td style="padding:6px;text-align:center;border:1px solid #ddd;">${r.total_rentals}</td>
-      <td style="padding:6px;text-align:right;border:1px solid #ddd;">$ ${r.price_per_day.toFixed(2)}</td>
-      <td style="padding:6px;text-align:right;border:1px solid #ddd;">$ ${r.late_fee_per_day.toFixed(2)}</td>
-      <td style="padding:6px;text-align:right;border:1px solid #ddd;color:#28a745;font-weight:bold;">$ ${r.total_revenue.toFixed(2)}</td>
+      <td style="padding:6px;text-align:right;border:1px solid #ddd;">ر.ع.${r.price_per_day.toFixed(3)}</td>
+      <td style="padding:6px;text-align:right;border:1px solid #ddd;">ر.ع.${r.late_fee_per_day.toFixed(3)}</td>
+      <td style="padding:6px;text-align:right;border:1px solid #ddd;color:#28a745;font-weight:bold;">ر.ع.${r.total_revenue.toFixed(3)}</td>
     </tr>`;
   }).join("");
 
@@ -128,7 +128,7 @@ const buildReportHtml = (data) => {
         <div class="lbl">Total Rentals</div>
       </td>
       <td style="background:#fffbf0;">
-        <div class="num" style="color:#fd7e14;">$ ${sumRevenue.toFixed(2)}</div>
+        <div class="num" style="color:#fd7e14;">ر.ع.${sumRevenue.toFixed(3)}</div>
         <div class="lbl">Total Revenue</div>
       </td>
     </tr>
@@ -162,7 +162,7 @@ const buildReportHtml = (data) => {
         <td style="text-align:center;">${sumRentals}</td>
         <td style="text-align:right;"></td>
         <td style="text-align:right;"></td>
-        <td style="text-align:right;color:#28a745;">$ ${sumRevenue.toFixed(2)}</td>
+        <td style="text-align:right;color:#28a745;">ر.ع.${sumRevenue.toFixed(3)}</td>
       </tr>
     </tfoot>
   </table>
@@ -446,11 +446,11 @@ const ToolAvailabilityScreen = ({ navigation }) => {
       <View style={styles.vLineData} />
       <Text style={[styles.cell, styles.colSmall]}>{item.total_rentals}</Text>
       <View style={styles.vLineData} />
-      <Text style={[styles.cell, styles.colPrice]}>{item.price_per_day.toFixed(2)}</Text>
+      <Text style={[styles.cell, styles.colPrice]}>{item.price_per_day.toFixed(3)}</Text>
       <View style={styles.vLineData} />
-      <Text style={[styles.cell, styles.colPrice]}>{item.late_fee_per_day.toFixed(2)}</Text>
+      <Text style={[styles.cell, styles.colPrice]}>{item.late_fee_per_day.toFixed(3)}</Text>
       <View style={styles.vLineData} />
-      <Text style={[styles.cell, styles.colRevenue, { color: "#4CAF50", fontWeight: "600" }]}>{item.total_revenue.toFixed(2)}</Text>
+      <Text style={[styles.cell, styles.colRevenue, { color: "#4CAF50", fontWeight: "600" }]}>{item.total_revenue.toFixed(3)}</Text>
     </View>
   );
 
@@ -480,7 +480,7 @@ const ToolAvailabilityScreen = ({ navigation }) => {
               <Text style={styles.summaryLabel}>TOTAL RENTALS</Text>
             </View>
             <View style={[styles.summaryCard, { borderLeftColor: "#4CAF50" }]}>
-              <Text style={[styles.summaryNumber, { color: "#4CAF50" }]}>$ {summary.totalRevenue.toFixed(2)}</Text>
+              <Text style={[styles.summaryNumber, { color: "#4CAF50" }]}>ر.ع.{summary.totalRevenue.toFixed(3)}</Text>
               <Text style={styles.summaryLabel}>TOTAL REVENUE</Text>
             </View>
           </View>
