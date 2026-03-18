@@ -1010,9 +1010,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      @page { size: ${isA5 ? "148mm 210mm" : "A4"} portrait; margin: ${isA5 ? "4mm" : "8mm"}; margin-top: ${isA5 ? "20mm" : "28mm"}; }
+      @page { size: ${isA5 ? "148mm 210mm" : "A4"} portrait; margin: ${isA5 ? "4mm" : "8mm"}; }
       body { font-family: Arial, Helvetica, sans-serif; padding: ${isA5 ? "4px" : "12px"}; color: #333; font-size: ${isA5 ? "7px" : "11px"}; line-height: ${isA5 ? "1.2" : "1.3"}; }
-      .page-header { position: fixed; top: 0; left: 0; right: 0; text-align: center; padding: ${isA5 ? "3px 0" : "6px 0"}; background: #fff; border-bottom: 1px solid #eee; }
+      .invoice-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: ${isA5 ? "4px" : "10px"}; border-bottom: 2px solid #2c3e50; padding-bottom: ${isA5 ? "3px" : "8px"}; }
       h2.title { text-align: center; color: #2c3e50; margin: 0 0 ${isA5 ? "1px" : "2px"} 0; font-size: ${isA5 ? "10px" : "16px"}; }
       h4.sub { text-align: center; color: #888; margin: 0 0 ${isA5 ? "3px" : "8px"} 0; font-size: ${isA5 ? "7.5px" : "12px"}; }
       .row { display: flex; gap: ${isA5 ? "6px" : "20px"}; margin-bottom: ${isA5 ? "3px" : "12px"}; }
@@ -1040,10 +1040,15 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       .footer { margin-top: ${isA5 ? "3px" : "6px"}; font-size: ${isA5 ? "5.5px" : "8px"}; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: ${isA5 ? "1px" : "3px"}; }
     </style></head><body>
 
-    ${assets.logo ? `<div class="page-header"><img src="${assets.logo}" style="width:${isA5 ? "60px" : "100px"};height:auto;" /></div>` : ""}
-    <h2 class="title">${isCheckin ? "CHECK-IN INVOICE" : "CHECKOUT INVOICE"}</h2>
-    <h4 class="sub">${form.name || "New Order"}</h4>
-    ${(form.customer_id || form.partner_id) ? `<div class="badge"><span>Customer ID: ${form.customer_id || form.partner_id}</span></div>` : ""}
+    <div class="invoice-header">
+      ${assets.logo ? `<img src="${assets.logo}" style="width:${isA5 ? "55px" : "90px"};height:auto;" />` : "<div></div>"}
+      <div style="text-align:center;">
+        <h2 class="title">${isCheckin ? "CHECK-IN INVOICE" : "CHECKOUT INVOICE"}</h2>
+        <h4 class="sub">${form.name || "New Order"}</h4>
+        ${(form.customer_id || form.partner_id) ? `<div class="badge"><span>Customer ID: ${form.customer_id || form.partner_id}</span></div>` : ""}
+      </div>
+      <div style="width:${isA5 ? "55px" : "90px"};"></div>
+    </div>
 
     <div class="row">
       <div class="col">
