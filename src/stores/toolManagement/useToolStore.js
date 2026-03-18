@@ -122,6 +122,15 @@ const useToolStore = create(
         }
       },
 
+      updatePricingRuleInStore: (id, values) => {
+        set((state) => ({
+          pricingRules: state.pricingRules.map((r) =>
+            String(r.id) === String(id) ? { ...r, ...values } : r
+          ),
+        }));
+        invalidate("pricingRules");
+      },
+
       fetchToolReport: async (auth, force) => {
         if (!force && isFresh("toolReport")) return;
         try {

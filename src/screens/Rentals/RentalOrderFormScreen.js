@@ -120,6 +120,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const existingOrder = route?.params?.order;
   const odooAuth = useAuthStore((s) => s.odooAuth);
   const customers = useToolStore((s) => s.customers);
+  const storeFetchCustomers = useToolStore((s) => s.fetchCustomers);
   const tools = useToolStore((s) => s.tools);
   const storeFetchTools = useToolStore((s) => s.fetchTools);
   const pricingRules = useToolStore((s) => s.pricingRules);
@@ -322,6 +323,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     // Fetch company details from Odoo
     if (odooAuth) {
       fetchCompanyDetails(odooAuth).then((info) => setCompanyInfo(info)).catch(() => {});
+      storeFetchCustomers(odooAuth, true);
     }
   }, []);
 
@@ -3112,7 +3114,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 />
               )}
               {errors.partner_name && <Text style={styles.errorText}>{errors.partner_name}</Text>}
-              {showCustomerDropdown && filteredCustomers.length > 0 && (
+              {showCustomerDropdown && form.partner_name.trim().length > 0 && (
                 <ScrollView style={styles.dropdown} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                   {filteredCustomers.map((c) => (
                     <TouchableOpacity key={c.id} style={styles.dropdownItem} onPress={() => selectCustomer(c)}>

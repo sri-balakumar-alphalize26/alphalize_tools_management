@@ -11,6 +11,8 @@ import {
   Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView, RoundedContainer } from "@components/containers";
 import NavigationHeader from "@components/Header/NavigationHeader";
@@ -70,14 +72,21 @@ const ToolFormScreen = ({ navigation, route }) => {
   };
 
   const pickFromGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-      base64: true,
-    });
-    handlePickResult(result);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        const uri = result.assets[0].uri;
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        setImageBase64(base64);
+      }
+    } catch (e) {
+      Alert.alert("Error", "Could not open file picker.");
+    }
   };
 
   const pickFromCamera = async () => {
@@ -98,7 +107,7 @@ const ToolFormScreen = ({ navigation, route }) => {
   const pickImage = () => {
     Alert.alert("Select Photo", "Choose an option", [
       { text: "Camera", onPress: pickFromCamera },
-      { text: "Gallery", onPress: pickFromGallery },
+      { text: "Files", onPress: pickFromGallery },
       { text: "Cancel", style: "cancel" },
     ]);
   };
@@ -142,6 +151,7 @@ const ToolFormScreen = ({ navigation, route }) => {
             lateFeePerDay: form.late_fee_per_day,
             categoryId: form.category_id,
             serialNumbers: serialList,
+            image: imageBase64 || null,
           });
           showToastMessage(`${created.length} product(s) created for "${form.name}"`);
         }

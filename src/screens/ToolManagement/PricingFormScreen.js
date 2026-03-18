@@ -15,6 +15,7 @@ import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import { showToastMessage } from "@components/Toast";
 import { updatePricingRule } from "@api/services/odooService";
 import useAuthStore from "@stores/auth/useAuthStore";
+import useToolStore from "@stores/toolManagement/useToolStore";
 
 const PERIOD_OPTIONS = [
   { label: "Per Day", value: "day" },
@@ -26,6 +27,8 @@ const PERIOD_OPTIONS = [
 const PricingFormScreen = ({ navigation, route }) => {
   const rule = route?.params?.rule;
   const odooAuth = useAuthStore((s) => s.odooAuth);
+  const fetchPricingRules = useToolStore((s) => s.fetchPricingRules);
+  const updatePricingRuleInStore = useToolStore((s) => s.updatePricingRuleInStore);
 
   const [form, setForm] = useState({
     period_type: rule?.period_type || "day",
@@ -51,6 +54,14 @@ const PricingFormScreen = ({ navigation, route }) => {
         late_fee_per_day: form.late_fee_per_day,
         min_duration: form.min_duration,
         max_duration: form.max_duration,
+        notes: form.notes,
+      });
+      updatePricingRuleInStore(rule.id, {
+        period_type: form.period_type,
+        price: parseFloat(form.price) || 0,
+        late_fee_per_day: parseFloat(form.late_fee_per_day) || 0,
+        min_duration: parseFloat(form.min_duration) || 0,
+        max_duration: parseFloat(form.max_duration) || 0,
         notes: form.notes,
       });
       showToastMessage("Pricing rule updated successfully");

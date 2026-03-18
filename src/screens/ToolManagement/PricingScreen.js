@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
+  RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView, RoundedContainer } from "@components/containers";
@@ -140,11 +141,19 @@ const PricingScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedPeriod, setSelectedPeriod] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    if (!odooAuth) return;
+    setRefreshing(true);
+    await fetchPricingRules(odooAuth);
+    setRefreshing(false);
+  }, [odooAuth]);
 
   useFocusEffect(
     useCallback(() => {
       if (odooAuth) {
-        fetchPricingRules(odooAuth);
+        fetchPricingRules(odooAuth, true);
       }
     }, [odooAuth])
   );
@@ -281,6 +290,14 @@ const PricingScreen = ({ navigation }) => {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmpty}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primaryThemeColor]}
+              tintColor={COLORS.primaryThemeColor}
+            />
+          }
         />
       </RoundedContainer>
     </SafeAreaView>

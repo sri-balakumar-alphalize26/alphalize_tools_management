@@ -101,7 +101,7 @@ export const updateTool = async (auth, id, values) => {
 };
 
 // Generate serialized products (like the Odoo wizard)
-export const generateSerializedProducts = async (auth, { productName, listPrice, lateFeePerDay, categoryId, serialNumbers }) => {
+export const generateSerializedProducts = async (auth, { productName, listPrice, lateFeePerDay, categoryId, serialNumbers, image }) => {
   const created = [];
   for (const serial of serialNumbers) {
     const vals = {
@@ -113,6 +113,7 @@ export const generateSerializedProducts = async (auth, { productName, listPrice,
       type: "consu",
     };
     if (categoryId) vals.rental_category_id = Number(categoryId);
+    if (image) vals.image_1920 = image;
     const newId = await odooCreate(auth, "product.product", vals);
     created.push(newId);
   }
