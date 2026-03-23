@@ -127,6 +127,9 @@
                                     </td>
                                     <td class="rtr_td_name">
                                         <t t-esc="rec.name"/>
+                                        <t t-if="rec.serial_number">
+                                            <br/><small class="text-muted"><t t-esc="rec.serial_number"/></small>
+                                        </t>
                                     </td>
                                     <td>
                                         <t t-esc="rec.category_id ? rec.category_id[1] : ''"/>

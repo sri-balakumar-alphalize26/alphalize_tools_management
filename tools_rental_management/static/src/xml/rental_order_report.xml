@@ -259,7 +259,7 @@
                                             <tbody>
                                                 <tr t-foreach="state.expandedLines" t-as="line" t-key="line.id">
                                                     <td><t t-esc="line_index + 1"/></td>
-                                                    <td><t t-esc="line.product_id and line.product_id[1] or '-'"/></td>
+                                                    <td><t t-esc="line.product_id ? line.product_id[1] : (line.tool_id ? line.tool_id[1] : '-')"/></td>
                                                     <td><t t-esc="line.serial_number or '-'"/></td>
                                                     <td t-att-class="getConditionClass(line.checkout_condition)">
                                                         <t t-esc="capitalize(line.checkout_condition)"/></td>

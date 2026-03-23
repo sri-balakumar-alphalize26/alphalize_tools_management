@@ -9,6 +9,7 @@ class RentalToolReport(models.Model):
 
     # ── Dimensions ────────────────────────────────────────────────────
     name = fields.Char(string='Tool Name', readonly=True)
+    serial_number = fields.Char(string='Serial No.', readonly=True)
     tool_id = fields.Many2one('rental.tool', string='Tool', readonly=True)
     category_id = fields.Many2one(
         'rental.tool.category', string='Category', readonly=True)
@@ -40,6 +41,7 @@ class RentalToolReport(models.Model):
                 SELECT
                     t.id                    AS id,
                     t.name                  AS name,
+                    t.serial_number         AS serial_number,
                     t.id                    AS tool_id,
                     t.category_id           AS category_id,
                     t.state                 AS state,
@@ -97,7 +99,7 @@ class RentalToolReport(models.Model):
                         SUM(ol.total_cost) AS total_revenue
                     FROM rental_order_line ol
                     JOIN rental_order ro ON ro.id = ol.order_id
-                    WHERE ro.state = 'done'
+                    WHERE ro.state IN ('checked_in', 'done', 'invoiced')
                     GROUP BY ol.tool_id
                 ) done ON done.tool_id = t.id
 

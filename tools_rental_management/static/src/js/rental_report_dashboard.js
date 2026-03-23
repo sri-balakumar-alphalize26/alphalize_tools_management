@@ -46,7 +46,7 @@ class RentalToolReportDashboard extends Component {
             "rental.tool.report",
             [],
             [
-                "name", "category_id", "state", "total_qty",
+                "name", "serial_number", "category_id", "state", "total_qty",
                 "available_qty", "checked_out_qty", "active_rentals",
                 "total_rentals", "price_per_day", "late_fee_per_day",
                 "total_revenue",

@@ -45,7 +45,7 @@ const COUNTRY_CODES = [
   { code: "+49", name: "Germany" }, { code: "+233", name: "Ghana" }, { code: "+30", name: "Greece" },
   { code: "+502", name: "Guatemala" }, { code: "+224", name: "Guinea" }, { code: "+592", name: "Guyana" },
   { code: "+509", name: "Haiti" }, { code: "+504", name: "Honduras" }, { code: "+852", name: "Hong Kong" },
-  { code: "+36", name: "Hungary" }, { code: "+354", name: "Iceland" }, { code: "+91", name: "India" },
+  { code: "+36", name: "Hungary" }, { code: "+354", name: "Iceland" }, { code: "+968", name: "India" },
   { code: "+62", name: "Indonesia" }, { code: "+98", name: "Iran" }, { code: "+964", name: "Iraq" },
   { code: "+353", name: "Ireland" }, { code: "+972", name: "Israel" }, { code: "+39", name: "Italy" },
   { code: "+225", name: "Ivory Coast" }, { code: "+1876", name: "Jamaica" }, { code: "+81", name: "Japan" },
@@ -83,15 +83,15 @@ const COUNTRY_CODES = [
 ];
 
 const splitPhoneCountryCode = (fullPhone) => {
-  if (!fullPhone) return { code: "+91", local: "" };
+  if (!fullPhone) return { code: "+968", local: "" };
   let phone = fullPhone.replace(/[\s\-()]/g, "");
-  if (!phone.startsWith("+")) return { code: "+91", local: phone };
+  if (!phone.startsWith("+")) return { code: "+968", local: phone };
   for (let len = 4; len >= 1; len--) {
     const prefix = phone.substring(0, len + 1);
     const match = COUNTRY_CODES.find((c) => c.code === prefix);
     if (match) return { code: match.code, local: phone.substring(len + 1) };
   }
-  return { code: "+91", local: phone.replace("+", "") };
+  return { code: "+968", local: phone.replace("+", "") };
 };
 
 const CustomersScreen = ({ navigation }) => {
@@ -106,7 +106,7 @@ const CustomersScreen = ({ navigation }) => {
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editEmail, setEditEmail] = useState("");
-  const [editCountryCode, setEditCountryCode] = useState("+91");
+  const [editCountryCode, setEditCountryCode] = useState("+968");
   const [saving, setSaving] = useState(false);
 
   // Country picker state

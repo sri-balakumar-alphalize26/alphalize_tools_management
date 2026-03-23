@@ -12,6 +12,7 @@
                   decoration-danger="state == 'rented'"
                   decoration-muted="state == 'retired'">
                 <field name="name"/>
+                <field name="serial_number" string="Serial No."/>
                 <field name="category_id"/>
                 <field name="state" widget="badge"
                        decoration-success="state == 'available'"

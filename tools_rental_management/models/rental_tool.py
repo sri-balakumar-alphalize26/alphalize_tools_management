@@ -116,7 +116,7 @@ class RentalTool(models.Model):
         for tool in self:
             orders = self.env['rental.order.line'].search([
                 ('tool_id', '=', tool.id),
-                ('order_id.state', 'in', ['done']),
+                ('order_id.state', 'in', ['checked_in', 'done', 'invoiced']),
             ])
             tool.total_rental_count = len(orders)
             tool.total_revenue = sum(orders.mapped('total_cost'))

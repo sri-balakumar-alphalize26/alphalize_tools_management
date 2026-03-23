@@ -428,7 +428,12 @@ const ToolAvailabilityScreen = ({ navigation }) => {
     <View style={[styles.dataRow, index % 2 === 0 && { backgroundColor: "#fafafa" }]}>
       <Text style={[styles.cell, styles.colNum]}>{index + 1}</Text>
       <View style={styles.vLineData} />
-      <Text style={[styles.cell, styles.colName, { fontWeight: "600" }]} numberOfLines={1}>{item.name}</Text>
+      <View style={[styles.colName, { justifyContent: "center" }]}>
+        <Text style={[styles.cell, { fontWeight: "600" }]} numberOfLines={1}>{item.name}</Text>
+        {item.serial_number ? (
+          <Text style={[styles.cell, { fontSize: 11, color: "#888", marginTop: 1 }]} numberOfLines={1}>{item.serial_number}</Text>
+        ) : null}
+      </View>
       <View style={styles.vLineData} />
       <Text style={[styles.cell, styles.colCat, { color: COLORS.gray }]} numberOfLines={1}>{item.category_name || "\u2014"}</Text>
       <View style={styles.vLineData} />

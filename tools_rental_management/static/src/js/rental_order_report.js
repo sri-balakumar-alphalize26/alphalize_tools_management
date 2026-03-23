@@ -117,7 +117,7 @@ export class RentalOrderReport extends Component {
             "rental.order.line",
             [["order_id", "=", orderId]],
             [
-                "product_id", "serial_number", "unit_price", "planned_duration",
+                "product_id", "tool_id", "serial_number", "unit_price", "planned_duration",
                 "rental_cost", "checkout_condition", "checkin_condition",
                 "late_fee_amount", "damage_charge", "damage_note",
             ]

@@ -718,7 +718,7 @@ export const updatePricingRule = async (auth, id, values) => {
 // =============================================
 
 const REPORT_FIELDS = [
-  "name", "tool_id", "category_id", "state",
+  "name", "serial_number", "tool_id", "category_id", "state",
   "total_qty", "available_qty", "checked_out_qty",
   "total_rentals", "active_rentals", "total_revenue",
   "price_per_day", "late_fee_per_day",
@@ -735,6 +735,7 @@ export const fetchToolReport = async (auth) => {
   return records.map((r) => ({
     id: String(r.id),
     name: r.name || "",
+    serial_number: r.serial_number || "",
     category_name: r.category_id ? r.category_id[1] : "",
     state: r.state || "available",
     total_qty: r.total_qty || 0,

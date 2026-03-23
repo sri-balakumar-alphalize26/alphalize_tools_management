@@ -80,7 +80,7 @@ class RentalOrderLine(models.Model):
     # Tool display name — always resolves: product_id.name → tool_id.name
     tool_display_name = fields.Char(
         string='Tool', compute='_compute_tool_display_name',
-        store=True)
+        store=False)
 
     serial_number = fields.Char(
         related='tool_id.serial_number', string='Serial No.', readonly=True)
