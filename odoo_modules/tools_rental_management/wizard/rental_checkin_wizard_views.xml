@@ -112,24 +112,27 @@
                                force_save="1"/>
                     </group>
                 </group>
-                <separator string="Payment Method"/>
-                <group>
+                <div invisible="is_partial">
+                    <separator string="Payment Method"/>
                     <group>
-                        <field name="checkin_payment_method" string="Payment Method"
-                               required="1"/>
+                        <group>
+                            <field name="is_partial" invisible="1"/>
+                            <field name="checkin_payment_method" string="Payment Method"
+                                   required="not is_partial"/>
+                        </group>
+                        <group/>
                     </group>
-                    <group/>
-                </group>
-                <group invisible="checkin_payment_method != 'cash'">
-                    <group>
-                        <field name="checkin_cash_received" string="Cash Received"/>
+                    <group invisible="checkin_payment_method != 'cash'">
+                        <group>
+                            <field name="checkin_cash_received" string="Cash Received"/>
+                        </group>
+                        <group>
+                            <field name="checkin_cash_balance"
+                                   string="Balance to Return"
+                                   force_save="1"/>
+                        </group>
                     </group>
-                    <group>
-                        <field name="checkin_cash_balance"
-                               string="Balance to Return"
-                               force_save="1"/>
-                    </group>
-                </group>
+                </div>
                 <separator string="Customer Signature (Required)"/>
                 <group>
                     <field name="checkin_customer_signature" widget="signature"

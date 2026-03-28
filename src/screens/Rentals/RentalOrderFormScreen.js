@@ -469,11 +469,11 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       const multiplier = LINE_DAY_MULTIPLIERS[updated[index].period_type || form.rental_period_type || "day"] || 1;
       const rentalCost = price * dur * multiplier * qty;
       updated[index].line_total = rentalCost.toFixed(3);
-      // Compute tax locally (tax inclusive: extract from rental cost)
+      // Compute tax (exclusive: added on top of rental cost)
       if (taxRate > 0) {
-        const taxAmt = rentalCost - (rentalCost / (1 + taxRate / 100));
+        const taxAmt = rentalCost * taxRate / 100;
         updated[index].tax_amount = taxAmt.toFixed(3);
-        updated[index].price_before_tax = (rentalCost - taxAmt).toFixed(3);
+        updated[index].price_before_tax = rentalCost.toFixed(3);
         updated[index].tax_ids = [{ name: taxRate + '%' }];
       } else {
         updated[index].tax_amount = "0";
@@ -528,9 +528,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       line.line_total = rentalCost.toFixed(3);
       const taxRate = parseFloat(line.tax_rate) || 0;
       if (taxRate > 0) {
-        const taxAmt = rentalCost - (rentalCost / (1 + taxRate / 100));
+        const taxAmt = rentalCost * taxRate / 100;
         line.tax_amount = taxAmt.toFixed(3);
-        line.price_before_tax = (rentalCost - taxAmt).toFixed(3);
+        line.price_before_tax = rentalCost.toFixed(3);
       } else {
         line.tax_amount = "0";
         line.price_before_tax = rentalCost.toFixed(3);
@@ -695,7 +695,15 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           try {
             const fresh = await fetchOrderDataById(odooAuth, newId);
             if (fresh) {
-              setLines(fresh.lines || []);
+              // Merge fresh lines with local tax data (Odoo may not have computed yet)
+              const mergedLines = (fresh.lines || []).map((fl) => {
+                const localLine = lines.find((ll) => ll.tool_id === fl.tool_id);
+                if (localLine && !(parseFloat(fl.tax_amount) > 0) && parseFloat(localLine.tax_amount) > 0) {
+                  return { ...fl, tax_amount: localLine.tax_amount, price_before_tax: localLine.price_before_tax, tax_rate: localLine.tax_rate, tax_ids: localLine.tax_ids };
+                }
+                return fl;
+              });
+              setLines(mergedLines);
               setForm((prev) => ({ ...prev, name: fresh.name || prev.name }));
             }
           } catch (e) {
@@ -931,7 +939,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       Alert.alert("Required", "Set condition for all returning tools before check-in");
       return;
     }
-    if (!form.checkin_payment_method) {
+    const isPartialReturn = checkinExcludedIdx.filter((i) => !checkinAlreadyReturnedIdx.includes(i)).length > 0;
+    if (!isPartialReturn && !form.checkin_payment_method) {
       Alert.alert("Required", "Please select a payment method for check-in");
       return;
     }
@@ -1084,6 +1093,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           discountInfo = `${cur}${val.toFixed(3)}`;
         }
       }
+      const lineTaxAmt = parseFloat(l.tax_amount) || 0;
+      const lineTaxRate = parseFloat(l.tax_rate) > 0 ? l.tax_rate + '%' : (lineTaxAmt > 0 ? ((lineTaxAmt / ((parseFloat(l.price_before_tax) || rentalCost) || 1)) * 100).toFixed(1) + '%' : '');
       return `<tr>
         <td>${i + 1}</td>
         <td>${l.tool_name || "-"}</td>
@@ -1092,6 +1103,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         <td class="text-end">${cur}${(parseFloat(l.unit_price) || 0).toFixed(3)}</td>
         <td class="text-end">${parseInt(l.planned_duration) || 1} ${((d, pt) => d === 1 ? ({"day":"Day","week":"Week","month":"Month"})[pt] || "Day" : ({"day":"Days","week":"Weeks","month":"Months"})[pt] || "Days")(parseInt(l.planned_duration) || 1, l.period_type || form.rental_period_type || "day")}</td>
         <td class="text-end">${cur}${rentalCost.toFixed(3)}</td>
+        <td class="text-end">${lineTaxRate}</td>
+        <td class="text-end">${lineTaxAmt > 0 ? cur + lineTaxAmt.toFixed(3) : ''}</td>
       </tr>`;
     }).join("");
 
@@ -1122,6 +1135,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         <td>${l.damage_note || ""}</td>
         <td class="text-end" ${dmg > 0 ? 'style="color:red;font-weight:bold"' : ""}>${cur}${dmg.toFixed(3)}</td>
         <td class="text-end" ${discAmt > 0 ? 'style="color:green;font-weight:bold"' : ""}>${discDisplay}</td>
+        <td class="text-end">${parseFloat(l.tax_rate) > 0 ? l.tax_rate + '%' : (parseFloat(l.tax_amount) > 0 ? ((parseFloat(l.tax_amount) / ((parseFloat(l.price_before_tax) || calcLineTotal(l)) || 1)) * 100).toFixed(1) + '%' : '')}</td>
+        <td class="text-end">${parseFloat(l.tax_amount) > 0 ? cur + parseFloat(l.tax_amount).toFixed(3) : ''}</td>
       </tr>`;
     }).join("");
 
@@ -1223,14 +1238,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     ${!isCheckin ? `<table class="tools">
       <thead><tr>
         <th>#</th><th>Tool</th><th>Serial No.</th><th>Condition</th>
-        <th class="text-end">Price</th><th class="text-end">Duration</th><th class="text-end">Total</th>
+        <th class="text-end">Price</th><th class="text-end">Duration</th><th class="text-end">Total</th><th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>
       </tr></thead>
       <tbody>${checkoutToolRows}</tbody>
     </table>` : `<table class="tools">
       <thead><tr>
         <th>#</th><th>Tool</th><th>S/N</th><th>Out</th><th>In</th>
         <th class="text-end">Price</th><th class="text-end">Duration</th><th class="text-end">Extra Days</th>
-        <th class="text-end">Late Fee</th><th>Damage</th><th class="text-end">Dmg ر.ع.</th><th class="text-end">Disc.</th>
+        <th class="text-end">Late Fee</th><th>Damage</th><th class="text-end">Dmg ر.ع.</th><th class="text-end">Disc.</th><th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>
       </tr></thead>
       <tbody>${checkinToolRows}</tbody>
     </table>`}
@@ -2301,7 +2316,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={coStyles.pricingItem}>
                         <Text style={ciStyles.lateFeeLabel}>Tax %</Text>
                         <View style={ciStyles.readOnlyBox}>
-                          <Text style={ciStyles.readOnlyText}>{line.tax_ids && line.tax_ids.length > 0 ? line.tax_ids.map(t => typeof t === 'object' ? t.name : t).join(', ') : '5%'}</Text>
+                          <Text style={ciStyles.readOnlyText}>{parseFloat(line.tax_rate) > 0 ? line.tax_rate + '%' : (parseFloat(line.tax_amount) > 0 ? ((parseFloat(line.tax_amount) / (parseFloat(line.price_before_tax) || 1)) * 100).toFixed(1) + '%' : '5%')}</Text>
                         </View>
                       </View>
                       <View style={coStyles.pricingItem}>
@@ -2673,7 +2688,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={coStyles.pricingItem}>
                         <Text style={ciStyles.lateFeeLabel}>Tax %</Text>
                         <View style={ciStyles.readOnlyBox}>
-                          <Text style={ciStyles.readOnlyText}>{line.tax_ids && line.tax_ids.length > 0 ? line.tax_ids.map(t => typeof t === 'object' ? t.name : t).join(', ') : '5%'}</Text>
+                          <Text style={ciStyles.readOnlyText}>{parseFloat(line.tax_rate) > 0 ? line.tax_rate + '%' : (parseFloat(line.tax_amount) > 0 ? ((parseFloat(line.tax_amount) / (parseFloat(line.price_before_tax) || 1)) * 100).toFixed(1) + '%' : '5%')}</Text>
                         </View>
                       </View>
                       <View style={coStyles.pricingItem}>
@@ -2829,44 +2844,48 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* Payment Method */}
-            <Text style={ciStyles.sectionTitle}>PAYMENT METHOD <Text style={{ color: "#F44336" }}>*</Text></Text>
-            <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#e0e0e0" }}>
-              <View style={styles.chipRow}>
-                {[{ label: "Cash", value: "cash" }, { label: "Card", value: "card" }, { label: "Bank", value: "bank" }, { label: "Credit", value: "credit" }].map((pm) => (
-                  <TouchableOpacity
-                    key={pm.value}
-                    style={[styles.condChip, form.checkin_payment_method === pm.value && styles.condChipActive]}
-                    onPress={() => handleChange("checkin_payment_method", pm.value)}
-                  >
-                    <Text style={[styles.condChipText, form.checkin_payment_method === pm.value && styles.condChipTextActive]}>
-                      {pm.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            {/* Payment Method — only show on full return */}
+            {checkinExcludedIdx.filter((i) => !checkinAlreadyReturnedIdx.includes(i)).length === 0 && (
+              <>
+                <Text style={ciStyles.sectionTitle}>PAYMENT METHOD <Text style={{ color: "#F44336" }}>*</Text></Text>
+                <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#e0e0e0" }}>
+                  <View style={styles.chipRow}>
+                    {[{ label: "Cash", value: "cash" }, { label: "Card", value: "card" }, { label: "Bank", value: "bank" }, { label: "Credit", value: "credit" }].map((pm) => (
+                      <TouchableOpacity
+                        key={pm.value}
+                        style={[styles.condChip, form.checkin_payment_method === pm.value && styles.condChipActive]}
+                        onPress={() => handleChange("checkin_payment_method", pm.value)}
+                      >
+                        <Text style={[styles.condChipText, form.checkin_payment_method === pm.value && styles.condChipTextActive]}>
+                          {pm.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
 
-            {/* Cash Received (only for cash payment) */}
-            {form.checkin_payment_method === "cash" && (
-              <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#e0e0e0" }}>
-                <Text style={ciStyles.fieldLabel}>Cash Received (ر.ع.)</Text>
-                <RNTextInput
-                  style={[styles.input, { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: "#f9f9f9" }]}
-                  placeholder="0.000"
-                  value={form.checkin_cash_received}
-                  onChangeText={(t) => handleChange("checkin_cash_received", t)}
-                  keyboardType="decimal-pad"
-                />
-                {parseFloat(form.checkin_cash_received || 0) > 0 && (
-                  <View style={{ marginTop: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <Text style={ciStyles.fieldLabel}>Balance to Return</Text>
-                    <Text style={{ fontSize: 16, fontWeight: "700", color: calcCheckinCashBalance() >= 0 ? "#4CAF50" : "#F44336" }}>
-                      ر.ع.{calcCheckinCashBalance().toFixed(3)}
-                    </Text>
+                {/* Cash Received (only for cash payment) */}
+                {form.checkin_payment_method === "cash" && (
+                  <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#e0e0e0" }}>
+                    <Text style={ciStyles.fieldLabel}>Cash Received (ر.ع.)</Text>
+                    <RNTextInput
+                      style={[styles.input, { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: "#f9f9f9" }]}
+                      placeholder="0.000"
+                      value={form.checkin_cash_received}
+                      onChangeText={(t) => handleChange("checkin_cash_received", t)}
+                      keyboardType="decimal-pad"
+                    />
+                    {parseFloat(form.checkin_cash_received || 0) > 0 && (
+                      <View style={{ marginTop: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <Text style={ciStyles.fieldLabel}>Balance to Return</Text>
+                        <Text style={{ fontSize: 16, fontWeight: "700", color: calcCheckinCashBalance() >= 0 ? "#4CAF50" : "#F44336" }}>
+                          ر.ع.{calcCheckinCashBalance().toFixed(3)}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
-              </View>
+              </>
             )}
 
             {/* Customer Signature */}
@@ -3856,7 +3875,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={styles.lineMetric}>
                         <Text style={styles.lineMetricLabel}>Tax %</Text>
                         <Text style={[styles.lineMetricValue, { color: "#E65100" }]}>
-                          {line.tax_ids && line.tax_ids.length > 0 ? line.tax_ids.map(t => typeof t === 'object' ? t.name : t).join(', ') : '-'}
+                          {parseFloat(line.tax_rate) > 0 ? line.tax_rate + '%' : (parseFloat(line.tax_amount) > 0 ? ((parseFloat(line.tax_amount) / (parseFloat(line.price_before_tax) || 1)) * 100).toFixed(1) + '%' : '-')}
                         </Text>
                       </View>
                       <View style={styles.lineMetric}>

@@ -593,10 +593,19 @@ class RentalOrder(models.Model):
             elif ol.discount_type == 'fixed' and ol.discount_value:
                 discount_display = f"{self.currency_id.symbol or '$'} {ol.discount_value}"
             # Build tax display string
+            # Compute tax from tax_ids directly
             tax_display = ''
-            if ol.tax_ids:
-                tax_display = ', '.join(
-                    f"{t.amount}%" for t in ol.tax_ids)
+            tax_amt = 0.0
+            if ol.tax_ids and ol.rental_cost:
+                tax_display = ', '.join(f"{t.amount}%" for t in ol.tax_ids)
+                tax_res = ol.tax_ids.compute_all(
+                    ol.rental_cost,
+                    currency=ol.currency_id,
+                    quantity=1,
+                    product=ol.product_id,
+                    partner=self.partner_id,
+                )
+                tax_amt = tax_res['total_included'] - tax_res['total_excluded']
             line_vals.append({
                 'wizard_id': wizard.id,
                 'order_line_id': ol.id,
@@ -617,7 +626,7 @@ class RentalOrder(models.Model):
                 'discount_display': discount_display,
                 'discount_line_amount': ol.discount_line_amount or 0.0,
                 'tax_display': tax_display,
-                'tax_amount': ol.tax_amount or 0.0,
+                'tax_amount': tax_amt,
             })
         if line_vals:
             self.env['rental.checkin.wizard.line'].create(line_vals)

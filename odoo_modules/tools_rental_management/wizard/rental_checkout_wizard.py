@@ -55,6 +55,19 @@ class RentalCheckoutWizard(models.TransientModel):
         if self.order_id:
             lines = []
             for ol in self.order_id.line_ids:
+                # Compute tax from tax_ids directly
+                tax_display = ''
+                tax_amt = 0.0
+                if ol.tax_ids and ol.rental_cost:
+                    tax_display = ', '.join(f"{t.amount}%" for t in ol.tax_ids)
+                    tax_res = ol.tax_ids.compute_all(
+                        ol.rental_cost,
+                        currency=ol.currency_id,
+                        quantity=1,
+                        product=ol.product_id,
+                        partner=self.order_id.partner_id,
+                    )
+                    tax_amt = tax_res['total_included'] - tax_res['total_excluded']
                 lines.append((0, 0, {
                     'order_line_id': ol.id,
                     'tool_id': ol.tool_id.id,
@@ -63,6 +76,8 @@ class RentalCheckoutWizard(models.TransientModel):
                     'unit_price': ol.unit_price,
                     'planned_duration': ol.planned_duration,
                     'rental_cost': ol.rental_cost,
+                    'tax_display': tax_display,
+                    'tax_amount': tax_amt,
                 }))
             self.line_ids = lines
 
@@ -145,6 +160,9 @@ class RentalCheckoutWizardLine(models.TransientModel):
     planned_duration = fields.Float(string='Duration', readonly=True)
     rental_cost = fields.Monetary(
         string='Total', currency_field='currency_id', readonly=True)
+    tax_display = fields.Char(string='Tax %', readonly=True)
+    tax_amount = fields.Monetary(
+        string='Tax Amt', currency_field='currency_id', readonly=True)
     condition = fields.Selection([
         ('excellent', 'Excellent'),
         ('good', 'Good'),

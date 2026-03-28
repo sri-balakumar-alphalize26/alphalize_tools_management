@@ -565,6 +565,9 @@ const mapOrderLine = (l) => ({
   notes: l.notes || "",
   extra_days: String(Math.max(0, (parseInt(l.actual_duration) || 0) - (parseInt(l.planned_duration) || 0))),
   late_fee_per_day: String(l.late_fee_per_day || 0),
+  tax_ids: l.tax_ids ? l.tax_ids.map(t => ({ name: Array.isArray(t) ? t[1] : t })) : [],
+  tax_amount: String(l.tax_amount || 0),
+  price_before_tax: String(l.price_before_tax || 0),
   checkout_tool_image: l.checkout_tool_image || false,
 });
 

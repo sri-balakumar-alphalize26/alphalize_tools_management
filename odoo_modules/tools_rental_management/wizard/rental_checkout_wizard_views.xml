@@ -25,6 +25,8 @@
                         <field name="unit_price" string="Price" readonly="1" force_save="1"/>
                         <field name="planned_duration" string="Duration" readonly="1" force_save="1"/>
                         <field name="rental_cost" string="Total" readonly="1" force_save="1"/>
+                        <field name="tax_display" string="Tax %" readonly="1"/>
+                        <field name="tax_amount" string="Tax Amt" readonly="1"/>
                         <field name="condition" string="Condition" required="1"/>
                         <field name="tool_image" string="Tool Photo"
                                widget="image" options='{"size": [80, 80]}'/>
