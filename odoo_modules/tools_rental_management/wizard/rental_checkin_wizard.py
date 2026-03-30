@@ -284,6 +284,11 @@ class RentalCheckinWizard(models.TransientModel):
         # Update returned quantities for selected lines only
         self._update_returned_qty(lines_to_process)
 
+        # Mark lines as partial return
+        for wiz_line in lines_to_process:
+            if wiz_line.return_qty > 0 and wiz_line.order_line_id:
+                wiz_line.order_line_id.is_partial_return = True
+
         # Handle damage for selected lines only
         damage_notes, total_damage = self._collect_damage_info(lines_to_process)
         if total_damage:
@@ -463,7 +468,7 @@ class RentalCheckinWizardLine(models.TransientModel):
     tool_image = fields.Binary(string='Tool Photo')
 
     # Tax fields (readonly, from order line)
-    tax_display = fields.Char(
+    tax_percentage = fields.Float(
         string='Tax %', readonly=True)
     tax_amount = fields.Monetary(
         string='Tax Amt', currency_field='currency_id',

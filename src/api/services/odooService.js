@@ -39,7 +39,7 @@ export const fetchCategories = async (auth) => {
 const TOOL_FIELDS = [
   "name", "code", "serial_number", "barcode", "brand", "model_name",
   "location", "state", "category_id", "total_qty", "available_qty",
-  "rental_price_per_day", "late_fee_per_day", "tax_rate",
+  "rental_price_per_day", "late_fee_per_day",
   "purchase_price", "purchase_date", "description",
   "total_rental_count", "total_revenue", "active", "image",
 ];
@@ -137,7 +137,6 @@ const mapTool = (r) => ({
   available_qty: r.available_qty || 0,
   rental_price_per_day: String(r.rental_price_per_day || "0"),
   late_fee_per_day: String(r.late_fee_per_day || "0"),
-  tax_rate: r.tax_rate || 0,
   purchase_price: String(r.purchase_price || "0"),
   purchase_date: r.purchase_date || "",
   description: r.description || "",
@@ -175,8 +174,8 @@ const ORDER_LINE_FIELDS = [
   "period_type", "planned_duration", "actual_duration", "actual_duration_display",
   "returned_qty", "pending_qty", "rental_cost", "late_fee_amount", "total_cost",
   "checkout_condition", "checkin_condition", "damage_note", "damage_charge",
-  "tax_ids", "tax_amount", "price_before_tax",
-  "discount_type", "discount_value", "discount_line_amount", "notes", "extra_days",
+  "tax_percentage", "tax_amount", "price_before_tax",
+  "discount_type", "discount_value", "discount_line_amount", "notes", "extra_days", "is_partial_return",
 ];
 
 const ORDER_LINE_IMAGE_FIELDS = [
@@ -576,10 +575,10 @@ const mapOrderLine = (l) => ({
   notes: l.notes || "",
   extra_days: String(l.extra_days || 0),
   late_fee_per_day: String(l.late_fee_per_day || 0),
-  tax_ids: l.tax_ids || [],
+  tax_percentage: l.tax_percentage || 0,
   tax_amount: String(l.tax_amount || 0),
   price_before_tax: String(l.price_before_tax || 0),
-  tax_rate: (l.tax_amount && l.price_before_tax && l.price_before_tax > 0) ? parseFloat(((l.tax_amount / l.price_before_tax) * 100).toFixed(2)) : 0,
+  is_partial_return: l.is_partial_return || false,
   checkout_tool_image: l.checkout_tool_image || false,
 });
 

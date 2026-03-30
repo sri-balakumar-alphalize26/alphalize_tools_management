@@ -44,6 +44,7 @@
         'wizard/rental_checkin_wizard_views.xml',
         'wizard/rental_checkout_wizard_views.xml',
         'wizard/rental_discount_wizard_views.xml',
+        'wizard/rental_tax_wizard_views.xml',
         'wizard/rental_report_wizard_views.xml',
         'wizard/rental_generate_serials_wizard_views.xml',
         'views/rental_product_views.xml',

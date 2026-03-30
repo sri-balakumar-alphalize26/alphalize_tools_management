@@ -58,7 +58,7 @@
                         <field name="discount_line_amount" string="Disc. Amt"
                                readonly="1"
                                decoration-success="discount_line_amount > 0"/>
-                        <field name="tax_display" string="Tax %" readonly="1"/>
+                        <field name="tax_percentage" string="Tax %" readonly="1"/>
                         <field name="tax_amount" string="Tax Amt" readonly="1"/>
                         <field name="planned_days" column_invisible="1"/>
                         <field name="currency_id" column_invisible="1"/>

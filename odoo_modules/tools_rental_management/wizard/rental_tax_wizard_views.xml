@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_rental_tax_wizard_form" model="ir.ui.view">
+        <field name="name">rental.tax.wizard.form</field>
+        <field name="model">rental.tax.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Apply Tax">
+                <field name="order_id" invisible="1"/>
+                <field name="currency_id" invisible="1"/>
+
+                <div class="alert alert-info text-center" role="alert">
+                    <strong>Apply Tax</strong>
+                    — Enter tax percentage for each product. Tax amount will be calculated automatically.
+                </div>
+
+                <field name="line_ids">
+                    <list editable="bottom" no_open="1"
+                          create="false" delete="false">
+                        <field name="order_line_id" column_invisible="1"/>
+                        <field name="tool_id" readonly="1" string="Tool"/>
+                        <field name="serial_number" string="Serial No."
+                               readonly="1"/>
+                        <field name="rental_cost" string="Rental Cost"
+                               readonly="1"/>
+                        <field name="tax_percentage" string="Tax %"/>
+                        <field name="tax_amount" string="Tax Amount"
+                               readonly="1"
+                               decoration-info="tax_amount > 0"/>
+                        <field name="final_amount" string="Final Amount"
+                               readonly="1"/>
+                        <field name="currency_id" column_invisible="1"/>
+                    </list>
+                </field>
+
+                <group>
+                    <group/>
+                    <group>
+                        <field name="total_tax" readonly="1"
+                               string="Total Tax"
+                               class="oe_subtotal_footer_separator"/>
+                    </group>
+                </group>
+
+                <footer>
+                    <button name="action_apply_tax" type="object"
+                            string="Apply Tax" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

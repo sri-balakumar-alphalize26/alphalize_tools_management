@@ -42,6 +42,9 @@
                     <button name="action_discount_wizard" type="object"
                             string="Discount" class="btn-warning"
                             invisible="state != 'checked_out'"/>
+                    <button name="action_tax_wizard" type="object"
+                            string="Tax" class="btn-info"
+                            invisible="state != 'checked_out'"/>
                     <button name="action_checkin_wizard" type="object"
                             string="⬇ Check-In Tools" class="btn-primary"
                             invisible="state != 'checked_out'"/>
@@ -50,7 +53,7 @@
                             invisible="state not in ('checked_out', 'checked_in', 'invoiced')"/>
                     <button name="action_print_partial_return_invoice" type="object"
                             string="Print Partial Return Invoice"
-                            invisible="state not in ('checked_out', 'checked_in', 'invoiced') or not partial_return_date"/>
+                            invisible="state not in ('checked_out',) or not partial_return_date"/>
                     <button name="action_done" type="object"
                             string="Mark Done" class="btn-primary"
                             invisible="state != 'checked_in'"/>
@@ -167,8 +170,10 @@
                                     <field name="returned_qty" column_invisible="1"/>
                                     <field name="pending_qty" column_invisible="1"/>
                                     <field name="qty_warning" column_invisible="1"/>
-                                    <field name="tax_ids" widget="many2many_tags" string="Tax" optional="show"/>
-                                    <field name="tax_amount" string="Tax Amt" optional="show"/>
+                                    <field name="tax_percentage" string="Tax %"
+                                           column_invisible="parent.tax_total == 0"/>
+                                    <field name="tax_amount" string="Tax Amt"
+                                           column_invisible="parent.tax_total == 0"/>
                                     <field name="total_cost" sum="Total" string="Total"/>
                                     <field name="checkout_condition" string="Out Condition"
                                            readonly="1" optional="show"/>

@@ -138,14 +138,16 @@
                                     <th>Condition</th>
                                     <th class="text-end">Price</th>
                                     <th class="text-end">Duration</th>
+                                    <th class="text-end">Extra Days</th>
+                                    <th class="text-end">Late Fee</th>
                                     <th class="text-end">Total</th>
-                                    <th class="text-end">Tax %</th>
-                                    <th class="text-end">Tax Amt</th>
+                                    <th t-if="doc.tax_total" class="text-end">Tax %</th>
+                                    <th t-if="doc.tax_total" class="text-end">Tax Amt</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <t t-set="idx" t-value="0"/>
-                                <tr t-foreach="doc.line_ids.filtered(lambda l: l.returned_qty > 0)" t-as="line">
+                                <tr t-foreach="doc.line_ids.filtered(lambda l: l.is_partial_return) or doc.line_ids.filtered(lambda l: l.returned_qty > 0 and l.pending_qty > 0)" t-as="line">
                                     <t t-set="idx" t-value="idx + 1"/>
                                     <td><t t-out="idx"/></td>
                                     <td>
@@ -181,18 +183,25 @@
                                             <t t-else=""> Days</t>
                                         </t>
                                     </td>
+                                    <td class="text-end"
+                                        t-att-style="'color:red; font-weight:bold;' if line.extra_days else ''">
+                                        <span t-esc="line.extra_days"/>
+                                    </td>
+                                    <td class="text-end"
+                                        t-att-style="'color:red; font-weight:bold;' if line.late_fee_amount else ''">
+                                        <span t-field="line.late_fee_amount"
+                                              t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                    </td>
                                     <td class="text-end">
                                         <span t-field="line.rental_cost"
                                               t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                     </td>
-                                    <td class="text-end">
-                                        <t t-if="line.tax_ids">
-                                            <t t-foreach="line.tax_ids" t-as="tax">
-                                                <span t-esc="str(tax.amount) + '%'"/>
-                                            </t>
+                                    <td t-if="doc.tax_total" class="text-end">
+                                        <t t-if="line.tax_percentage">
+                                            <span t-esc="str(line.tax_percentage) + '%'"/>
                                         </t>
                                     </td>
-                                    <td class="text-end">
+                                    <td t-if="doc.tax_total" class="text-end">
                                         <span t-field="line.tax_amount"
                                               t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                     </td>
@@ -209,6 +218,12 @@
                                         <td><strong>Subtotal:</strong></td>
                                         <td class="text-end"><span t-field="doc.subtotal"/></td>
                                     </tr>
+                                    <t t-if="doc.late_fee">
+                                        <tr style="color:red; font-weight:bold;">
+                                            <td>Late Fees:</td>
+                                            <td class="text-end"><span t-field="doc.late_fee"/></td>
+                                        </tr>
+                                    </t>
                                     <tr t-if="doc.tax_total">
                                         <td>Tax:</td>
                                         <td class="text-end"><span t-field="doc.tax_total"/></td>
@@ -457,14 +472,16 @@
                                     <th>Condition</th>
                                     <th class="text-end">Price</th>
                                     <th class="text-end">Duration</th>
+                                    <th class="text-end">Extra Days</th>
+                                    <th class="text-end">Late Fee</th>
                                     <th class="text-end">Total</th>
-                                    <th class="text-end">Tax %</th>
-                                    <th class="text-end">Tax Amt</th>
+                                    <th t-if="doc.tax_total" class="text-end">Tax %</th>
+                                    <th t-if="doc.tax_total" class="text-end">Tax Amt</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <t t-set="idx" t-value="0"/>
-                                <tr t-foreach="doc.line_ids.filtered(lambda l: l.returned_qty > 0)" t-as="line">
+                                <tr t-foreach="doc.line_ids.filtered(lambda l: l.is_partial_return) or doc.line_ids.filtered(lambda l: l.returned_qty > 0 and l.pending_qty > 0)" t-as="line">
                                     <t t-set="idx" t-value="idx + 1"/>
                                     <td><t t-out="idx"/></td>
                                     <td>
@@ -500,18 +517,25 @@
                                             <t t-else=""> Days</t>
                                         </t>
                                     </td>
+                                    <td class="text-end"
+                                        t-att-style="'color:red; font-weight:bold;' if line.extra_days else ''">
+                                        <span t-esc="line.extra_days"/>
+                                    </td>
+                                    <td class="text-end"
+                                        t-att-style="'color:red; font-weight:bold;' if line.late_fee_amount else ''">
+                                        <span t-field="line.late_fee_amount"
+                                              t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                    </td>
                                     <td class="text-end">
                                         <span t-field="line.rental_cost"
                                               t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                     </td>
-                                    <td class="text-end">
-                                        <t t-if="line.tax_ids">
-                                            <t t-foreach="line.tax_ids" t-as="tax">
-                                                <span t-esc="str(tax.amount) + '%'"/>
-                                            </t>
+                                    <td t-if="doc.tax_total" class="text-end">
+                                        <t t-if="line.tax_percentage">
+                                            <span t-esc="str(line.tax_percentage) + '%'"/>
                                         </t>
                                     </td>
-                                    <td class="text-end">
+                                    <td t-if="doc.tax_total" class="text-end">
                                         <span t-field="line.tax_amount"
                                               t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                     </td>
@@ -528,6 +552,12 @@
                                         <td><strong>Subtotal:</strong></td>
                                         <td class="text-end"><span t-field="doc.subtotal"/></td>
                                     </tr>
+                                    <t t-if="doc.late_fee">
+                                        <tr style="color:red; font-weight:bold;">
+                                            <td>Late Fees:</td>
+                                            <td class="text-end"><span t-field="doc.late_fee"/></td>
+                                        </tr>
+                                    </t>
                                     <tr t-if="doc.tax_total">
                                         <td>Tax:</td>
                                         <td class="text-end"><span t-field="doc.tax_total"/></td>

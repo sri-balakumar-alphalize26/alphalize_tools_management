@@ -177,26 +177,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     terms: existingOrder?.terms || DEFAULT_TERMS_TEXT,
   });
 
-  const [rawLines, setLines] = useState(existingOrder?.lines || []);
-
-  // Always ensure tax data is present — compute from tools if missing
-  const lines = useMemo(() => {
-    if (!tools || tools.length === 0) return rawLines;
-    return rawLines.map(fl => {
-      if (parseFloat(fl.tax_amount) > 0) return fl;
-      if (!fl.tool_id) return fl;
-      const tool = tools.find(t => Number(t.odoo_id || t.id) === Number(fl.tool_id));
-      if (!tool || !(parseFloat(tool.tax_rate) > 0)) return fl;
-      const price = parseFloat(fl.unit_price) || 0;
-      const dur = parseFloat(fl.planned_duration) || 1;
-      const qty = parseFloat(fl.quantity) || 1;
-      const multiplier = LINE_DAY_MULTIPLIERS[fl.period_type || "day"] || 1;
-      const rentalCost = price * dur * multiplier * qty;
-      const taxRate = parseFloat(tool.tax_rate);
-      const taxAmt = rentalCost * taxRate / 100;
-      return { ...fl, tax_rate: taxRate, tax_amount: taxAmt.toFixed(3), price_before_tax: rentalCost.toFixed(3) };
-    });
-  }, [rawLines, tools]);
+  const [lines, setLines] = useState(existingOrder?.lines || []);
 
   const [timesheet, setTimesheet] = useState(existingOrder?.timesheet || []);
   const [errors, setErrors] = useState({});
@@ -247,6 +228,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const [totalDiscountType, setTotalDiscountType] = useState("percentage");
   const [totalDiscountValue, setTotalDiscountValue] = useState("");
   const discountSignatureRef = useRef(null);
+  const [showTaxModal, setShowTaxModal] = useState(false);
+  const [taxLines, setTaxLines] = useState([]);
   const [previewImageUri, setPreviewImageUri] = useState(null);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [activeToolLineIdx, setActiveToolLineIdx] = useState(-1);
@@ -471,7 +454,6 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       );
       if (rule) lateFee = parseFloat(rule.late_fee_per_day) || 0;
     }
-    const taxRate = parseFloat(tool.tax_rate) || 0;
     setLines((prev) => {
       const updated = [...prev];
       updated[index] = {
@@ -481,25 +463,12 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         serial_number: tool.serial_number || "",
         unit_price: tool.rental_price_per_day || "0",
         late_fee_per_day: String(lateFee),
-        tax_rate: taxRate,
       };
       const price = parseFloat(updated[index].unit_price) || 0;
       const dur = parseFloat(updated[index].planned_duration) || 1;
       const qty = parseFloat(updated[index].quantity) || 1;
       const multiplier = LINE_DAY_MULTIPLIERS[updated[index].period_type || form.rental_period_type || "day"] || 1;
-      const rentalCost = price * dur * multiplier * qty;
-      updated[index].line_total = rentalCost.toFixed(3);
-      // Compute tax (exclusive: added on top of rental cost)
-      if (taxRate > 0) {
-        const taxAmt = rentalCost * taxRate / 100;
-        updated[index].tax_amount = taxAmt.toFixed(3);
-        updated[index].price_before_tax = rentalCost.toFixed(3);
-        updated[index].tax_ids = [{ name: taxRate + '%' }];
-      } else {
-        updated[index].tax_amount = "0";
-        updated[index].price_before_tax = rentalCost.toFixed(3);
-        updated[index].tax_ids = [];
-      }
+      updated[index].line_total = (price * dur * multiplier * qty).toFixed(3);
       return updated;
     });
     setActiveToolLineIdx(-1);
@@ -527,10 +496,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         damage_charge: "0",
         late_fee_per_day: "0",
         late_fee_amount: "0",
-        tax_rate: 0,
+        tax_percentage: 0,
         tax_amount: "0",
-        price_before_tax: "0",
-        tax_ids: [],
         discount_type: "",
         discount_value: "0",
         notes: "",
@@ -539,30 +506,17 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   };
 
   const updateLine = (index, field, value) => {
-    const recomputeTax = (line) => {
-      const price = parseFloat(line.unit_price) || 0;
-      const dur = parseFloat(line.planned_duration) || 1;
-      const qty = parseFloat(line.quantity) || 1;
-      const multiplier = LINE_DAY_MULTIPLIERS[line.period_type || "day"] || 1;
-      const rentalCost = price * dur * multiplier * qty;
-      line.line_total = rentalCost.toFixed(3);
-      const taxRate = parseFloat(line.tax_rate) || 0;
-      if (taxRate > 0) {
-        const taxAmt = rentalCost * taxRate / 100;
-        line.tax_amount = taxAmt.toFixed(3);
-        line.price_before_tax = rentalCost.toFixed(3);
-      } else {
-        line.tax_amount = "0";
-        line.price_before_tax = rentalCost.toFixed(3);
-      }
-      return line;
-    };
-
     // When per-line period_type changes, only update the specific line
     if (field === "period_type") {
       setLines((prev) => prev.map((l, i) => {
         if (i !== index) return l;
-        return recomputeTax({ ...l, period_type: value });
+        const updated = { ...l, period_type: value };
+        const price = parseFloat(updated.unit_price) || 0;
+        const dur = parseFloat(updated.planned_duration) || 1;
+        const qty = parseFloat(updated.quantity) || 1;
+        const multiplier = LINE_DAY_MULTIPLIERS[value] || 1;
+        updated.line_total = (price * dur * multiplier * qty).toFixed(3);
+        return updated;
       }));
       return;
     }
@@ -570,7 +524,12 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
       if (["unit_price", "planned_duration", "quantity"].includes(field)) {
-        updated[index] = recomputeTax(updated[index]);
+        const l = updated[index];
+        const price = parseFloat(l.unit_price) || 0;
+        const dur = parseFloat(l.planned_duration) || 1;
+        const qty = parseFloat(l.quantity) || 1;
+        const multiplier = LINE_DAY_MULTIPLIERS[l.period_type || "day"] || 1;
+        updated[index].line_total = (price * dur * multiplier * qty).toFixed(3);
       }
       return updated;
     });
@@ -1065,7 +1024,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         // Partial return: mark returned lines, keep order checked_out
         const returnedNames = visibleLines.map((l) => l.tool_name).join(", ");
         setLines((prev) => prev.map((l, i) =>
-          checkinExcludedIdx.includes(i) ? l : { ...l, returned_qty: l.quantity }
+          checkinExcludedIdx.includes(i) ? l : { ...l, returned_qty: l.quantity, is_partial_return: true }
         ));
         addTimesheetEntry("note", "Partial return: " + returnedNames);
         showToastMessage("Partial check-in saved. " + userExcluded.length + " tool(s) still pending.");
@@ -1143,8 +1102,6 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           discountInfo = `${cur}${val.toFixed(3)}`;
         }
       }
-      const lineTaxAmt = parseFloat(l.tax_amount) || 0;
-      const lineTaxRate = parseFloat(l.tax_rate) > 0 ? l.tax_rate + '%' : (lineTaxAmt > 0 ? ((lineTaxAmt / ((parseFloat(l.price_before_tax) || rentalCost) || 1)) * 100).toFixed(1) + '%' : '');
       return `<tr>
         <td>${i + 1}</td>
         <td>${l.tool_name || "-"}</td>
@@ -1153,18 +1110,18 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         <td class="text-end">${cur}${(parseFloat(l.unit_price) || 0).toFixed(3)}</td>
         <td class="text-end">${parseInt(l.planned_duration) || 1} ${((d, pt) => d === 1 ? ({"day":"Day","week":"Week","month":"Month"})[pt] || "Day" : ({"day":"Days","week":"Weeks","month":"Months"})[pt] || "Days")(parseInt(l.planned_duration) || 1, l.period_type || form.rental_period_type || "day")}</td>
         <td class="text-end">${cur}${rentalCost.toFixed(3)}</td>
-        <td class="text-end">${lineTaxRate}</td>
-        <td class="text-end">${lineTaxAmt > 0 ? cur + lineTaxAmt.toFixed(3) : ''}</td>
       </tr>`;
     }).join("");
 
     // Partial return: filter to only returned lines
     const partialReturnToolRows = lines
-      .filter(l => parseFloat(l.returned_qty) > 0)
+      .filter(l => l.is_partial_return || (parseFloat(l.returned_qty) > 0 && parseFloat(l.pending_qty) > 0))
       .map((l, i) => {
         const rentalCost = calcLineTotal(l);
         const lineTaxAmt = parseFloat(l.tax_amount) || 0;
-        const lineTaxRate = parseFloat(l.tax_rate) > 0 ? l.tax_rate + '%' : (lineTaxAmt > 0 ? ((lineTaxAmt / ((parseFloat(l.price_before_tax) || rentalCost) || 1)) * 100).toFixed(1) + '%' : '');
+        const lineTaxRate = parseFloat(l.tax_percentage) > 0 ? l.tax_percentage + '%' : '';
+        const extraDays = parseInt(l.extra_days) || 0;
+        const lateFee = parseFloat(l.late_fee_amount) || 0;
         return `<tr>
           <td>${i + 1}</td>
           <td>${l.tool_name || "-"}</td>
@@ -1172,9 +1129,11 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           <td>${l.checkout_condition || ""}</td>
           <td class="text-end">${cur}${(parseFloat(l.unit_price) || 0).toFixed(3)}</td>
           <td class="text-end">${parseInt(l.planned_duration) || 1} ${((d, pt) => d === 1 ? ({"day":"Day","week":"Week","month":"Month"})[pt] || "Day" : ({"day":"Days","week":"Weeks","month":"Months"})[pt] || "Days")(parseInt(l.planned_duration) || 1, l.period_type || form.rental_period_type || "day")}</td>
+          <td class="text-end" ${extraDays > 0 ? 'style="color:red;font-weight:bold"' : ""}>${extraDays}</td>
+          <td class="text-end" ${lateFee > 0 ? 'style="color:red;font-weight:bold"' : ""}>${cur}${lateFee.toFixed(3)}</td>
           <td class="text-end">${cur}${rentalCost.toFixed(3)}</td>
-          <td class="text-end">${lineTaxRate}</td>
-          <td class="text-end">${lineTaxAmt > 0 ? cur + lineTaxAmt.toFixed(3) : ''}</td>
+          ${taxTotal > 0 ? `<td class="text-end">${lineTaxRate}</td>
+          <td class="text-end">${lineTaxAmt > 0 ? cur + lineTaxAmt.toFixed(3) : ''}</td>` : ''}
         </tr>`;
       }).join("");
 
@@ -1205,8 +1164,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         <td>${l.damage_note || ""}</td>
         <td class="text-end" ${dmg > 0 ? 'style="color:red;font-weight:bold"' : ""}>${cur}${dmg.toFixed(3)}</td>
         <td class="text-end" ${discAmt > 0 ? 'style="color:green;font-weight:bold"' : ""}>${discDisplay}</td>
-        <td class="text-end">${parseFloat(l.tax_rate) > 0 ? l.tax_rate + '%' : (parseFloat(l.tax_amount) > 0 ? ((parseFloat(l.tax_amount) / ((parseFloat(l.price_before_tax) || calcLineTotal(l)) || 1)) * 100).toFixed(1) + '%' : '')}</td>
-        <td class="text-end">${parseFloat(l.tax_amount) > 0 ? cur + parseFloat(l.tax_amount).toFixed(3) : ''}</td>
+        ${taxTotal > 0 ? `<td class="text-end">${parseFloat(l.tax_percentage) > 0 ? l.tax_percentage + '%' : ''}</td>
+        <td class="text-end">${parseFloat(l.tax_amount) > 0 ? cur + parseFloat(l.tax_amount).toFixed(3) : ''}</td>` : ''}
       </tr>`;
     }).join("");
 
@@ -1334,14 +1293,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     ${!isCheckin ? `<table class="tools">
       <thead><tr>
         <th>#</th><th>Tool</th><th>Serial No.</th><th>Condition</th>
-        <th class="text-end">Price</th><th class="text-end">Duration</th><th class="text-end">Total</th><th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>
+        <th class="text-end">Price</th><th class="text-end">Duration</th>${isPartialReturn ? '<th class="text-end">Extra Days</th><th class="text-end">Late Fee</th>' : ''}<th class="text-end">Total</th>${isPartialReturn && taxTotal > 0 ? '<th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>' : ''}
       </tr></thead>
       <tbody>${isPartialReturn ? partialReturnToolRows : checkoutToolRows}</tbody>
     </table>` : `<table class="tools">
       <thead><tr>
         <th>#</th><th>Tool</th><th>S/N</th><th>Out</th><th>In</th>
         <th class="text-end">Price</th><th class="text-end">Duration</th><th class="text-end">Extra Days</th>
-        <th class="text-end">Late Fee</th><th>Damage</th><th class="text-end">Dmg ر.ع.</th><th class="text-end">Disc.</th><th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>
+        <th class="text-end">Late Fee</th><th>Damage</th><th class="text-end">Dmg ر.ع.</th><th class="text-end">Disc.</th>${taxTotal > 0 ? '<th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>' : ''}
       </tr></thead>
       <tbody>${checkinToolRows}</tbody>
     </table>`}
@@ -1362,7 +1321,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       </table>` : ""}
       <table class="totals" style="width:50%;margin:0;">
         <tr><td><strong>Subtotal:</strong></td><td class="text-end">${cur}${subtotal.toFixed(3)}</td></tr>
-        ${taxTotal > 0 ? `<tr><td>Tax:</td><td class="text-end">${cur}${taxTotal.toFixed(3)}</td></tr>` : ""}
+        ${(isCheckin || isPartialReturn) && taxTotal > 0 ? `<tr><td>Tax:</td><td class="text-end">${cur}${taxTotal.toFixed(3)}</td></tr>` : ""}
         ${lateFees > 0 ? `<tr style="color:red;font-weight:bold"><td>Late Fees:</td><td class="text-end">${cur}${lateFees.toFixed(3)}</td></tr>` : ""}
         ${damageCharges > 0 ? `<tr style="color:red;font-weight:bold"><td>Damage:</td><td class="text-end">${cur}${damageCharges.toFixed(3)}</td></tr>` : ""}
         ${discount > 0 ? `<tr style="color:green;font-weight:bold"><td>Discount:</td><td class="text-end">-${cur}${discount.toFixed(3)}</td></tr>` : ""}
@@ -1851,30 +1810,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
             terms: fresh.terms || "",
           };
           setForm(freshForm);
-          const freshLines = (fresh.lines || []).map((fl) => {
-            // If tax_amount is 0 but tool has tax, compute locally
-            const flToolId = Number(fl.tool_id);
-            if (!(parseFloat(fl.tax_amount) > 0) && flToolId && tools && tools.length > 0) {
-              const tool = tools.find(t => Number(t.odoo_id || t.id) === flToolId);
-              if (tool && parseFloat(tool.tax_rate) > 0) {
-                const price = parseFloat(fl.unit_price) || 0;
-                const dur = parseFloat(fl.planned_duration) || 1;
-                const qty = parseFloat(fl.quantity) || 1;
-                const multiplier = LINE_DAY_MULTIPLIERS[fl.period_type || "day"] || 1;
-                const rentalCost = price * dur * multiplier * qty;
-                const taxRate = parseFloat(tool.tax_rate);
-                const taxAmt = rentalCost * taxRate / 100;
-                return {
-                  ...fl,
-                  tax_rate: taxRate,
-                  tax_amount: taxAmt.toFixed(3),
-                  price_before_tax: rentalCost.toFixed(3),
-                  tax_ids: [{ name: taxRate + '%' }],
-                };
-              }
-            }
-            return fl;
-          });
+          const freshLines = fresh.lines || [];
           setLines(freshLines);
           setTimesheet(fresh.timesheet || []);
           setOdooOrderId(fresh.odoo_id);
@@ -2288,6 +2224,20 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
             }}>
               <Text style={styles.actionBtnText}>Discount</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#1565C0" }]} onPress={() => {
+              setTaxLines(lines.map((l, idx) => ({
+                idx,
+                tool_name: l.tool_name || "Tool " + (idx + 1),
+                serial_number: l.serial_number || "-",
+                odoo_id: l.odoo_id,
+                rental_cost: calcLineTotal(l),
+                tax_percentage: String(parseFloat(l.tax_percentage) || 0),
+                tax_amount: parseFloat(l.tax_amount) || 0,
+              })));
+              setShowTaxModal(true);
+            }}>
+              <Text style={styles.actionBtnText}>Tax</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#4CAF50" }]} onPress={openCheckinWizard}>
               <Text style={styles.actionBtnText}>Check-In Tools</Text>
             </TouchableOpacity>
@@ -2313,7 +2263,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         )}
         {/* Print Partial Return Invoice: visible when partial returns exist */}
-        {["checked_out", "checked_in", "invoiced"].includes(state) && (lines.some(l => parseFloat(l.returned_qty) > 0) || existingOrder?.partial_return_date) && (
+        {state === "checked_out" && (lines.some(l => l.is_partial_return) || existingOrder?.partial_return_date) && (
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#FF6F00" }]} onPress={() => openInvoiceModal("partial_return")} disabled={saving}>
             <Text style={styles.actionBtnText}>Partial Return Invoice</Text>
           </TouchableOpacity>
@@ -2441,7 +2391,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={coStyles.pricingItem}>
                         <Text style={ciStyles.lateFeeLabel}>Tax %</Text>
                         <View style={ciStyles.readOnlyBox}>
-                          <Text style={ciStyles.readOnlyText}>{parseFloat(line.tax_rate) > 0 ? line.tax_rate + '%' : (parseFloat(line.tax_amount) > 0 ? ((parseFloat(line.tax_amount) / (parseFloat(line.price_before_tax) || 1)) * 100).toFixed(1) + '%' : '5%')}</Text>
+                          <Text style={ciStyles.readOnlyText}>{parseFloat(line.tax_percentage) > 0 ? line.tax_percentage + '%' : (parseFloat(line.tax_amount) > 0 ? ((parseFloat(line.tax_amount) / (parseFloat(line.price_before_tax) || 1)) * 100).toFixed(1) + '%' : '-')}</Text>
                         </View>
                       </View>
                       <View style={coStyles.pricingItem}>
@@ -2813,7 +2763,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={coStyles.pricingItem}>
                         <Text style={ciStyles.lateFeeLabel}>Tax %</Text>
                         <View style={ciStyles.readOnlyBox}>
-                          <Text style={ciStyles.readOnlyText}>{parseFloat(line.tax_rate) > 0 ? line.tax_rate + '%' : (parseFloat(line.tax_amount) > 0 ? ((parseFloat(line.tax_amount) / (parseFloat(line.price_before_tax) || 1)) * 100).toFixed(1) + '%' : '5%')}</Text>
+                          <Text style={ciStyles.readOnlyText}>{parseFloat(line.tax_percentage) > 0 ? line.tax_percentage + '%' : (parseFloat(line.tax_amount) > 0 ? ((parseFloat(line.tax_amount) / (parseFloat(line.price_before_tax) || 1)) * 100).toFixed(1) + '%' : '-')}</Text>
                         </View>
                       </View>
                       <View style={coStyles.pricingItem}>
@@ -3245,6 +3195,104 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     setShowDiscountModal(false);
     showToastMessage("Discount removed");
   };
+
+  // ── TAX MODAL ──
+  const updateTaxLine = (idx, pct) => {
+    setTaxLines(prev => prev.map((tl, i) => {
+      if (i !== idx) return tl;
+      const taxPct = parseFloat(pct) || 0;
+      const taxAmt = tl.rental_cost * taxPct / 100;
+      return { ...tl, tax_percentage: pct, tax_amount: taxAmt };
+    }));
+  };
+
+  const applyTax = async () => {
+    // Update local lines
+    setLines(prev => prev.map((l, i) => {
+      const tl = taxLines.find(t => t.idx === i);
+      if (!tl) return l;
+      const taxPct = parseFloat(tl.tax_percentage) || 0;
+      const taxAmt = tl.tax_amount || 0;
+      return { ...l, tax_percentage: taxPct, tax_amount: String(taxAmt.toFixed(3)), price_before_tax: String(tl.rental_cost.toFixed(3)) };
+    }));
+    setShowTaxModal(false);
+    // Save to Odoo
+    if (odooOrderId && odooAuth) {
+      for (const tl of taxLines) {
+        const lineOdooId = lines[tl.idx]?.odoo_id;
+        if (lineOdooId) {
+          const taxPct = parseFloat(tl.tax_percentage) || 0;
+          updateOrderLineValues(odooAuth, lineOdooId, {
+            tax_percentage: taxPct,
+            tax_amount: tl.tax_amount || 0,
+            price_before_tax: tl.rental_cost,
+          }).catch(() => {});
+        }
+      }
+    }
+    showToastMessage("Tax applied");
+  };
+
+  const renderTaxModal = () => (
+    <Modal visible={showTaxModal} animationType="slide" transparent onRequestClose={() => setShowTaxModal(false)}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
+        <View style={{ backgroundColor: "#fff", borderRadius: 16, width: "92%", maxHeight: "80%", padding: 20 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Text style={{ fontSize: 18, fontWeight: "700", color: "#1565C0" }}>Apply Tax</Text>
+            <TouchableOpacity onPress={() => setShowTaxModal(false)}>
+              <Text style={{ fontSize: 22, color: "#999", fontWeight: "700" }}>X</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>Enter tax percentage for each product. Tax amount calculates automatically.</Text>
+          <ScrollView style={{ maxHeight: 400 }}>
+            {taxLines.map((tl, idx) => (
+              <View key={idx} style={{ backgroundColor: "#F5F5F5", borderRadius: 10, padding: 12, marginBottom: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>{tl.tool_name}</Text>
+                <Text style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>S/N: {tl.serial_number}</Text>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Rental Cost</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "600" }}>ر.ع.{tl.rental_cost.toFixed(3)}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Tax %</Text>
+                    <RNTextInput
+                      style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 8, fontSize: 14, backgroundColor: "#fff", textAlign: "center" }}
+                      value={tl.tax_percentage}
+                      onChangeText={(t) => updateTaxLine(idx, t)}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      selectTextOnFocus
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Tax Amount</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: "#E65100" }}>ر.ع.{tl.tax_amount.toFixed(3)}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Final</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#2E7D32" }}>ر.ع.{(tl.rental_cost + tl.tax_amount).toFixed(3)}</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#eee" }}>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>Total Tax</Text>
+            <Text style={{ fontSize: 18, fontWeight: "700", color: "#1565C0" }}>ر.ع.{taxLines.reduce((s, tl) => s + tl.tax_amount, 0).toFixed(3)}</Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+            <TouchableOpacity onPress={applyTax} style={{ flex: 1, backgroundColor: "#1565C0", paddingVertical: 14, borderRadius: 10, alignItems: "center" }}>
+              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>Apply Tax</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowTaxModal(false)} style={{ flex: 1, backgroundColor: "#F5F5F5", paddingVertical: 14, borderRadius: 10, alignItems: "center" }}>
+              <Text style={{ color: "#666", fontSize: 14, fontWeight: "600" }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const renderDiscountModal = () => (
     <Modal visible={showDiscountModal} animationType="slide" transparent onRequestClose={() => setShowDiscountModal(false)}>
@@ -4000,7 +4048,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={styles.lineMetric}>
                         <Text style={styles.lineMetricLabel}>Tax %</Text>
                         <Text style={[styles.lineMetricValue, { color: "#E65100" }]}>
-                          {parseFloat(line.tax_rate) > 0 ? line.tax_rate + '%' : (parseFloat(line.tax_amount) > 0 ? ((parseFloat(line.tax_amount) / (parseFloat(line.price_before_tax) || 1)) * 100).toFixed(1) + '%' : '-')}
+                          {parseFloat(line.tax_percentage) > 0 ? line.tax_percentage + '%' : '-'}
                         </Text>
                       </View>
                       <View style={styles.lineMetric}>
@@ -4497,6 +4545,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
 
       {renderCheckoutModal()}
       {renderCheckinModal()}
+      {renderTaxModal()}
       {renderDiscountModal()}
 
       {/* IMAGE PREVIEW MODAL */}

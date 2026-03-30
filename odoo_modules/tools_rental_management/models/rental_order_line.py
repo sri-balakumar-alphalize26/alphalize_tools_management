@@ -43,6 +43,9 @@ class RentalOrderLine(models.Model):
     unit_price = fields.Monetary(string='Price')
     quantity = fields.Float(string='Qty', default=1, readonly=True)
     returned_qty = fields.Float(string='Returned', default=0)
+    is_partial_return = fields.Boolean(
+        string='Partial Return', default=False,
+        help='Marked True when this line was returned during a partial return.')
     pending_qty = fields.Float(
         string='Pending', compute='_compute_pending_qty', store=True)
 
@@ -69,16 +72,12 @@ class RentalOrderLine(models.Model):
     total_cost = fields.Monetary(
         string='Total', compute='_compute_costs', store=True)
 
-    # Tax
-    tax_ids = fields.Many2many(
-        'account.tax', string='Taxes',
-        help='Taxes applied on this rental line (tax-inclusive).')
+    # Tax (set via Tax wizard)
+    tax_percentage = fields.Float(string='Tax %', default=0)
     tax_amount = fields.Monetary(
-        string='Tax Amount',
-        compute='_compute_tax_amount', store=True)
+        string='Tax Amount', currency_field='currency_id', default=0)
     price_before_tax = fields.Monetary(
-        string='Price Before Tax',
-        compute='_compute_tax_amount', store=True)
+        string='Price Before Tax', currency_field='currency_id', default=0)
 
     # Condition tracking
     CONDITION_SELECTION = [
@@ -278,11 +277,6 @@ class RentalOrderLine(models.Model):
         self.tool_id = tool.id
         self._onchange_tool_id()
 
-        # 6. Auto-populate taxes from product
-        if product.taxes_id:
-            self.tax_ids = product.taxes_id.filtered(
-                lambda t: t.type_tax_use == 'sale')
-
     # ── Onchange: Tool selected → auto-assign pricing + price ──
     @api.onchange('tool_id')
     def _onchange_tool_id(self):
@@ -383,30 +377,6 @@ class RentalOrderLine(models.Model):
             line.total_cost = (line.rental_cost
                                + (line.late_fee_amount or 0)
                                - (line.discount_line_amount or 0))
-
-    @api.depends('rental_cost', 'tax_ids')
-    def _compute_tax_amount(self):
-        for line in self:
-            # Auto-populate tax_ids from product if empty
-            if not line.tax_ids and line.product_id and line.product_id.taxes_id:
-                sale_taxes = line.product_id.taxes_id.filtered(
-                    lambda t: t.type_tax_use == 'sale')
-                if sale_taxes:
-                    line.tax_ids = sale_taxes
-            if line.tax_ids and line.rental_cost:
-                # Tax inclusive: price already includes tax, extract it
-                tax_res = line.tax_ids.compute_all(
-                    line.rental_cost,
-                    currency=line.currency_id,
-                    quantity=1,
-                    product=line.product_id,
-                    partner=line.order_id.partner_id,
-                )
-                line.price_before_tax = tax_res['total_excluded']
-                line.tax_amount = tax_res['total_included'] - tax_res['total_excluded']
-            else:
-                line.price_before_tax = line.rental_cost
-                line.tax_amount = 0.0
 
     def write(self, vals):
         """Handle direct writes from mobile app for condition and photo fields."""

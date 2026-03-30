@@ -29,5 +29,7 @@ access_rental_print_wizard_user,rental.print.wizard.user,model_rental_print_wiza
 access_rental_print_wizard_manager,rental.print.wizard.manager,model_rental_print_wizard,group_rental_manager,1,1,1,1
 access_rental_discount_wizard_user,rental.discount.wizard.user,model_rental_discount_wizard,group_rental_user,1,1,1,1
 access_rental_discount_wizard_line_user,rental.discount.wizard.line.user,model_rental_discount_wizard_line,group_rental_user,1,1,1,1
+access_rental_tax_wizard_user,rental.tax.wizard.user,model_rental_tax_wizard,group_rental_user,1,1,1,1
+access_rental_tax_wizard_line_user,rental.tax.wizard.line.user,model_rental_tax_wizard_line,group_rental_user,1,1,1,1
 access_rental_order_media_user,rental.order.media.user,model_rental_order_media,group_rental_user,1,1,1,1
 access_rental_order_media_manager,rental.order.media.manager,model_rental_order_media,group_rental_manager,1,1,1,1

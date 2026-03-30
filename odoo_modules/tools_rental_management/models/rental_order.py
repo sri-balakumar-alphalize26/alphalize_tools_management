@@ -217,15 +217,16 @@ class RentalOrder(models.Model):
                  'damage_charges', 'discount_amount')
     def _compute_totals(self):
         for order in self:
+            rental_total = sum(order.line_ids.mapped('rental_cost'))
             late = sum(order.line_ids.mapped('late_fee_amount'))
             tax = sum(order.line_ids.mapped('tax_amount'))
-            subtotal_before_tax = sum(order.line_ids.mapped('price_before_tax'))
-            order.subtotal = subtotal_before_tax
+            # Subtotal = rental_cost (price_before_tax is same as rental_cost when tax is applied via wizard)
+            order.subtotal = rental_total
             order.late_fee = late
             order.tax_total = tax
-            # Total = subtotal (before tax) + tax + late fees + damage - discount
+            # Total = rental cost + tax + late fees + damage - discount
             order.total_amount = (
-                subtotal_before_tax + tax + late
+                rental_total + tax + late
                 + (order.damage_charges or 0.0)
                 - (order.discount_amount or 0.0)
             )
@@ -525,7 +526,7 @@ class RentalOrder(models.Model):
                     'rental.customer') or 'CUS/0001'
             order.state = 'confirmed'
             # Force compute tax on lines
-            order.line_ids._compute_tax_amount()
+
 
     def action_checkout_wizard(self):
         """Open checkout wizard for ID proof and signature capture."""
@@ -561,7 +562,7 @@ class RentalOrder(models.Model):
             order.date_checkout = fields.Datetime.now()
             order.state = 'checked_out'
             # Force recompute tax amounts on lines
-            order.line_ids._compute_tax_amount()
+
             # Create initial timesheet entry
             self.env['rental.timesheet'].create({
                 'order_id': order.id,
@@ -598,20 +599,6 @@ class RentalOrder(models.Model):
                 discount_display = f"{ol.discount_value}%"
             elif ol.discount_type == 'fixed' and ol.discount_value:
                 discount_display = f"{self.currency_id.symbol or '$'} {ol.discount_value}"
-            # Build tax display string
-            # Compute tax from tax_ids directly
-            tax_display = ''
-            tax_amt = 0.0
-            if ol.tax_ids and ol.rental_cost:
-                tax_display = ', '.join(f"{t.amount}%" for t in ol.tax_ids)
-                tax_res = ol.tax_ids.compute_all(
-                    ol.rental_cost,
-                    currency=ol.currency_id,
-                    quantity=1,
-                    product=ol.product_id,
-                    partner=self.partner_id,
-                )
-                tax_amt = tax_res['total_included'] - tax_res['total_excluded']
             line_vals.append({
                 'wizard_id': wizard.id,
                 'order_line_id': ol.id,
@@ -631,8 +618,8 @@ class RentalOrder(models.Model):
                 'late_fee_per_day': late_fee,
                 'discount_display': discount_display,
                 'discount_line_amount': ol.discount_line_amount or 0.0,
-                'tax_display': tax_display,
-                'tax_amount': tax_amt,
+                'tax_percentage': ol.tax_percentage or 0.0,
+                'tax_amount': ol.tax_amount or 0.0,
             })
         if line_vals:
             self.env['rental.checkin.wizard.line'].create(line_vals)
@@ -641,6 +628,32 @@ class RentalOrder(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Check-In Tools'),
             'res_model': 'rental.checkin.wizard',
+            'res_id': wizard.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
+
+    def action_tax_wizard(self):
+        """Open tax wizard to apply tax per product line."""
+        self.ensure_one()
+        wizard = self.env['rental.tax.wizard'].create({
+            'order_id': self.id,
+        })
+        line_vals = []
+        for ol in self.line_ids:
+            line_vals.append({
+                'wizard_id': wizard.id,
+                'order_line_id': ol.id,
+                'tool_id': ol.tool_id.id,
+                'rental_cost': ol.rental_cost,
+                'tax_percentage': ol.tax_percentage or 0.0,
+            })
+        if line_vals:
+            self.env['rental.tax.wizard.line'].create(line_vals)
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Apply Tax'),
+            'res_model': 'rental.tax.wizard',
             'res_id': wizard.id,
             'view_mode': 'form',
             'target': 'new',
@@ -689,7 +702,7 @@ class RentalOrder(models.Model):
                     line.tool_id.state = 'available'
             order.state = 'checked_in'
             # Force recompute tax amounts on lines
-            order.line_ids._compute_tax_amount()
+
             # Create timesheet entry
             notes = 'Tools returned by customer.'
             if damage_notes:
