@@ -1001,7 +1001,10 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           if (line.damage_note) updateVals.damage_note = line.damage_note;
           if (checkinLineB64s[i]) updateVals.checkin_tool_image = checkinLineB64s[i];
           // For partial: mark this line as returned
-          if (isPartial) updateVals.returned_qty = 1;
+          if (isPartial) {
+            updateVals.returned_qty = 1;
+            updateVals.is_partial_return = true;
+          }
           return updateOrderLineValues(odooAuth, lineOdooId, updateVals);
         }).filter(Boolean));
 

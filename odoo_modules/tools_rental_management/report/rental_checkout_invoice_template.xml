@@ -264,11 +264,11 @@
                         </div>
 
                         <!-- Signature -->
-                        <div class="row" style="margin-top:30px; justify-content:center;">
+                        <div class="row" style="margin-top:8px; justify-content:center;">
                             <div class="col-5 text-center" style="margin:0 auto;">
                                 <t t-if="doc.customer_signature">
                                     <img t-att-src="image_data_uri(doc.customer_signature)"
-                                         style="max-height:70px; max-width:100%;"/>
+                                         style="max-height:50px; max-width:100%;"/>
                                     <br/>
                                 </t>
                                 <t t-else="">

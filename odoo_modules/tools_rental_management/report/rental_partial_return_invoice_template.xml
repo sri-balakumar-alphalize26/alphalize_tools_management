@@ -147,7 +147,7 @@
                             </thead>
                             <tbody>
                                 <t t-set="idx" t-value="0"/>
-                                <tr t-foreach="doc.line_ids.filtered(lambda l: l.is_partial_return) or doc.line_ids.filtered(lambda l: l.returned_qty > 0 and l.pending_qty > 0)" t-as="line">
+                                <tr t-foreach="doc.line_ids.filtered(lambda l: l.is_partial_return)" t-as="line">
                                     <t t-set="idx" t-value="idx + 1"/>
                                     <td><t t-out="idx"/></td>
                                     <td>
@@ -302,11 +302,11 @@
                         </div>
 
                         <!-- Signature -->
-                        <div class="row" style="margin-top:30px; justify-content:center;">
+                        <div class="row" style="margin-top:8px; justify-content:center;">
                             <div class="col-5 text-center" style="margin:0 auto;">
                                 <t t-if="doc.checkin_customer_signature">
                                     <img t-att-src="image_data_uri(doc.checkin_customer_signature)"
-                                         style="max-height:70px; max-width:100%;"/>
+                                         style="max-height:50px; max-width:100%;"/>
                                     <br/>
                                 </t>
                                 <t t-else="">
@@ -481,7 +481,7 @@
                             </thead>
                             <tbody>
                                 <t t-set="idx" t-value="0"/>
-                                <tr t-foreach="doc.line_ids.filtered(lambda l: l.is_partial_return) or doc.line_ids.filtered(lambda l: l.returned_qty > 0 and l.pending_qty > 0)" t-as="line">
+                                <tr t-foreach="doc.line_ids.filtered(lambda l: l.is_partial_return)" t-as="line">
                                     <t t-set="idx" t-value="idx + 1"/>
                                     <td><t t-out="idx"/></td>
                                     <td>
