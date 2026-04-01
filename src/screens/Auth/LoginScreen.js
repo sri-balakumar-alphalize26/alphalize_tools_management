@@ -22,6 +22,7 @@ import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { Button } from "@components/common/Button";
 import { OverlayLoader } from "@components/Loader";
 import Text from "@components/Text";
+import Constants from "expo-constants";
 import { SafeAreaView } from "@components/containers";
 import { useAuthStore } from "@stores/auth";
 import { showToastMessage } from "@components/Toast";
@@ -393,7 +394,7 @@ const LoginScreen = ({ navigation }) => {
             </View>
 
             {/* Footer */}
-            <Text style={styles.footer}>Powered by 369ai  |  v1.0.0</Text>
+            <Text style={styles.footer}>Powered by 369ai  |  v{Constants.expoConfig?.version || "1.1.0"}</Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

@@ -175,7 +175,7 @@ const ORDER_LINE_FIELDS = [
   "returned_qty", "pending_qty", "rental_cost", "late_fee_amount", "total_cost",
   "checkout_condition", "checkin_condition", "damage_note", "damage_charge",
   "tax_percentage", "tax_amount", "price_before_tax",
-  "discount_type", "discount_value", "discount_line_amount", "notes", "extra_days", "is_partial_return",
+  "discount_type", "discount_value", "discount_line_amount", "notes", "extra_days", "is_partial_return", "partial_return_date",
 ];
 
 const ORDER_LINE_IMAGE_FIELDS = [
@@ -579,6 +579,7 @@ const mapOrderLine = (l) => ({
   tax_amount: String(l.tax_amount || 0),
   price_before_tax: String(l.price_before_tax || 0),
   is_partial_return: l.is_partial_return || false,
+  partial_return_date: l.partial_return_date || false,
   checkout_tool_image: l.checkout_tool_image || false,
 });
 

@@ -46,6 +46,7 @@ class RentalOrderLine(models.Model):
     is_partial_return = fields.Boolean(
         string='Partial Return', default=False,
         help='Marked True when this line was returned during a partial return.')
+    partial_return_date = fields.Datetime(string='Return Date', copy=False)
     pending_qty = fields.Float(
         string='Pending', compute='_compute_pending_qty', store=True)
 

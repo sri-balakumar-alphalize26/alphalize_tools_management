@@ -309,15 +309,17 @@ const CustomersScreen = ({ navigation, route }) => {
           <Text style={styles.detail}>{item.email}</Text>
         ) : null}
       </View>
-      <View style={styles.stats}>
-        <Text style={styles.rentalCount}>{item.rental_count || 0}</Text>
-        <Text style={styles.rentalLabel}>Rentals</Text>
-        {item.total_revenue > 0 && (
-          <Text style={styles.revenueText}>
-            ر.ع.{parseFloat(item.total_revenue).toFixed(3)}
-          </Text>
-        )}
-      </View>
+      {!filterIdProofs && (
+        <View style={styles.stats}>
+          <Text style={styles.rentalCount}>{item.rental_count || 0}</Text>
+          <Text style={styles.rentalLabel}>Rentals</Text>
+          {item.total_revenue > 0 && (
+            <Text style={styles.revenueText}>
+              ر.ع.{parseFloat(item.total_revenue).toFixed(3)}
+            </Text>
+          )}
+        </View>
+      )}
     </TouchableOpacity>
   );
 

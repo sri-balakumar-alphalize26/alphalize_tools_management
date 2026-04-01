@@ -4,6 +4,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "@components/containers";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { useAuthStore } from "@stores/auth";
+import Constants from "expo-constants";
 
 const ProfileScreen = () => {
   const user = useAuthStore((state) => state.user);
@@ -65,7 +66,7 @@ const ProfileScreen = () => {
         </View>
 
         {/* Version */}
-        <Text style={styles.version}>Powered by 369ai  |  v1.0.0</Text>
+        <Text style={styles.version}>Powered by 369ai  |  v{Constants.expoConfig?.version || "1.1.0"}</Text>
       </ScrollView>
     </SafeAreaView>
   );

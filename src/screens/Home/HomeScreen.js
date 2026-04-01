@@ -16,6 +16,7 @@ import { showToastMessage } from "@components/Toast";
 import { useAuthStore } from "@stores/auth";
 import CarouselPagination from "@components/Home/CarouselPagination";
 import ListHeader from "@components/Home/ListHeader";
+import Constants from "expo-constants";
 
 const MENU_ITEMS = [
   { id: "1", title: "New Rental", screen: "RentalOrderFormScreen", icon: "add-circle", bg: "#E0F7FA", accent: "#00BCD4" },
@@ -151,7 +152,7 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={
-            <Text style={styles.footer}>Powered by 369ai  |  v1.0.0</Text>
+            <Text style={styles.footer}>Powered by 369ai  |  v{Constants.expoConfig?.version || "1.1.0"}</Text>
           }
         />
       </RoundedContainer>

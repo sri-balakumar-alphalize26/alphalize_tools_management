@@ -1004,6 +1004,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           if (isPartial) {
             updateVals.returned_qty = 1;
             updateVals.is_partial_return = true;
+            updateVals.partial_return_date = new Date().toISOString().replace('T', ' ').substring(0, 19);
           }
           return updateOrderLineValues(odooAuth, lineOdooId, updateVals);
         }).filter(Boolean));
@@ -1027,7 +1028,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         // Partial return: mark returned lines, keep order checked_out
         const returnedNames = visibleLines.map((l) => l.tool_name).join(", ");
         setLines((prev) => prev.map((l, i) =>
-          checkinExcludedIdx.includes(i) ? l : { ...l, returned_qty: l.quantity, is_partial_return: true }
+          checkinExcludedIdx.includes(i) ? l : { ...l, returned_qty: l.quantity, is_partial_return: true, partial_return_date: new Date().toISOString() }
         ));
         addTimesheetEntry("note", "Partial return: " + returnedNames);
         showToastMessage("Partial check-in saved. " + userExcluded.length + " tool(s) still pending.");
@@ -1129,6 +1130,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           <td>${i + 1}</td>
           <td>${l.tool_name || "-"}</td>
           <td>${l.serial_number || ""}</td>
+          <td>${l.partial_return_date ? new Date(l.partial_return_date).toLocaleDateString() : ""}</td>
           <td>${l.checkout_condition || ""}</td>
           <td class="text-end">${cur}${(parseFloat(l.unit_price) || 0).toFixed(3)}</td>
           <td class="text-end">${parseInt(l.planned_duration) || 1} ${((d, pt) => d === 1 ? ({"day":"Day","week":"Week","month":"Month"})[pt] || "Day" : ({"day":"Days","week":"Weeks","month":"Months"})[pt] || "Days")(parseInt(l.planned_duration) || 1, l.period_type || form.rental_period_type || "day")}</td>
@@ -1182,10 +1184,12 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       * { box-sizing: border-box; margin: 0; padding: 0; }
       @page { size: ${isA5 ? "148mm 210mm" : "A4"} portrait; margin: ${isA5 ? "4mm" : "8mm"}; }
       body { font-family: Arial, Helvetica, sans-serif; padding: ${isA5 ? "4px" : "8px"}; color: #333; font-size: ${isA5 ? "7px" : "10px"}; line-height: ${isA5 ? "1.2" : "1.2"}; }
-      .invoice-header { display: flex; align-items: center; margin-bottom: ${isA5 ? "3px" : "4px"}; border-bottom: 2px solid #2c3e50; padding-bottom: ${isA5 ? "3px" : "4px"}; }
-      .invoice-header .header-left { flex: 1; text-align: left; }
-      .invoice-header .header-center { flex: 1; text-align: center; }
-      .invoice-header .header-right { flex: 1; text-align: right; direction: rtl; }
+      .invoice-header { width: 100%; border: 0; border-spacing: 0; margin-bottom: ${isA5 ? "3px" : "4px"}; }
+      .invoice-header td { border: 0; vertical-align: middle; }
+      .invoice-header .header-left { width: 30%; text-align: left; padding: ${isA5 ? "3px 6px 3px 8px" : "4px 8px 4px 10px"}; }
+      .invoice-header .header-center { width: 40%; text-align: center; padding-bottom: ${isA5 ? "6px" : "8px"}; }
+      .invoice-header .header-right { width: 30%; text-align: right; direction: rtl; padding: ${isA5 ? "3px 8px 3px 6px" : "4px 10px 4px 8px"}; }
+      .header-border { border-bottom: 2px solid #2c3e50; margin-bottom: ${isA5 ? "3px" : "4px"}; }
       h2.title { text-align: center; color: #2c3e50; margin: 0 0 ${isA5 ? "1px" : "2px"} 0; font-size: ${isA5 ? "10px" : "16px"}; }
       h4.sub { text-align: center; color: #888; margin: 0 0 ${isA5 ? "3px" : "8px"} 0; font-size: ${isA5 ? "7.5px" : "12px"}; }
       .row { display: flex; gap: ${isA5 ? "6px" : "10px"}; margin-bottom: ${isA5 ? "2px" : "4px"}; }
@@ -1215,29 +1219,32 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       .no-break { page-break-inside: avoid; }
     </style></head><body>
 
-    <div class="invoice-header">
-      <div class="header-left">
-        <div style="font-size:${isA5 ? "10px" : "18px"};font-weight:900;color:#00AEEF;letter-spacing:1px;">SMART VISION</div>
-        <div style="font-size:${isA5 ? "7px" : "12px"};font-weight:700;color:#333;">INTERNATIONAL L.L.C</div>
-        <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;margin-top:1px;">C.R No: 1199264 P.O:534, PC.:111, Sultanate of oman</div>
-        <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">GSM: 97117880, 99047066</div>
-        <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">Branch: AI Mawaleh  smartvisionllc1313@gmail.com</div>
-        <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">VAT No: OM110025049X</div>
-      </div>
-      <div class="header-center">
-        ${assets.logo ? `<div style="margin-bottom:${isA5 ? "3px" : "6px"};"><img src="${assets.logo}" style="width:${isA5 ? "80px" : "130px"};height:auto;" /></div>` : ""}
-        <h2 class="title">${isCheckin ? "CHECK-IN INVOICE" : isPartialReturn ? "PARTIAL RETURN INVOICE" : "CHECKOUT INVOICE"}</h2>
-        <h4 class="sub">${form.name || "New Order"}</h4>
-        ${(form.customer_id || form.partner_id) ? `<div class="badge"><span>Customer ID: ${form.customer_id || form.partner_id}</span></div>` : ""}
-      </div>
-      <div class="header-right">
-        <div style="font-size:${isA5 ? "10px" : "18px"};font-weight:900;color:#00AEEF;">الرؤية الذكية</div>
-        <div style="font-size:${isA5 ? "7px" : "12px"};font-weight:700;color:#333;">الدولية ش.م.م</div>
-        <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;margin-top:1px;">س.ت: ١١٩٩٢٦٤ ص.ب:٥٣٤، ر.ب:١١١، سلطنة عمان</div>
-        <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">هاتف: ٩٧١١٧٨٨٠، ٩٩٠٤٧٠٦٦</div>
-        <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">فرع: الموالح  smartvisionllc1313@gmail.com</div>
-      </div>
-    </div>
+    <table class="invoice-header">
+      <tr>
+        <td class="header-left">
+          <div style="font-size:${isA5 ? "10px" : "18px"};font-weight:900;color:#00AEEF;letter-spacing:1px;">SMART VISION</div>
+          <div style="font-size:${isA5 ? "7px" : "12px"};font-weight:700;color:#333;">INTERNATIONAL L.L.C</div>
+          <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;margin-top:1px;">C.R No: 1199264 P.O:534, PC.:111, Sultanate of oman</div>
+          <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">GSM: 97117880, 99047066</div>
+          <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">Branch: AI Mawaleh  smartvisionllc1313@gmail.com</div>
+          <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">VAT No: OM110025049X</div>
+        </td>
+        <td class="header-center">
+          ${assets.logo ? `<div style="margin-bottom:${isA5 ? "3px" : "6px"};"><img src="${assets.logo}" style="width:${isA5 ? "80px" : "130px"};height:auto;" /></div>` : ""}
+          <h2 class="title">${isCheckin ? "CHECK-IN INVOICE" : isPartialReturn ? "PARTIAL RETURN INVOICE" : "CHECKOUT INVOICE"}</h2>
+          <h4 class="sub">${form.name || "New Order"}</h4>
+          ${(form.customer_id || form.partner_id) ? `<div class="badge"><span>Customer ID: ${form.customer_id || form.partner_id}</span></div>` : ""}
+        </td>
+        <td class="header-right">
+          <div style="font-size:${isA5 ? "10px" : "18px"};font-weight:900;color:#00AEEF;">الرؤية الذكية</div>
+          <div style="font-size:${isA5 ? "7px" : "12px"};font-weight:700;color:#333;">الدولية ش.م.م</div>
+          <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;margin-top:1px;">س.ت: ١١٩٩٢٦٤ ص.ب:٥٣٤، ر.ب:١١١، سلطنة عمان</div>
+          <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">هاتف: ٩٧١١٧٨٨٠، ٩٩٠٤٧٠٦٦</div>
+          <div style="font-size:${isA5 ? "5px" : "9px"};color:#333;">فرع: الموالح  smartvisionllc1313@gmail.com</div>
+        </td>
+      </tr>
+    </table>
+    <div class="header-border"></div>
 
     <div class="row">
       <div class="col">
@@ -1295,7 +1302,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     <h5>Tools / Equipment</h5>
     ${!isCheckin ? `<table class="tools">
       <thead><tr>
-        <th>#</th><th>Tool</th><th>Serial No.</th><th>Condition</th>
+        <th>#</th><th>Tool</th><th>Serial No.</th>${isPartialReturn ? '<th>Return Date</th>' : ''}<th>Condition</th>
         <th class="text-end">Price</th><th class="text-end">Duration</th>${isPartialReturn ? '<th class="text-end">Extra Days</th><th class="text-end">Late Fee</th>' : ''}<th class="text-end">Total</th>${isPartialReturn && taxTotal > 0 ? '<th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>' : ''}
       </tr></thead>
       <tbody>${isPartialReturn ? partialReturnToolRows : checkoutToolRows}</tbody>

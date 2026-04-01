@@ -288,6 +288,7 @@ class RentalCheckinWizard(models.TransientModel):
         for wiz_line in lines_to_process:
             if wiz_line.return_qty > 0 and wiz_line.order_line_id:
                 wiz_line.order_line_id.is_partial_return = True
+                wiz_line.order_line_id.partial_return_date = fields.Datetime.now()
 
         # Handle damage for selected lines only
         damage_notes, total_damage = self._collect_damage_info(lines_to_process)
