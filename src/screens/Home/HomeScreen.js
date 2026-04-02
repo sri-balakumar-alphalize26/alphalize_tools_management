@@ -152,7 +152,7 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={
-            <Text style={styles.footer}>Powered by 369ai  |  v{Constants.expoConfig?.version || "1.1.0"}</Text>
+            <Text style={styles.footer}>Powered by 369ai  |  v{require("../../../app.json").expo.version}</Text>
           }
         />
       </RoundedContainer>

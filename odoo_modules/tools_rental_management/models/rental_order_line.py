@@ -16,6 +16,8 @@ class RentalOrderLine(models.Model):
     order_id = fields.Many2one(
         'rental.order', string='Rental Order',
         ondelete='cascade', required=True)
+    company_id = fields.Many2one(
+        related='order_id.company_id', store=True)
     sequence = fields.Integer(default=10)
 
     # ── Product (main user-facing field) ────────────────────────────────

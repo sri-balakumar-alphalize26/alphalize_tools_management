@@ -36,29 +36,35 @@ export class RentalDiscountReport extends Component {
     }
 
     async loadData() {
-        // Fetch company currency symbol
-        const companies = await this.orm.searchRead("res.company", [], ["currency_id"], { limit: 1 });
-        if (companies.length && companies[0].currency_id) {
-            const currencies = await this.orm.searchRead("res.currency", [["id", "=", companies[0].currency_id[0]]], ["symbol"], { limit: 1 });
-            this.currencySymbol = currencies.length ? currencies[0].symbol : "$";
-        }
+        try {
+            // Fetch company currency symbol (record rules auto-filter by current company)
+            const companies = await this.orm.searchRead("res.company", [], ["currency_id"], { limit: 1 });
+            if (companies.length && companies[0].currency_id) {
+                const currencies = await this.orm.searchRead("res.currency", [["id", "=", companies[0].currency_id[0]]], ["symbol"], { limit: 1 });
+                this.currencySymbol = currencies.length ? currencies[0].symbol : "$";
+            }
 
-        const orders = await this.orm.searchRead(
-            "rental.order",
-            [["discount_amount", ">", 0]],
-            [
-                "name", "customer_code", "partner_id", "partner_phone",
-                "partner_email", "date_order", "date_checkout", "date_checkin",
-                "rental_period_type", "rental_duration",
-                "state", "subtotal", "late_fee", "damage_charges",
-                "discount_amount", "total_amount", "user_id",
-                "discount_authorized_by", "discount_auth_photo",
-                "discount_auth_signature",
-            ],
-            { order: "id desc" }
-        );
-        this.state.orders = orders;
-        this._computeSummary();
+            const orders = await this.orm.searchRead(
+                "rental.order",
+                [["discount_amount", ">", 0]],
+                [
+                    "name", "customer_code", "partner_id", "partner_phone",
+                    "partner_email", "date_order", "date_checkout", "date_checkin",
+                    "rental_period_type", "rental_duration",
+                    "state", "subtotal", "late_fee", "damage_charges",
+                    "discount_amount", "total_amount", "user_id",
+                    "discount_authorized_by", "discount_auth_photo",
+                    "discount_auth_signature",
+                ],
+                { order: "id desc" }
+            );
+            this.state.orders = orders;
+            this._computeSummary();
+        } catch (e) {
+            console.error("Discount Report loadData error:", e);
+            this.state.orders = [];
+            this._computeSummary();
+        }
     }
 
     _computeSummary() {

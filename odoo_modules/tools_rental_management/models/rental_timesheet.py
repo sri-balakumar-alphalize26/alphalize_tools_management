@@ -9,6 +9,8 @@ class RentalTimesheet(models.Model):
     order_id = fields.Many2one(
         'rental.order', string='Rental Order',
         ondelete='cascade', required=True)
+    company_id = fields.Many2one(
+        related='order_id.company_id', store=True)
     date = fields.Date(
         string='Date', required=True,
         default=fields.Date.today)

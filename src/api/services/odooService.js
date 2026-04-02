@@ -473,6 +473,27 @@ export const sendInvoiceWhatsApp = async (auth, orderId, invoiceType, customerPh
 // Re-export for direct use
 export { sendWhatsAppDocument };
 
+// Fetch user's allowed companies/branches from Odoo
+export const fetchUserCompanies = async (auth) => {
+  const userRecords = await odooSearchRead(auth, "res.users", [["id", "=", auth.uid]], ["company_id", "company_ids"]);
+  if (userRecords && userRecords.length > 0) {
+    const user = userRecords[0];
+    const allowedIds = user.company_ids || [];
+    const companies = await odooSearchRead(auth, "res.company", [["id", "in", allowedIds]], ["id", "name", "phone", "email"]);
+    return {
+      current_company_id: user.company_id ? user.company_id[0] : null,
+      current_company_name: user.company_id ? user.company_id[1] : "",
+      allowed_companies: companies.map((c) => ({ id: c.id, name: c.name, phone: c.phone || "", email: c.email || "" })),
+    };
+  }
+  return { current_company_id: null, current_company_name: "", allowed_companies: [] };
+};
+
+// Switch user's active company in Odoo
+export const switchCompany = async (auth, companyId) => {
+  await odooWrite(auth, "res.users", auth.uid, { company_id: companyId });
+};
+
 // Fetch company details from Odoo
 export const fetchCompanyDetails = async (auth) => {
   const result = await odooSearchRead(auth, "res.company", [], ["name", "phone", "email", "street", "street2", "city", "zip", "state_id", "country_id"], 1);

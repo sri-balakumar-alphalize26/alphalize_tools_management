@@ -6,6 +6,15 @@ class RentalToolCategory(models.Model):
     _description = 'Rental Tool Category'
     _order = 'name'
 
+    def init(self):
+        """Remove categories with 0 tools (cleanup unwanted synced categories)."""
+        self.env.cr.execute("""
+            DELETE FROM rental_tool_category
+            WHERE id NOT IN (
+                SELECT DISTINCT category_id FROM rental_tool WHERE category_id IS NOT NULL
+            )
+        """)
+
     name = fields.Char(string='Category Name', required=True)
     code = fields.Char(string='Code')
     parent_id = fields.Many2one('rental.tool.category', string='Parent Category')
@@ -38,33 +47,3 @@ class RentalToolCategory(models.Model):
             'context': {},
         }
 
-    # ── Two-way sync: rental.tool.category ↔ product.category ─────────
-    @api.model_create_multi
-    def create(self, vals_list):
-        records = super().create(vals_list)
-        if not self.env.context.get('_syncing_categories'):
-            ProductCateg = self.env['product.category']
-            for rec in records:
-                existing = ProductCateg.search(
-                    [('name', '=', rec.name)], limit=1)
-                if not existing:
-                    ProductCateg.with_context(
-                        _syncing_categories=True
-                    ).create({'name': rec.name})
-        return records
-
-    def write(self, vals):
-        old_names = {r.id: r.name for r in self} if 'name' in vals else {}
-        res = super().write(vals)
-        if 'name' in vals and not self.env.context.get('_syncing_categories'):
-            ProductCateg = self.env['product.category']
-            for rec in self:
-                old_name = old_names.get(rec.id)
-                if old_name and old_name != rec.name:
-                    existing = ProductCateg.search(
-                        [('name', '=', old_name)], limit=1)
-                    if existing:
-                        existing.with_context(
-                            _syncing_categories=True
-                        ).write({'name': rec.name})
-        return res

@@ -6,20 +6,18 @@ import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { onMounted, onPatched } from "@odoo/owl";
 
-class RentalProductKanbanController extends KanbanController {
-    static template = "tools_rental_management.RentalProductKanbanView";
+class RentalToolKanbanController extends KanbanController {
+    static template = "tools_rental_management.RentalToolKanbanView";
 
     setup() {
         super.setup();
         this.orm = useService("orm");
-        this.selectedIds = new Set();
         this.allSelected = false;
 
         const injectCheckboxes = () => {
             const cards = document.querySelectorAll(".o_kanban_record:not(.rental-cb-done)");
             cards.forEach((card) => {
                 card.classList.add("rental-cb-done");
-                // Skip empty/placeholder cards
                 if (!card.querySelector(".o_rental_tool_card, .o_kanban_record_body, .oe_kanban_card") && !card.textContent.trim()) return;
                 if (card.offsetHeight < 50) return;
 
@@ -29,9 +27,7 @@ class RentalProductKanbanController extends KanbanController {
                 cb.style.cssText = "position:absolute;top:8px;left:8px;width:20px;height:20px;z-index:10;cursor:pointer;accent-color:#dc3545;";
                 card.style.position = "relative";
 
-                cb.addEventListener("change", (e) => {
-                    e.stopPropagation();
-                });
+                cb.addEventListener("change", (e) => e.stopPropagation());
                 cb.addEventListener("click", (e) => e.stopPropagation());
                 card.prepend(cb);
             });
@@ -61,39 +57,31 @@ class RentalProductKanbanController extends KanbanController {
             if (cb.checked && allIds[idx]) ids.push(allIds[idx]);
         });
         if (!ids.length) {
-            alert("Please select products first using the checkboxes.");
+            alert("Please select tools first using the checkboxes.");
             return;
         }
-        if (!confirm(`Delete ${ids.length} product(s)? This cannot be undone.`)) return;
-        await this.orm.unlink("product.product", ids);
-        this.selectedIds.clear();
+        if (!confirm(`Delete ${ids.length} tool(s)? This cannot be undone.`)) return;
+        await this.orm.unlink("rental.tool", ids);
         this.allSelected = false;
         await this.model.load();
     }
 
     onSelectAll() {
-        const allIds = this._getAllRecordIds();
         const shouldSelect = !this.allSelected;
         const cbs = document.querySelectorAll(".rental-select-cb");
-
-        cbs.forEach((cb, idx) => {
+        cbs.forEach((cb) => {
             const card = cb.parentElement;
             cb.checked = shouldSelect;
-            if (shouldSelect) {
-                card.style.outline = "3px solid #dc3545";
-                card.style.outlineOffset = "-3px";
-            } else {
-                card.style.outline = "";
-                card.style.outlineOffset = "";
-            }
+            card.style.outline = shouldSelect ? "3px solid #dc3545" : "";
+            card.style.outlineOffset = shouldSelect ? "-3px" : "";
         });
         this.allSelected = shouldSelect;
     }
 }
 
-export const rentalProductKanbanView = {
+export const rentalToolKanbanView = {
     ...kanbanView,
-    Controller: RentalProductKanbanController,
+    Controller: RentalToolKanbanController,
 };
 
-registry.category("views").add("rental_product_kanban", rentalProductKanbanView);
+registry.category("views").add("rental_tool_kanban", rentalToolKanbanView);

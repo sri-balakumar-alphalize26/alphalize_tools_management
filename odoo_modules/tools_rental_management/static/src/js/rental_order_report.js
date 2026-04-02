@@ -39,7 +39,7 @@ export class RentalOrderReport extends Component {
     /* ── Data loading ─────────────────────────────────────── */
 
     async loadData() {
-        // Fetch company currency symbol
+        // Fetch company currency symbol (record rules auto-filter by current company)
         const companies = await this.orm.searchRead("res.company", [], ["currency_id"], { limit: 1 });
         if (companies.length && companies[0].currency_id) {
             const currencies = await this.orm.searchRead("res.currency", [["id", "=", companies[0].currency_id[0]]], ["symbol"], { limit: 1 });

@@ -7,6 +7,19 @@ _logger = logging.getLogger(__name__)
 class ProductProduct(models.Model):
     _inherit = 'product.product'
 
+    # ── Company isolation ────────────────────────────────────────────────
+    company_id = fields.Many2one(
+        'res.company', string='Company',
+        default=lambda self: self.env.company)
+
+    def init(self):
+        """Backfill company_id on existing products that have none."""
+        self.env.cr.execute("""
+            UPDATE product_product
+            SET company_id = (SELECT id FROM res_company ORDER BY id LIMIT 1)
+            WHERE company_id IS NULL
+        """)
+
     # ── Rental-specific fields on product ───────────────────────────────
     is_rental_tool = fields.Boolean(
         string='Available for Rental', default=True,
@@ -432,34 +445,3 @@ class ProductTemplate(models.Model):
 
 class ProductCategory(models.Model):
     _inherit = 'product.category'
-
-    # ── Two-way sync: product.category → rental.tool.category ─────────
-    @api.model_create_multi
-    def create(self, vals_list):
-        records = super().create(vals_list)
-        if not self.env.context.get('_syncing_categories'):
-            RentalCategory = self.env['rental.tool.category']
-            for rec in records:
-                existing = RentalCategory.search(
-                    [('name', '=', rec.name)], limit=1)
-                if not existing:
-                    RentalCategory.with_context(
-                        _syncing_categories=True
-                    ).create({'name': rec.name})
-        return records
-
-    def write(self, vals):
-        old_names = {r.id: r.name for r in self} if 'name' in vals else {}
-        res = super().write(vals)
-        if 'name' in vals and not self.env.context.get('_syncing_categories'):
-            RentalCategory = self.env['rental.tool.category']
-            for rec in self:
-                old_name = old_names.get(rec.id)
-                if old_name and old_name != rec.name:
-                    existing = RentalCategory.search(
-                        [('name', '=', old_name)], limit=1)
-                    if existing:
-                        existing.with_context(
-                            _syncing_categories=True
-                        ).write({'name': rec.name})
-        return res

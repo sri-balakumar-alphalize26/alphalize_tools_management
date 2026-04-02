@@ -28,6 +28,7 @@ import { useAuthStore } from "@stores/auth";
 import { showToastMessage } from "@components/Toast";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { odooAuthenticate, odooGetDatabases } from "@api/services/odooApi";
+import { fetchUserCompanies } from "@api/services/odooService";
 import { ODOO_CONFIG, getOdooUrl, setOdooUrl } from "@api/config/odooConfig";
 
 const LoginScreen = ({ navigation }) => {
@@ -185,11 +186,22 @@ const LoginScreen = ({ navigation }) => {
         inputs.password
       );
 
+      // Fetch user's companies/branches
+      let companyInfo = { current_company_id: null, current_company_name: "", allowed_companies: [] };
+      try {
+        companyInfo = await fetchUserCompanies(odooAuth);
+      } catch (e) {
+        console.log("Could not fetch companies:", e);
+      }
+
       const userData = {
         username: inputs.username,
         uid: odooAuth.uid,
         is_admin: true,
         database: inputs.database,
+        company_id: companyInfo.current_company_id,
+        company_name: companyInfo.current_company_name,
+        allowed_companies: companyInfo.allowed_companies,
       };
 
       await AsyncStorage.setItem("lastServerUrl", serverUrl);
@@ -394,7 +406,7 @@ const LoginScreen = ({ navigation }) => {
             </View>
 
             {/* Footer */}
-            <Text style={styles.footer}>Powered by 369ai  |  v{Constants.expoConfig?.version || "1.1.0"}</Text>
+            <Text style={styles.footer}>Powered by 369ai  |  v{require("../../../app.json").expo.version}</Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

@@ -204,6 +204,13 @@ class RentalTool(models.Model):
                         _syncing_rental_pricing=True).write(product_vals)
         return res
 
+    def unlink(self):
+        products = self.mapped('product_id')
+        res = super().unlink()
+        if products:
+            products.sudo().unlink()
+        return res
+
     def action_set_available(self):
         self.write({'state': 'available'})
 

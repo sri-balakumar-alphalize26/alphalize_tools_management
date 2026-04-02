@@ -154,7 +154,7 @@
         <field name="name">rental.tool.kanban</field>
         <field name="model">rental.tool</field>
         <field name="arch" type="xml">
-            <kanban create="false">
+            <kanban create="false" js_class="rental_tool_kanban">
                 <field name="name"/>
                 <field name="code"/>
                 <field name="serial_number"/>

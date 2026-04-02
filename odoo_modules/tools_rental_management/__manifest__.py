@@ -35,6 +35,7 @@
     'data': [
         'security/rental_security.xml',
         'security/ir.model.access.csv',
+        'security/rental_multi_company_rules.xml',
         'data/sequence_data.xml',
         'data/rental_period_data.xml',
         'data/cron_data.xml',
@@ -97,6 +98,9 @@
             # Categories dashboard
             'tools_rental_management/static/src/js/rental_category_dashboard.js',
             'tools_rental_management/static/src/xml/rental_category_dashboard.xml',
+            # Rental Tool kanban (select + delete)
+            'tools_rental_management/static/src/js/rental_tool_kanban.js',
+            'tools_rental_management/static/src/xml/rental_tool_kanban.xml',
             # Contact list delete button
             'tools_rental_management/static/src/js/contact_list_delete_button.js',
             'tools_rental_management/static/src/xml/contact_list_delete_button.xml',
