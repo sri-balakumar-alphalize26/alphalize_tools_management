@@ -10,8 +10,17 @@
 
                 <div class="alert alert-info text-center" role="alert">
                     <strong>Apply Tax</strong>
-                    — Enter tax percentage for each product. Tax amount will be calculated automatically.
+                    — Choose tax method and enter tax percentage.
                 </div>
+
+                <group>
+                    <group>
+                        <field name="tax_method" widget="radio" options="{'horizontal': true}"/>
+                    </group>
+                    <group invisible="tax_method != 'total'">
+                        <field name="total_tax_percentage" string="Tax % (All Products)"/>
+                    </group>
+                </group>
 
                 <field name="line_ids">
                     <list editable="bottom" no_open="1"
@@ -22,7 +31,8 @@
                                readonly="1"/>
                         <field name="rental_cost" string="Rental Cost"
                                readonly="1"/>
-                        <field name="tax_percentage" string="Tax %"/>
+                        <field name="tax_percentage" string="Tax %"
+                               readonly="parent.tax_method == 'total'"/>
                         <field name="tax_amount" string="Tax Amount"
                                readonly="1"
                                decoration-info="tax_amount > 0"/>

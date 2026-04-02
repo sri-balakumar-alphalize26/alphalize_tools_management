@@ -232,6 +232,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const discountSignatureRef = useRef(null);
   const [showTaxModal, setShowTaxModal] = useState(false);
   const [taxLines, setTaxLines] = useState([]);
+  const [taxMode, setTaxMode] = useState("total");
+  const [totalTaxPercentage, setTotalTaxPercentage] = useState("");
   const [previewImageUri, setPreviewImageUri] = useState(null);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [activeToolLineIdx, setActiveToolLineIdx] = useState(-1);
@@ -3290,6 +3292,21 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     }));
   };
 
+  const handleTaxModeChange = (mode) => {
+    setTaxMode(mode);
+    setTotalTaxPercentage("");
+    setTaxLines(prev => prev.map(tl => ({ ...tl, tax_percentage: "0", tax_amount: 0 })));
+  };
+
+  const applyTotalTaxToLines = (pct) => {
+    setTotalTaxPercentage(pct);
+    const taxPct = parseFloat(pct) || 0;
+    setTaxLines(prev => prev.map(tl => {
+      const taxAmt = tl.rental_cost * taxPct / 100;
+      return { ...tl, tax_percentage: String(taxPct), tax_amount: taxAmt };
+    }));
+  };
+
   const applyTax = async () => {
     // Update local lines
     setLines(prev => prev.map((l, i) => {
@@ -3320,19 +3337,69 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const renderTaxModal = () => (
     <Modal visible={showTaxModal} animationType="slide" transparent onRequestClose={() => setShowTaxModal(false)}>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
-        <View style={{ backgroundColor: "#fff", borderRadius: 16, width: "92%", maxHeight: "80%", padding: 20 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <View style={{ backgroundColor: "#fff", borderRadius: 16, width: "92%", maxHeight: "85%", padding: 20 }}>
+          {/* Header */}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <Text style={{ fontSize: 18, fontWeight: "700", color: "#1565C0" }}>Apply Tax</Text>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={{ fontSize: 11, color: "#888" }}>Subtotal</Text>
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#333" }}>ر.ع.{taxLines.reduce((s, tl) => s + tl.rental_cost, 0).toFixed(3)}</Text>
+            </View>
             <TouchableOpacity onPress={() => setShowTaxModal(false)}>
               <Text style={{ fontSize: 22, color: "#999", fontWeight: "700" }}>X</Text>
             </TouchableOpacity>
           </View>
-          <Text style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>Enter tax percentage for each product. Tax amount calculates automatically.</Text>
-          <ScrollView style={{ maxHeight: 400 }}>
+
+          {/* Choose Tax Method - only if multiple lines */}
+          {taxLines.length > 1 && (
+            <View style={{ marginBottom: 14 }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#888", marginBottom: 8, letterSpacing: 0.5 }}>CHOOSE TAX METHOD</Text>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => handleTaxModeChange("total")}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", backgroundColor: taxMode === "total" ? "#E65100" : "#F5F5F5" }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: taxMode === "total" ? "#fff" : "#666" }}>Total Tax</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleTaxModeChange("separate")}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", backgroundColor: taxMode === "separate" ? "#E65100" : "#F5F5F5" }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: taxMode === "separate" ? "#fff" : "#666" }}>Per Product</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Total Tax Input - only in total mode */}
+          {taxMode === "total" && (
+            <View style={{ marginBottom: 14 }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#E65100", marginBottom: 8, letterSpacing: 0.5 }}>TOTAL TAX PERCENTAGE</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <RNTextInput
+                  style={{ flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: "#fff", textAlign: "center" }}
+                  value={totalTaxPercentage}
+                  onChangeText={(v) => applyTotalTaxToLines(v)}
+                  keyboardType="decimal-pad"
+                  placeholder="Enter tax %"
+                  selectTextOnFocus
+                />
+                <Text style={{ fontSize: 16, fontWeight: "700", color: "#E65100" }}>%</Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
+                <Text style={{ fontSize: 13, color: "#888" }}>Total Tax</Text>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#E65100" }}>ر.ع.{taxLines.reduce((s, tl) => s + tl.tax_amount, 0).toFixed(3)}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Tax Breakdown */}
+          <Text style={{ fontSize: 12, fontWeight: "700", color: "#888", marginBottom: 8, letterSpacing: 0.5 }}>TAX BREAKDOWN</Text>
+          <ScrollView style={{ maxHeight: 300 }}>
             {taxLines.map((tl, idx) => (
               <View key={idx} style={{ backgroundColor: "#F5F5F5", borderRadius: 10, padding: 12, marginBottom: 10 }}>
-                <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>{tl.tool_name}</Text>
-                <Text style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>S/N: {tl.serial_number}</Text>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>{tl.tool_name}</Text>
+                  <Text style={{ fontSize: 11, color: "#888" }}>S/N: {tl.serial_number}</Text>
+                </View>
                 <View style={{ flexDirection: "row", gap: 10 }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Rental Cost</Text>
@@ -3340,14 +3407,18 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Tax %</Text>
-                    <RNTextInput
-                      style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 8, fontSize: 14, backgroundColor: "#fff", textAlign: "center" }}
-                      value={tl.tax_percentage}
-                      onChangeText={(t) => updateTaxLine(idx, t)}
-                      keyboardType="decimal-pad"
-                      placeholder="0"
-                      selectTextOnFocus
-                    />
+                    {taxMode === "separate" ? (
+                      <RNTextInput
+                        style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 8, fontSize: 14, backgroundColor: "#fff", textAlign: "center" }}
+                        value={tl.tax_percentage}
+                        onChangeText={(t) => updateTaxLine(idx, t)}
+                        keyboardType="decimal-pad"
+                        placeholder="0"
+                        selectTextOnFocus
+                      />
+                    ) : (
+                      <Text style={{ fontSize: 14, fontWeight: "600", color: "#1565C0" }}>{tl.tax_percentage}%</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Tax Amount</Text>
@@ -3361,10 +3432,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               </View>
             ))}
           </ScrollView>
+
+          {/* Total Summary */}
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#eee" }}>
             <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>Total Tax</Text>
             <Text style={{ fontSize: 18, fontWeight: "700", color: "#1565C0" }}>ر.ع.{taxLines.reduce((s, tl) => s + tl.tax_amount, 0).toFixed(3)}</Text>
           </View>
+
+          {/* Buttons */}
           <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
             <TouchableOpacity onPress={applyTax} style={{ flex: 1, backgroundColor: "#1565C0", paddingVertical: 14, borderRadius: 10, alignItems: "center" }}>
               <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>Apply Tax</Text>

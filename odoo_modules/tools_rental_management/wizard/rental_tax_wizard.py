@@ -16,11 +16,29 @@ class RentalTaxWizard(models.TransientModel):
         string='Total Tax',
         compute='_compute_total_tax',
         currency_field='currency_id')
+    tax_method = fields.Selection([
+        ('total', 'Total Tax'),
+        ('per_product', 'Per Product'),
+    ], string='Tax Method', default='total')
+    total_tax_percentage = fields.Float(
+        string='Tax % (All Products)', default=0)
 
     @api.depends('line_ids.tax_amount')
     def _compute_total_tax(self):
         for wiz in self:
             wiz.total_tax = sum(wiz.line_ids.mapped('tax_amount'))
+
+    @api.onchange('total_tax_percentage')
+    def _onchange_total_tax_percentage(self):
+        if self.tax_method == 'total' and self.total_tax_percentage >= 0:
+            for line in self.line_ids:
+                line.tax_percentage = self.total_tax_percentage
+
+    @api.onchange('tax_method')
+    def _onchange_tax_method(self):
+        self.total_tax_percentage = 0
+        for line in self.line_ids:
+            line.tax_percentage = 0
 
     def action_apply_tax(self):
         """Apply tax values to order lines."""
