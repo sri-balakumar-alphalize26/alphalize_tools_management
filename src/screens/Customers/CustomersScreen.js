@@ -96,11 +96,31 @@ const splitPhoneCountryCode = (fullPhone) => {
   return { code: "+968", local: phone.replace("+", "") };
 };
 
+const RATING_LABELS_C = {
+  perfect: "Perfect",
+  very_good: "Very Good",
+  good: "Good",
+  fair: "Fair",
+  poor: "Poor",
+  skipped: "Skipped",
+};
+const RATING_BG_COLORS_C = {
+  perfect: "#28A745",
+  very_good: "#17A2B8",
+  good: "#007BFF",
+  fair: "#FFC107",
+  poor: "#DC3545",
+  skipped: "#9E9E9E",
+};
+
 const CustomersScreen = ({ navigation, route }) => {
   const filterIdProofs = route?.params?.filterIdProofs || false;
+  const filterRatings = route?.params?.filterRatings || false;
   const odooAuth = useAuthStore((s) => s.odooAuth);
   const allCustomers = useToolStore((s) => s.customers);
-  const customers = filterIdProofs
+  const customers = filterRatings
+    ? allCustomers.filter((c) => c.customer_rating)
+    : filterIdProofs
     ? allCustomers.filter((c) => c.id_proof_front)
     : allCustomers;
   const fetchCustomers = useToolStore((s) => s.fetchCustomers);
@@ -122,6 +142,14 @@ const CustomersScreen = ({ navigation, route }) => {
   const [editIdProofBack, setEditIdProofBack] = useState(null);
   const [idProofFrontChanged, setIdProofFrontChanged] = useState(false);
   const [idProofBackChanged, setIdProofBackChanged] = useState(false);
+
+  // Rating detail modal (used in filterRatings mode)
+  const [showRatingDetail, setShowRatingDetail] = useState(false);
+  const [ratingDetailCustomer, setRatingDetailCustomer] = useState(null);
+  const openRatingDetail = (customer) => {
+    setRatingDetailCustomer(customer);
+    setShowRatingDetail(true);
+  };
 
   // Country picker state
   const [showCountryPicker, setShowCountryPicker] = useState(false);
@@ -291,7 +319,11 @@ const CustomersScreen = ({ navigation, route }) => {
   };
 
   const renderCustomer = ({ item }) => (
-    <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={() => openEditModal(item)}>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.7}
+      onPress={() => (filterRatings ? openRatingDetail(item) : openEditModal(item))}
+    >
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>
           {(item.name || "C").charAt(0).toUpperCase()}
@@ -308,8 +340,26 @@ const CustomersScreen = ({ navigation, route }) => {
         {item.email ? (
           <Text style={styles.detail}>{item.email}</Text>
         ) : null}
+        {filterRatings && item.customer_rating_notes ? (
+          <Text style={[styles.detail, { fontStyle: "italic", color: "#666", marginTop: 2 }]} numberOfLines={2}>
+            {item.customer_rating_notes}
+          </Text>
+        ) : null}
       </View>
-      {!filterIdProofs && (
+      {filterRatings ? (
+        <View style={{ alignItems: "flex-end" }}>
+          <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: RATING_BG_COLORS_C[item.customer_rating] || "#BDBDBD" }}>
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>
+              {RATING_LABELS_C[item.customer_rating] || "—"}
+            </Text>
+          </View>
+          {item.customer_rating_date ? (
+            <Text style={{ fontSize: 10, color: "#888", marginTop: 4 }}>
+              {String(item.customer_rating_date).substring(0, 10)}
+            </Text>
+          ) : null}
+        </View>
+      ) : !filterIdProofs ? (
         <View style={styles.stats}>
           <Text style={styles.rentalCount}>{item.rental_count || 0}</Text>
           <Text style={styles.rentalLabel}>Rentals</Text>
@@ -319,7 +369,7 @@ const CustomersScreen = ({ navigation, route }) => {
             </Text>
           )}
         </View>
-      )}
+      ) : null}
     </TouchableOpacity>
   );
 
@@ -334,7 +384,7 @@ const CustomersScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView>
-      <NavigationHeader title={filterIdProofs ? "Customer ID Proofs" : "Customers"} navigation={navigation} />
+      <NavigationHeader title={filterRatings ? "Customer Ratings" : filterIdProofs ? "Customer ID Proofs" : "Customers"} navigation={navigation} />
       <RoundedContainer>
         <FlatList
           data={filteredCustomers}
@@ -564,9 +614,106 @@ const CustomersScreen = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
+
+      {/* RATING DETAIL MODAL (read-only) */}
+      <Modal
+        visible={showRatingDetail}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowRatingDetail(false)}
+      >
+        <View style={ratingDetailStyles.overlay}>
+          <View style={ratingDetailStyles.card}>
+            <View style={ratingDetailStyles.headerRow}>
+              <Text style={ratingDetailStyles.title}>Customer Rating</Text>
+              <TouchableOpacity onPress={() => setShowRatingDetail(false)} style={ratingDetailStyles.closeBtn}>
+                <Text style={ratingDetailStyles.closeBtnText}>X</Text>
+              </TouchableOpacity>
+            </View>
+
+            {ratingDetailCustomer && (
+              <ScrollView contentContainerStyle={{ paddingBottom: 6 }}>
+                <View style={ratingDetailStyles.avatarBig}>
+                  <Text style={ratingDetailStyles.avatarBigText}>
+                    {(ratingDetailCustomer.name || "C").charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={ratingDetailStyles.customerName}>
+                  {ratingDetailCustomer.name || "—"}
+                </Text>
+                {ratingDetailCustomer.phone ? (
+                  <Text style={ratingDetailStyles.metaText}>{ratingDetailCustomer.phone}</Text>
+                ) : null}
+                {ratingDetailCustomer.email ? (
+                  <Text style={ratingDetailStyles.metaText}>{ratingDetailCustomer.email}</Text>
+                ) : null}
+
+                <View style={ratingDetailStyles.divider} />
+
+                <Text style={ratingDetailStyles.sectionLabel}>Rating</Text>
+                <View
+                  style={[
+                    ratingDetailStyles.badge,
+                    { backgroundColor: RATING_BG_COLORS_C[ratingDetailCustomer.customer_rating] || "#BDBDBD" },
+                  ]}
+                >
+                  <Text style={ratingDetailStyles.badgeText}>
+                    {RATING_LABELS_C[ratingDetailCustomer.customer_rating] || "—"}
+                  </Text>
+                </View>
+
+                {ratingDetailCustomer.customer_rating_date ? (
+                  <>
+                    <Text style={ratingDetailStyles.sectionLabel}>Last Rated</Text>
+                    <Text style={ratingDetailStyles.detailText}>
+                      {String(ratingDetailCustomer.customer_rating_date).substring(0, 19).replace("T", " ")}
+                    </Text>
+                  </>
+                ) : null}
+
+                <Text style={ratingDetailStyles.sectionLabel}>Notes</Text>
+                <View style={ratingDetailStyles.notesBox}>
+                  <Text style={ratingDetailStyles.notesText}>
+                    {ratingDetailCustomer.customer_rating_notes || "(no notes)"}
+                  </Text>
+                </View>
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              style={ratingDetailStyles.closeBtnBottom}
+              onPress={() => setShowRatingDetail(false)}
+            >
+              <Text style={ratingDetailStyles.closeBtnBottomText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
+
+const ratingDetailStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 16 },
+  card: { width: "100%", maxWidth: 460, maxHeight: "85%", backgroundColor: "#fff", borderRadius: 14, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 12 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  title: { fontSize: 18, fontWeight: "800", color: "#212121" },
+  closeBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#EEE", alignItems: "center", justifyContent: "center" },
+  closeBtnText: { fontSize: 14, fontWeight: "800", color: "#555" },
+  avatarBig: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#F3E5F5", alignSelf: "center", alignItems: "center", justifyContent: "center", marginTop: 6, marginBottom: 8 },
+  avatarBigText: { fontSize: 28, fontWeight: "800", color: "#9C27B0" },
+  customerName: { fontSize: 18, fontWeight: "800", color: "#212121", textAlign: "center" },
+  metaText: { fontSize: 13, color: "#666", textAlign: "center", marginTop: 2 },
+  divider: { height: 1, backgroundColor: "#E0E0E0", marginVertical: 14 },
+  sectionLabel: { fontSize: 11, fontWeight: "800", color: "#666", marginTop: 10, marginBottom: 4, letterSpacing: 0.5, textTransform: "uppercase" },
+  badge: { alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12 },
+  badgeText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+  detailText: { fontSize: 13, color: "#333", fontWeight: "600" },
+  notesBox: { backgroundColor: "#F7F7F7", borderRadius: 8, padding: 10, minHeight: 50 },
+  notesText: { fontSize: 13, color: "#333", lineHeight: 18 },
+  closeBtnBottom: { marginTop: 14, paddingVertical: 12, alignItems: "center", backgroundColor: "#1976D2", borderRadius: 8 },
+  closeBtnBottomText: { color: "#fff", fontSize: 14, fontWeight: "800" },
+});
 
 const styles = StyleSheet.create({
   searchWrap: {

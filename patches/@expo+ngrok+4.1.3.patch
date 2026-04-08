@@ -1,0 +1,38 @@
+diff --git a/node_modules/@expo/ngrok/index.js b/node_modules/@expo/ngrok/index.js
+index c9e5f8d..f1fb158 100644
+--- a/node_modules/@expo/ngrok/index.js
++++ b/node_modules/@expo/ngrok/index.js
+@@ -25,11 +25,14 @@ async function connect(opts) {
+ }
+ 
+ async function connectRetry(opts, retryCount = 0) {
+-  opts.name = String(opts.name || uuid.v4());
++  // Always generate a new name on retry to avoid "already exists" collisions
++  opts.name = String(uuid.v4());
+   try {
+     const response = await ngrokClient.startTunnel(opts);
+     return response.public_url;
+   } catch (err) {
++    // Best-effort cleanup of any orphaned tunnel registration
++    try { await ngrokClient.stopTunnel(opts.name); } catch (e) {}
+     if (!isRetriable(err) || retryCount >= 100) {
+       throw err;
+     }
+diff --git a/node_modules/@expo/ngrok/src/client.js b/node_modules/@expo/ngrok/src/client.js
+index 3f748a3..951019d 100644
+--- a/node_modules/@expo/ngrok/src/client.js
++++ b/node_modules/@expo/ngrok/src/client.js
+@@ -62,7 +62,12 @@ class NgrokClient {
+   }
+ 
+   startTunnel(options = {}) {
+-    return this.request("post", "api/tunnels", options);
++    // Remove fields not supported by ngrok v3 tunnel API
++    const clean = { ...options };
++    delete clean.authtoken;
++    delete clean.configPath;
++    delete clean.port;
++    return this.request("post", "api/tunnels", clean);
+   }
+ 
+   tunnelDetail(name) {

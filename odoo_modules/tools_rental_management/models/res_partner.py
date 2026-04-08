@@ -14,6 +14,18 @@ class ResPartner(models.Model):
         attachment=True,
         help='Back side of the customer ID proof.')
 
+    customer_rating = fields.Selection([
+        ('perfect', 'Perfect'),
+        ('very_good', 'Very Good'),
+        ('good', 'Good'),
+        ('fair', 'Fair'),
+        ('poor', 'Poor'),
+        ('skipped', 'Skipped'),
+    ], string='Customer Rating', copy=False,
+       help='Rating of customer behavior, updated after each check-in.')
+    customer_rating_notes = fields.Text(string='Rating Notes', copy=False)
+    customer_rating_date = fields.Datetime(string='Last Rated', copy=False)
+
     def action_force_delete(self):
         """Force delete selected partners by removing all dependent records first."""
         for partner in self:

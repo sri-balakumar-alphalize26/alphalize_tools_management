@@ -158,4 +158,120 @@
             </form>
         </field>
     </record>
+
+    <!-- Rating-only view (re-uses the same rental.checkin.wizard record) -->
+    <record id="view_rental_checkin_wizard_rating_form" model="ir.ui.view">
+        <field name="name">rental.checkin.wizard.rating.form</field>
+        <field name="model">rental.checkin.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Customer Rating">
+                <sheet>
+                    <div class="oe_title">
+                        <h2 style="text-align:center;">How was the customer's behavior?</h2>
+                        <p class="text-muted text-center">
+                            Rate how this customer returned the tools. The rating is saved
+                            on the customer profile and shown for future orders.
+                        </p>
+                    </div>
+                    <group>
+                        <field name="order_id" readonly="1"/>
+                        <field name="partner_id" readonly="1"/>
+                    </group>
+                    <div class="row" style="margin:10px 0;">
+                        <!-- LEFT: previous rating (read-only snapshot) -->
+                        <div class="col-6">
+                            <div class="alert alert-light" style="min-height:120px;">
+                                <strong>Previous Rating</strong>
+                                <hr style="margin:6px 0;"/>
+                                <div invisible="is_new_customer">
+                                    <field name="previous_rating_value" widget="badge"
+                                           nolabel="1" readonly="1"
+                                           decoration-success="previous_rating_value == 'perfect'"
+                                           decoration-info="previous_rating_value == 'very_good'"
+                                           decoration-primary="previous_rating_value == 'good'"
+                                           decoration-warning="previous_rating_value == 'fair'"
+                                           decoration-danger="previous_rating_value == 'poor'"
+                                           decoration-muted="previous_rating_value == 'skipped'"/>
+                                    <div style="margin-top:8px;">
+                                        <strong style="font-size:11px;">Previous Notes:</strong>
+                                        <div class="text-muted"
+                                             style="font-size:12px; white-space:pre-wrap;">
+                                            <field name="previous_rating_notes"
+                                                   nolabel="1" readonly="1"/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div invisible="not is_new_customer"
+                                     class="text-muted text-center"
+                                     style="padding-top:20px; font-style:italic;">
+                                    New Customer
+                                </div>
+                            </div>
+                        </div>
+                        <!-- RIGHT: currently-selected rating (live) -->
+                        <div class="col-6">
+                            <div class="alert alert-light text-center"
+                                 style="min-height:120px;">
+                                <strong>Selected Rating</strong>
+                                <hr style="margin:6px 0;"/>
+                                <field name="rating_value" widget="badge" nolabel="1"
+                                       readonly="1"
+                                       decoration-success="rating_value == 'perfect'"
+                                       decoration-info="rating_value == 'very_good'"
+                                       decoration-primary="rating_value == 'good'"
+                                       decoration-warning="rating_value == 'fair'"
+                                       decoration-danger="rating_value == 'poor'"/>
+                                <div class="text-muted"
+                                     style="font-size:11px; margin-top:8px;">
+                                    Click a colored button below to choose, then
+                                    press <strong>Save</strong> to confirm.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <separator string="Notes (optional)"/>
+                    <group>
+                        <field name="rating_notes" nolabel="1"
+                               placeholder="Any notes about this customer's behavior..."/>
+                    </group>
+                    <separator string="Select a Rating"/>
+                    <div class="text-center" style="padding:15px 0;">
+                        <button name="action_select_perfect" type="object"
+                                string="Perfect"
+                                class="btn btn-success"
+                                style="min-width:130px; margin:6px; font-weight:bold;"/>
+                        <button name="action_select_very_good" type="object"
+                                string="Very Good"
+                                class="btn btn-info"
+                                style="min-width:130px; margin:6px; font-weight:bold; color:white;"/>
+                        <button name="action_select_good" type="object"
+                                string="Good"
+                                class="btn btn-primary"
+                                style="min-width:130px; margin:6px; font-weight:bold;"/>
+                        <button name="action_select_fair" type="object"
+                                string="Fair"
+                                class="btn btn-warning"
+                                style="min-width:130px; margin:6px; font-weight:bold;"/>
+                        <button name="action_select_poor" type="object"
+                                string="Poor"
+                                class="btn btn-danger"
+                                style="min-width:130px; margin:6px; font-weight:bold;"/>
+                    </div>
+                    <div class="text-center text-muted" style="font-size:12px;">
+                        <span style="color:#28a745;">●</span> Perfect &#160;
+                        <span style="color:#17a2b8;">●</span> Very Good &#160;
+                        <span style="color:#007bff;">●</span> Good &#160;
+                        <span style="color:#ffc107;">●</span> Fair &#160;
+                        <span style="color:#dc3545;">●</span> Poor
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_save_rating" type="object"
+                            string="Save" class="btn-primary"/>
+                    <button name="action_skip_rating" type="object"
+                            string="Skip" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
 </odoo>

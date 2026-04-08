@@ -29,12 +29,14 @@ const TextInput = ({
 
   return (
     <View style={[styles.container, { flexDirection: column ? 'column' : 'row' }]}>
-      <View style={styles.labelContainer}>
-        <Text style={[styles.label, { color: labelColor }]}>
-          {label}
-          {required && <Text style={styles.requiredAsterisk}>*</Text>}
-        </Text>
-      </View>
+      {label ? (
+        <View style={styles.labelContainer}>
+          <Text style={[styles.label, { color: labelColor }]}>
+            {label}
+            {required && <Text style={styles.requiredAsterisk}>*</Text>}
+          </Text>
+        </View>
+      ) : null}
       <TouchableWithoutFeedback onPress={handlePress}>
         <View
           style={[

@@ -120,6 +120,17 @@ class RentalOrder(models.Model):
     payment_credit_days = fields.Integer(
         string='Credit Days', copy=False,
         help='Total days the payment was on credit before being marked paid.')
+    customer_rating = fields.Selection([
+        ('perfect', 'Perfect'),
+        ('very_good', 'Very Good'),
+        ('good', 'Good'),
+        ('fair', 'Fair'),
+        ('poor', 'Poor'),
+        ('skipped', 'Skipped'),
+    ], string='Customer Rating', copy=False,
+       help='Rating of customer behavior at this check-in.')
+    customer_rating_notes = fields.Text(string='Rating Notes', copy=False)
+    customer_rating_date = fields.Datetime(string='Rating Date', copy=False)
     late_fee = fields.Monetary(
         string='Late Fees', compute='_compute_totals', store=True)
     tax_total = fields.Monetary(
@@ -737,7 +748,47 @@ class RentalOrder(models.Model):
             if order.state != 'checked_in':
                 raise UserError(
                     _('Only checked-in orders can be marked as done.'))
+            if not order.customer_rating:
+                raise UserError(_(
+                    'Please give the customer rating first before marking '
+                    'the order as done. Click the "Customer Rating" button.'
+                ))
             order.state = 'invoiced'
+
+    def action_open_rating_popup(self):
+        """Manually re-open the customer rating popup for this order."""
+        self.ensure_one()
+        if self.state not in ('checked_in', 'invoiced'):
+            raise UserError(
+                _('Customer rating is only available after check-in.'))
+        wizard = self.env['rental.checkin.wizard'].create({
+            'order_id': self.id,
+            'partner_id': self.partner_id.id,
+        })
+        partner = self.partner_id
+        existing = getattr(partner, 'customer_rating', False) or False
+        existing_notes = getattr(partner, 'customer_rating_notes', False) or False
+        wizard.previous_rating_value = existing if existing else False
+        wizard.previous_rating_notes = existing_notes if existing_notes else False
+        wizard.is_new_customer = not existing
+        if existing and existing != 'skipped':
+            wizard.rating_value = existing
+        view = self.env.ref(
+            'tools_rental_management.view_rental_checkin_wizard_rating_form',
+            raise_if_not_found=False,
+        )
+        action = {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer Rating'),
+            'res_model': 'rental.checkin.wizard',
+            'res_id': wizard.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
+        if view:
+            action['views'] = [(view.id, 'form')]
+            action['view_id'] = view.id
+        return action
 
     def action_create_invoice(self):
         """Create customer invoice from rental order."""

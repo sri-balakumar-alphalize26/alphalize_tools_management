@@ -31,6 +31,7 @@ const MENU_ITEMS = [
   { id: "12", title: "Tax Details", screen: "TaxDetailsScreen", icon: "receipt", bg: "#E3F2FD", accent: "#1565C0" },
   { id: "10", title: "Rental Dashboard", screen: "RentalDashboardScreen", icon: "trending-up", bg: "#E1F5FE", accent: "#03A9F4" },
   { id: "11", title: "Customer ID Proofs", screen: "CustomersScreen", icon: "badge", bg: "#EFEBE9", accent: "#795548", params: { filterIdProofs: true } },
+  { id: "13", title: "Customer Ratings", screen: "CustomersScreen", icon: "star", bg: "#FFF8E1", accent: "#F57C00", params: { filterRatings: true } },
 ];
 
 const formatData = (data, numColumns) => {

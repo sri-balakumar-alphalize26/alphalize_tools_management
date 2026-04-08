@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_customer_rating_wizard_form" model="ir.ui.view">
+        <field name="name">customer.rating.wizard.form</field>
+        <field name="model">customer.rating.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Customer Rating">
+                <sheet>
+                    <div class="oe_title">
+                        <h2 style="text-align:center;">How was the customer's behavior?</h2>
+                        <p class="text-muted text-center">
+                            Rate how this customer returned the tools. This rating is saved
+                            on the customer profile and will be shown for future orders.
+                        </p>
+                    </div>
+                    <group>
+                        <field name="order_id" readonly="1"/>
+                        <field name="partner_id" readonly="1"/>
+                    </group>
+                    <separator string="Notes (optional)"/>
+                    <group>
+                        <field name="notes" nolabel="1"
+                               placeholder="Any notes about this customer's behavior..."/>
+                    </group>
+                    <separator string="Select a Rating"/>
+                    <div class="text-center" style="padding:15px 0;">
+                        <button name="action_rate_perfect" type="object"
+                                string="Perfect"
+                                class="btn btn-success"
+                                style="min-width:130px; margin:6px; font-weight:bold;"/>
+                        <button name="action_rate_very_good" type="object"
+                                string="Very Good"
+                                class="btn btn-info"
+                                style="min-width:130px; margin:6px; font-weight:bold; color:white;"/>
+                        <button name="action_rate_good" type="object"
+                                string="Good"
+                                class="btn btn-primary"
+                                style="min-width:130px; margin:6px; font-weight:bold;"/>
+                        <button name="action_rate_fair" type="object"
+                                string="Fair"
+                                class="btn btn-warning"
+                                style="min-width:130px; margin:6px; font-weight:bold;"/>
+                        <button name="action_rate_poor" type="object"
+                                string="Poor"
+                                class="btn btn-danger"
+                                style="min-width:130px; margin:6px; font-weight:bold;"/>
+                    </div>
+                    <div class="text-center text-muted" style="font-size:12px;">
+                        <span style="color:#28a745;">●</span> Perfect &#160;
+                        <span style="color:#17a2b8;">●</span> Very Good &#160;
+                        <span style="color:#007bff;">●</span> Good &#160;
+                        <span style="color:#ffc107;">●</span> Fair &#160;
+                        <span style="color:#dc3545;">●</span> Poor
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_skip" type="object"
+                            string="Skip" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

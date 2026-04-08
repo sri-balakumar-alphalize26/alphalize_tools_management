@@ -92,6 +92,28 @@ class RentalCheckinWizard(models.TransientModel):
     # Authority signature
     customer_name = fields.Char(string='Signer Name')
     customer_signature = fields.Binary(string='Authority Signature')
+    # Customer rating step (shown after check-in is confirmed)
+    rating_value = fields.Selection([
+        ('perfect', 'Perfect'),
+        ('very_good', 'Very Good'),
+        ('good', 'Good'),
+        ('fair', 'Fair'),
+        ('poor', 'Poor'),
+    ], string='Customer Rating')
+    rating_notes = fields.Text(string='Rating Notes')
+    # Snapshot of the customer's previously-saved rating (read-only display).
+    # Stays unchanged when the user clicks the colored buttons, so they can
+    # compare "what was there before" vs "what they're about to save".
+    previous_rating_value = fields.Selection([
+        ('perfect', 'Perfect'),
+        ('very_good', 'Very Good'),
+        ('good', 'Good'),
+        ('fair', 'Fair'),
+        ('poor', 'Poor'),
+        ('skipped', 'Skipped'),
+    ], string='Previous Rating', readonly=True)
+    previous_rating_notes = fields.Text(string='Previous Notes', readonly=True)
+    is_new_customer = fields.Boolean(string='New Customer', readonly=True)
 
     @api.depends('order_id.date_checkout')
     def _compute_checkout_date(self):
@@ -410,7 +432,137 @@ class RentalCheckinWizard(models.TransientModel):
         # Sync media popup records
         self.order_id._sync_media_records()
 
+        # Pre-fill rating + snapshot the previous rating for side-by-side display.
+        # Notes are intentionally NOT pre-filled in the editable field — they reset
+        # every check-in — but the previous notes are shown read-only on the left.
+        partner = self.order_id.partner_id
+        self.rating_notes = False
+        existing = False
+        existing_notes = False
+        if partner:
+            existing = getattr(partner, 'customer_rating', False) or False
+            existing_notes = getattr(partner, 'customer_rating_notes', False) or False
+
+        # Snapshot for left column (read-only, never changes during this popup)
+        self.previous_rating_value = existing if existing else False
+        self.previous_rating_notes = existing_notes if existing_notes else False
+        self.is_new_customer = not existing
+
+        # Editable selection for right column — pre-fill only if there's a real
+        # previous rating (not 'skipped'); otherwise let the user pick fresh.
+        if existing and existing != 'skipped':
+            self.rating_value = existing
+        else:
+            self.rating_value = False
+
+        # Re-open the SAME wizard record with the rating-only view
+        view = self.env.ref(
+            'tools_rental_management.view_rental_checkin_wizard_rating_form',
+            raise_if_not_found=False,
+        )
+        action = {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer Rating'),
+            'res_model': 'rental.checkin.wizard',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
+        if view:
+            action['views'] = [(view.id, 'form')]
+            action['view_id'] = view.id
+        return action
+
+    # ----- Customer rating step -----
+    def _reopen_rating_view(self):
+        """Re-open the same wizard record with the rating-only view."""
+        self.ensure_one()
+        view = self.env.ref(
+            'tools_rental_management.view_rental_checkin_wizard_rating_form',
+            raise_if_not_found=False,
+        )
+        action = {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer Rating'),
+            'res_model': 'rental.checkin.wizard',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
+        if view:
+            action['views'] = [(view.id, 'form')]
+            action['view_id'] = view.id
+        return action
+
+    def _select_rating(self, rating_value):
+        """Set the in-progress selection without saving to customer/order."""
+        self.ensure_one()
+        self.rating_value = rating_value
+        return self._reopen_rating_view()
+
+    def action_select_perfect(self):
+        return self._select_rating('perfect')
+
+    def action_select_very_good(self):
+        return self._select_rating('very_good')
+
+    def action_select_good(self):
+        return self._select_rating('good')
+
+    def action_select_fair(self):
+        return self._select_rating('fair')
+
+    def action_select_poor(self):
+        return self._select_rating('poor')
+
+    def action_save_rating(self):
+        """Persist the currently-selected rating to order + customer."""
+        self.ensure_one()
+        if not self.rating_value:
+            raise UserError(
+                _('Please select a rating (Perfect / Very Good / Good / Fair / Poor) before saving.'))
+        return self._save_customer_rating(self.rating_value)
+
+    def _save_customer_rating(self, rating_value):
+        """Write the rating to the rental order and to the customer profile.
+
+        Defensive: only write fields that actually exist on the target model,
+        so the popup keeps working even if the inherited res.partner field
+        has not yet been registered (e.g. module not upgraded after edit).
+        """
+        self.ensure_one()
+        now = fields.Datetime.now()
+        notes = self.rating_notes or False
+
+        # Save on rental.order
+        if self.order_id:
+            order_vals = {}
+            if 'customer_rating' in self.order_id._fields:
+                order_vals['customer_rating'] = rating_value
+            if 'customer_rating_notes' in self.order_id._fields:
+                order_vals['customer_rating_notes'] = notes
+            if 'customer_rating_date' in self.order_id._fields:
+                order_vals['customer_rating_date'] = now
+            if order_vals:
+                self.order_id.write(order_vals)
+
+            # Save on res.partner
+            partner = self.order_id.partner_id
+            if partner:
+                partner_vals = {}
+                if 'customer_rating' in partner._fields:
+                    partner_vals['customer_rating'] = rating_value
+                if 'customer_rating_notes' in partner._fields:
+                    partner_vals['customer_rating_notes'] = notes
+                if 'customer_rating_date' in partner._fields:
+                    partner_vals['customer_rating_date'] = now
+                if partner_vals:
+                    partner.write(partner_vals)
+
         return {'type': 'ir.actions.act_window_close'}
+
+    def action_skip_rating(self):
+        return self._save_customer_rating('skipped')
 
 
 class RentalCheckinWizardLine(models.TransientModel):

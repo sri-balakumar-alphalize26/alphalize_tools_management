@@ -60,6 +60,12 @@
                     <button name="action_print_partial_return_invoice" type="object"
                             string="Print Partial Return Invoice"
                             invisible="state not in ('checked_out',) or not partial_return_date"/>
+                    <button name="action_open_rating_popup" type="object"
+                            string="Customer Rating" class="btn-warning"
+                            invisible="state not in ('checked_in', 'invoiced') or customer_rating"/>
+                    <button name="action_open_rating_popup" type="object"
+                            string="Update Rating" class="btn-secondary"
+                            invisible="state not in ('checked_in', 'invoiced') or not customer_rating"/>
                     <button name="action_done" type="object"
                             string="Mark Done" class="btn-primary"
                             invisible="state != 'checked_in' or payment_status == 'unpaid'"/>

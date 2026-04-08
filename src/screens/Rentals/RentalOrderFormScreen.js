@@ -28,7 +28,7 @@ import * as Print from "expo-print";
 import { Asset } from "expo-asset";
 import SignaturePad from "@components/common/SignaturePad/SignaturePad";
 import CameraCapture from "@components/common/CameraCapture/CameraCapture";
-import { updateOrderValues, updateOrderLineValues, fetchOrderDataById, fetchOrderImages, fetchOrderLineImages, downloadCheckoutInvoice, downloadCheckinInvoice, downloadPartialReturnInvoice, updateCustomer, fetchCustomerImages, sendInvoiceWhatsApp, sendWhatsAppDocument, fetchCompanyDetails, markOrderPaid } from "@api/services/odooService";
+import { updateOrderValues, updateOrderLineValues, fetchOrderDataById, fetchOrderImages, fetchOrderLineImages, downloadCheckoutInvoice, downloadCheckinInvoice, downloadPartialReturnInvoice, updateCustomer, fetchCustomerImages, sendInvoiceWhatsApp, sendWhatsAppDocument, fetchCompanyDetails, markOrderPaid, saveCustomerRating } from "@api/services/odooService";
 import { isEmail, isPhone, getPhoneLength, getEmailSuggestion } from "@utils/validation/validation";
 
 const PERIOD_TYPES = [
@@ -144,6 +144,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const storeCheckoutOrder = useToolStore((s) => s.checkoutOrder);
   const storeCheckinOrder = useToolStore((s) => s.checkinOrder);
   const addCustomer = useToolStore((s) => s.addCustomer);
+  const allCustomersForRating = useToolStore((s) => s.customers);
+  const fetchCustomers = useToolStore((s) => s.fetchCustomers);
   const [saving, setSaving] = useState(false);
   const [odooOrderId, setOdooOrderId] = useState(existingOrder?.odoo_id || null);
 
@@ -186,6 +188,15 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const [activeTab, setActiveTab] = useState("lines");
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [showCheckinModal, setShowCheckinModal] = useState(false);
+  // Customer Rating state
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [orderCustomerRating, setOrderCustomerRating] = useState(existingOrder?.customer_rating || "");
+  const [selectedRating, setSelectedRating] = useState("");
+  const [ratingNotes, setRatingNotes] = useState("");
+  const [previousRating, setPreviousRating] = useState("");
+  const [previousRatingNotes, setPreviousRatingNotes] = useState("");
+  const [isNewRatingCustomer, setIsNewRatingCustomer] = useState(true);
+  const [savingRating, setSavingRating] = useState(false);
   const [tcAccepted, setTcAccepted] = useState(false);
   const isAfterCheckout = ["checked_out", "checked_in", "done", "invoiced"].includes(existingOrder?.state);
   const [checkoutIdProof, setCheckoutIdProof] = useState(false);
@@ -1052,6 +1063,8 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         addTimesheetEntry("checkin", "Tools returned by " + form.partner_name);
         addTimesheetEntry("note", "Checked Out \u2192 Checked In (Status)");
         showToastMessage("Check-in completed");
+        // Auto-open the customer rating popup right after a successful check-in
+        setTimeout(() => openRatingModal(), 350);
       }
     } catch (e) {
       showToastMessage("Check-in failed: " + e.message);
@@ -1078,6 +1091,18 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   };
 
   const actionDone = () => {
+    // Block Mark Done if no customer rating yet
+    if (!orderCustomerRating) {
+      Alert.alert(
+        "Customer Rating Required",
+        'Please give the customer rating first before marking the order as done. Tap the "Customer Rating" button.',
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Rate Now", onPress: () => openRatingModal() },
+        ]
+      );
+      return;
+    }
     if (paymentStatus === "unpaid") {
       Alert.alert(
         "Payment Unpaid",
@@ -1090,6 +1115,63 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     } else {
       doMarkDone();
     }
+  };
+
+  // ----- Customer Rating popup -----
+  const openRatingModal = () => {
+    // Look up the customer in the store to get their existing rating
+    const partnerId = existingOrder?.partner_id || form.partner_id;
+    const customer = partnerId
+      ? (allCustomersForRating || []).find((c) => Number(c.odoo_id) === Number(partnerId))
+      : null;
+    const existing = (customer && customer.customer_rating) || "";
+    const existingNotes = (customer && customer.customer_rating_notes) || "";
+    setPreviousRating(existing);
+    setPreviousRatingNotes(existingNotes);
+    setIsNewRatingCustomer(!existing);
+    // Pre-fill selected rating from previous (skip 'skipped')
+    setSelectedRating(existing && existing !== "skipped" ? existing : "");
+    // Notes always start empty for a new check-in
+    setRatingNotes("");
+    setShowRatingModal(true);
+  };
+
+  const selectRating = (val) => {
+    setSelectedRating(val);
+  };
+
+  const persistRating = async (val) => {
+    setSavingRating(true);
+    try {
+      const partnerId = existingOrder?.partner_id || form.partner_id;
+      if (odooOrderId && odooAuth) {
+        await saveCustomerRating(odooAuth, odooOrderId, partnerId, val, ratingNotes);
+      }
+      setOrderCustomerRating(val);
+      setShowRatingModal(false);
+      // Refresh customers in store so the Customer Ratings list reflects the change
+      try { await fetchCustomers(odooAuth); } catch {}
+      showToastMessage(val === "skipped" ? "Rating skipped" : "Rating saved");
+    } catch (e) {
+      showToastMessage("Failed to save rating: " + e.message);
+    } finally {
+      setSavingRating(false);
+    }
+  };
+
+  const saveRating = () => {
+    if (!selectedRating) {
+      Alert.alert(
+        "Pick a Rating",
+        "Please tap one of the colored buttons (Perfect / Very Good / Good / Fair / Poor) before saving."
+      );
+      return;
+    }
+    persistRating(selectedRating);
+  };
+
+  const skipRating = () => {
+    persistRating("skipped");
   };
 
   const openInvoiceModal = (type) => {
@@ -2295,6 +2377,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         )}
         {state === "checked_in" && (
           <>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: orderCustomerRating ? "#9E9E9E" : "#FB8C00" }]}
+              onPress={openRatingModal}
+            >
+              <Text style={styles.actionBtnText}>
+                {orderCustomerRating ? "Update Rating" : "Customer Rating"}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#388E3C" }]} onPress={actionDone}>
               <Text style={styles.actionBtnText}>Mark Done</Text>
             </TouchableOpacity>
@@ -2302,6 +2392,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               <Text style={styles.cancelActionBtnText}>Cancel</Text>
             </TouchableOpacity>
           </>
+        )}
+        {state === "invoiced" && orderCustomerRating !== "" && (
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: "#9E9E9E" }]}
+            onPress={openRatingModal}
+          >
+            <Text style={styles.actionBtnText}>Update Rating</Text>
+          </TouchableOpacity>
         )}
         {/* Print Checkout Invoice: visible at checked_out, checked_in, invoiced (matches Odoo) */}
         {["checked_out", "checked_in", "invoiced"].includes(state) && (
@@ -4707,6 +4805,123 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       {renderTaxModal()}
       {renderDiscountModal()}
 
+      {/* CUSTOMER RATING MODAL */}
+      <Modal visible={showRatingModal} animationType="fade" transparent onRequestClose={() => setShowRatingModal(false)}>
+        <View style={ratingStyles.overlay}>
+          <View style={ratingStyles.card}>
+            <View style={ratingStyles.headerRow}>
+              <Text style={ratingStyles.title}>Customer Rating</Text>
+              <TouchableOpacity onPress={() => setShowRatingModal(false)} style={ratingStyles.closeBtn}>
+                <Text style={ratingStyles.closeBtnText}>X</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
+              <Text style={ratingStyles.question}>How was the customer's behavior?</Text>
+              <Text style={ratingStyles.subtitle}>
+                Rate how this customer returned the tools. Saved on the customer profile and shown for future orders.
+              </Text>
+
+              <View style={ratingStyles.metaRow}>
+                <Text style={ratingStyles.metaLabel}>Rental Order</Text>
+                <Text style={ratingStyles.metaValue}>{form.name}</Text>
+              </View>
+              <View style={ratingStyles.metaRow}>
+                <Text style={ratingStyles.metaLabel}>Customer</Text>
+                <Text style={ratingStyles.metaValue}>{form.partner_name || "-"}</Text>
+              </View>
+
+              {/* Two-column comparison */}
+              <View style={ratingStyles.compareRow}>
+                {/* LEFT — Previous Rating */}
+                <View style={ratingStyles.compareCol}>
+                  <Text style={ratingStyles.compareTitle}>Previous Rating</Text>
+                  <View style={ratingStyles.divider} />
+                  {isNewRatingCustomer ? (
+                    <Text style={ratingStyles.newCustomerText}>New Customer</Text>
+                  ) : (
+                    <>
+                      <View style={[ratingStyles.badge, { backgroundColor: getRatingBgColor(previousRating) }]}>
+                        <Text style={ratingStyles.badgeText}>{getRatingLabel(previousRating)}</Text>
+                      </View>
+                      <Text style={ratingStyles.previousNotesLabel}>Previous Notes:</Text>
+                      <Text style={ratingStyles.previousNotesText}>
+                        {previousRatingNotes || "(none)"}
+                      </Text>
+                    </>
+                  )}
+                </View>
+                {/* RIGHT — Selected Rating */}
+                <View style={ratingStyles.compareCol}>
+                  <Text style={ratingStyles.compareTitle}>Selected Rating</Text>
+                  <View style={ratingStyles.divider} />
+                  {selectedRating ? (
+                    <View style={[ratingStyles.badge, { backgroundColor: getRatingBgColor(selectedRating) }]}>
+                      <Text style={ratingStyles.badgeText}>{getRatingLabel(selectedRating)}</Text>
+                    </View>
+                  ) : (
+                    <Text style={ratingStyles.newCustomerText}>(none yet)</Text>
+                  )}
+                  <Text style={ratingStyles.previousNotesLabel}>
+                    Tap a colored button below, then press Save.
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={ratingStyles.sectionLabel}>Notes (Optional)</Text>
+              <RNTextInput
+                style={ratingStyles.notesInput}
+                placeholder="Any notes about this customer's behavior..."
+                placeholderTextColor="#999"
+                value={ratingNotes}
+                onChangeText={setRatingNotes}
+                multiline
+              />
+
+              <Text style={ratingStyles.sectionLabel}>Select a Rating</Text>
+              <View style={ratingStyles.colorBtnRow}>
+                {[
+                  { key: "perfect",  label: "Perfect",   color: "#28A745" },
+                  { key: "very_good",label: "Very Good", color: "#17A2B8" },
+                  { key: "good",     label: "Good",      color: "#007BFF" },
+                  { key: "fair",     label: "Fair",      color: "#FFC107" },
+                  { key: "poor",     label: "Poor",      color: "#DC3545" },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[
+                      ratingStyles.colorBtn,
+                      { backgroundColor: opt.color },
+                      selectedRating === opt.key && ratingStyles.colorBtnSelected,
+                    ]}
+                    onPress={() => selectRating(opt.key)}
+                    disabled={savingRating}
+                  >
+                    <Text style={ratingStyles.colorBtnText}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            <View style={ratingStyles.footer}>
+              <TouchableOpacity
+                style={[ratingStyles.footerBtn, { backgroundColor: "#1976D2" }, savingRating && { opacity: 0.6 }]}
+                onPress={saveRating}
+                disabled={savingRating}
+              >
+                <Text style={ratingStyles.footerBtnText}>{savingRating ? "Saving..." : "Save"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[ratingStyles.footerBtn, { backgroundColor: "#9E9E9E" }, savingRating && { opacity: 0.6 }]}
+                onPress={skipRating}
+                disabled={savingRating}
+              >
+                <Text style={ratingStyles.footerBtnText}>Skip</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* IMAGE PREVIEW MODAL */}
       <Modal visible={!!previewImageUri} animationType="fade" transparent onRequestClose={() => setPreviewImageUri(null)}>
         <TouchableOpacity
@@ -5548,6 +5763,58 @@ const styles = StyleSheet.create({
   detailImageWrap: { backgroundColor: "#f9f9f9", borderRadius: 10, borderWidth: 1, borderColor: "#eee", padding: 8, marginBottom: 14, overflow: "hidden" },
   conditionBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   conditionBadgeText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
+});
+
+// ========== CUSTOMER RATING MODAL HELPERS ==========
+const RATING_LABELS = {
+  perfect: "Perfect",
+  very_good: "Very Good",
+  good: "Good",
+  fair: "Fair",
+  poor: "Poor",
+  skipped: "Skipped",
+};
+const RATING_BG_COLORS = {
+  perfect: "#28A745",
+  very_good: "#17A2B8",
+  good: "#007BFF",
+  fair: "#FFC107",
+  poor: "#DC3545",
+  skipped: "#9E9E9E",
+};
+const getRatingLabel = (val) => RATING_LABELS[val] || "(none)";
+const getRatingBgColor = (val) => RATING_BG_COLORS[val] || "#BDBDBD";
+
+const ratingStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 16 },
+  card: { width: "100%", maxWidth: 560, maxHeight: "92%", backgroundColor: "#fff", borderRadius: 14, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 12 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  title: { fontSize: 18, fontWeight: "800", color: "#212121" },
+  closeBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#EEE", alignItems: "center", justifyContent: "center" },
+  closeBtnText: { fontSize: 14, fontWeight: "800", color: "#555" },
+  question: { fontSize: 16, fontWeight: "700", color: "#222", textAlign: "center", marginTop: 4 },
+  subtitle: { fontSize: 12, color: "#666", textAlign: "center", marginTop: 4, marginBottom: 12, paddingHorizontal: 8 },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4, paddingHorizontal: 4 },
+  metaLabel: { fontSize: 12, color: "#888" },
+  metaValue: { fontSize: 13, color: "#333", fontWeight: "700" },
+  compareRow: { flexDirection: "row", marginTop: 12, gap: 8 },
+  compareCol: { flex: 1, backgroundColor: "#F7F7F7", borderRadius: 10, padding: 12, minHeight: 130, alignItems: "center" },
+  compareTitle: { fontSize: 13, fontWeight: "800", color: "#333" },
+  divider: { height: 1, backgroundColor: "#E0E0E0", alignSelf: "stretch", marginVertical: 6 },
+  badge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12, marginTop: 6, marginBottom: 6 },
+  badgeText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+  newCustomerText: { fontSize: 13, fontStyle: "italic", color: "#888", marginTop: 14 },
+  previousNotesLabel: { fontSize: 11, fontWeight: "700", color: "#666", marginTop: 6, alignSelf: "stretch" },
+  previousNotesText: { fontSize: 12, color: "#555", alignSelf: "stretch" },
+  sectionLabel: { fontSize: 12, fontWeight: "800", color: "#444", marginTop: 14, marginBottom: 6, letterSpacing: 0.4, textTransform: "uppercase" },
+  notesInput: { borderWidth: 1, borderColor: "#DDD", borderRadius: 8, padding: 10, minHeight: 50, fontSize: 13, color: "#222", backgroundColor: "#FAFAFA", textAlignVertical: "top" },
+  colorBtnRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 6 },
+  colorBtn: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, minWidth: 88, alignItems: "center", borderWidth: 3, borderColor: "transparent" },
+  colorBtnSelected: { borderColor: "#212121" },
+  colorBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+  footer: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EEE" },
+  footerBtn: { paddingHorizontal: 22, paddingVertical: 11, borderRadius: 8 },
+  footerBtnText: { color: "#fff", fontSize: 14, fontWeight: "800" },
 });
 
 export default RentalOrderFormScreen;

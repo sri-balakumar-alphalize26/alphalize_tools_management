@@ -159,6 +159,7 @@ const ORDER_FIELDS = [
   "discount_amount", "discount_authorized_by", "total_amount",
   "invoice_id", "invoice_state", "notes", "terms",
   "is_late", "user_id", "customer_code", "partial_return_date", "payment_status", "payment_credit_days",
+  "customer_rating", "customer_rating_notes", "customer_rating_date",
   "line_ids",
 ];
 
@@ -524,6 +525,21 @@ export const openCheckinWizard = async (auth, orderId) => {
   return odooCallMethod(auth, "rental.order", "action_checkin", [Number(orderId)]);
 };
 
+// Save customer rating to BOTH the rental order and the customer profile.
+// `rating` is one of: 'perfect','very_good','good','fair','poor','skipped'
+export const saveCustomerRating = async (auth, orderId, partnerId, rating, notes) => {
+  const now = new Date().toISOString().replace("T", " ").substring(0, 19);
+  const vals = {
+    customer_rating: rating || false,
+    customer_rating_notes: notes || false,
+    customer_rating_date: now,
+  };
+  await odooWrite(auth, "rental.order", [Number(orderId)], vals);
+  if (partnerId) {
+    await odooWrite(auth, "res.partner", [Number(partnerId)], vals);
+  }
+};
+
 const mapOrder = (r, lines = [], timesheet = []) => ({
   id: String(r.id),
   odoo_id: r.id,
@@ -554,6 +570,9 @@ const mapOrder = (r, lines = [], timesheet = []) => ({
   invoice_state: r.invoice_state || false,
   payment_status: r.payment_status || "",
   payment_credit_days: r.payment_credit_days || 0,
+  customer_rating: r.customer_rating || "",
+  customer_rating_notes: r.customer_rating_notes || "",
+  customer_rating_date: r.customer_rating_date || "",
   discount_amount: String(r.discount_amount || 0),
   discount_authorized_by: r.discount_authorized_by || "",
   damage_charges: String(r.damage_charges || 0),
@@ -630,7 +649,8 @@ export const fetchCustomers = async (auth) => {
     auth,
     "res.partner",
     ["|", ["customer_rank", ">", 0], ["is_company", "=", false]],
-    ["name", "phone", "email", "customer_rank", "street", "city", "id_proof_front", "id_proof_back"],
+    ["name", "phone", "email", "customer_rank", "street", "city", "id_proof_front", "id_proof_back",
+     "customer_rating", "customer_rating_notes", "customer_rating_date"],
     { order: "name", limit: 200 }
   );
   return records.map((r) => ({
@@ -644,6 +664,9 @@ export const fetchCustomers = async (auth) => {
     total_revenue: "0",
     id_proof_front: r.id_proof_front || false,
     id_proof_back: r.id_proof_back || false,
+    customer_rating: r.customer_rating || "",
+    customer_rating_notes: r.customer_rating_notes || "",
+    customer_rating_date: r.customer_rating_date || "",
   }));
 };
 
