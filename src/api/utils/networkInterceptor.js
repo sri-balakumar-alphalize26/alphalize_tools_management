@@ -42,20 +42,36 @@ export function installNetworkInterceptor() {
       return new Promise((resolve, reject) => {
         const { show } = useNetworkErrorStore.getState();
         const { title, message } = pickMessage();
-        show({
-          title,
-          message,
-          onRetry: async () => {
-            try {
-              const retryConfig = { ...config, __networkRetried: true };
-              const res = await axios.request(retryConfig);
-              resolve(res);
-            } catch (e) {
-              reject(e);
-            }
-          },
-          onCancel: () => reject(error),
-        });
+
+        const showPopup = () => {
+          show({
+            title,
+            message,
+            onRetry: async () => {
+              let stillOffline = true;
+              try {
+                const s = await NetInfo.fetch();
+                stillOffline = s.isConnected === false || s.isInternetReachable === false;
+              } catch (_) {
+                stillOffline = false;
+              }
+              if (stillOffline) {
+                showPopup();
+                return;
+              }
+              try {
+                const retryConfig = { ...config, __networkRetried: true };
+                const res = await axios.request(retryConfig);
+                resolve(res);
+              } catch (e) {
+                reject(e);
+              }
+            },
+            onCancel: () => reject(error),
+          });
+        };
+
+        showPopup();
       });
     }
   );
