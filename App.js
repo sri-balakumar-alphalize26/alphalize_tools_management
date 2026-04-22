@@ -8,6 +8,10 @@ import CustomToast from './src/components/Toast/CustomToast';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider } from 'react-native-paper';
 import StackNavigator from './src/navigation/StackNavigator';
+import installNetworkInterceptor from './src/api/utils/networkInterceptor';
+import NetworkErrorModal from './src/components/NetworkError/NetworkErrorModal';
+
+installNetworkInterceptor();
 
 export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -49,6 +53,7 @@ export default function App() {
           </SafeAreaProvider>
         </NavigationContainer>
         <Toast config={CustomToast} />
+        <NetworkErrorModal />
       </Provider>
     </GestureHandlerRootView>
   );

@@ -50,18 +50,33 @@
               sequence="20"/>
 
     <!-- Hidden menu items -->
-    <record id="menu_rental_products" model="ir.ui.menu"><field name="active" eval="False"/></record>
-    <record id="menu_generate_serials" model="ir.ui.menu"><field name="active" eval="False"/></record>
-    <record id="menu_mark_all_rental" model="ir.ui.menu"><field name="active" eval="False"/></record>
-    <record id="menu_unmark_all_rental" model="ir.ui.menu"><field name="active" eval="False"/></record>
-    <record id="menu_sync_products_to_rental" model="ir.ui.menu"><field name="active" eval="False"/></record>
+    <record id="menu_rental_products" model="ir.ui.menu" forcecreate="0">
+        <field name="name">Hidden Menu</field>
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_generate_serials" model="ir.ui.menu" forcecreate="0">
+        <field name="name">Hidden Menu</field>
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_mark_all_rental" model="ir.ui.menu" forcecreate="0">
+        <field name="name">Hidden Menu</field>
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_unmark_all_rental" model="ir.ui.menu" forcecreate="0">
+        <field name="name">Hidden Menu</field>
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_sync_products_to_rental" model="ir.ui.menu" forcecreate="0">
+        <field name="name">Hidden Menu</field>
+        <field name="active" eval="False"/>
+    </record>
 
     <menuitem id="menu_rental_tool_list"
               name="Rental Tools (Internal)"
               parent="menu_rental_tools"
               action="action_rental_tool"
               sequence="20"
-              groups="base.group_no_one"/>
+              groups="tools_rental_management.group_rental_manager"/>
 
     <menuitem id="menu_rental_tool_categories"
               name="Categories"

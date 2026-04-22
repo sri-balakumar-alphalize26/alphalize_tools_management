@@ -103,6 +103,7 @@ class RentalOrder(models.Model):
     subtotal = fields.Monetary(
         string='Subtotal', compute='_compute_totals', store=True)
     advance_amount = fields.Monetary(string='Advance Collected')
+    deposit_amount = fields.Monetary(string='Deposit Amount')
     payment_method = fields.Selection([
         ('cash', 'Cash'),
         ('card', 'Card'),
