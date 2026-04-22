@@ -16,10 +16,49 @@ const pickMessage = () => ({
 });
 
 let installed = false;
+let wasOffline = false;
 
 export function installNetworkInterceptor() {
   if (installed) return;
   installed = true;
+
+  const showPassiveOfflinePopup = () => {
+    const store = useNetworkErrorStore.getState();
+    if (store.visible) return;
+    const { title, message } = pickMessage();
+    const onRetry = async () => {
+      let stillOffline = true;
+      try {
+        const s = await NetInfo.fetch();
+        stillOffline = s.isConnected === false || s.isInternetReachable === false;
+      } catch (_) {
+        stillOffline = false;
+      }
+      if (stillOffline) {
+        showPassiveOfflinePopup();
+      }
+    };
+    store.show({ title, message, onRetry, onCancel: () => {} });
+  };
+
+  const handleConnectivity = (state) => {
+    const offline = state.isConnected === false || state.isInternetReachable === false;
+    if (offline) {
+      showPassiveOfflinePopup();
+    } else if (wasOffline) {
+      const store = useNetworkErrorStore.getState();
+      store.bumpReconnect();
+      if (store.visible) {
+        const cb = store.onRetry;
+        store.hide();
+        if (typeof cb === "function") cb();
+      }
+    }
+    wasOffline = offline;
+  };
+
+  NetInfo.fetch().then(handleConnectivity).catch(() => {});
+  NetInfo.addEventListener(handleConnectivity);
 
   axios.interceptors.response.use(
     (response) => response,
@@ -62,6 +101,7 @@ export function installNetworkInterceptor() {
               try {
                 const retryConfig = { ...config, __networkRetried: true };
                 const res = await axios.request(retryConfig);
+                useNetworkErrorStore.getState().bumpReconnect();
                 resolve(res);
               } catch (e) {
                 reject(e);

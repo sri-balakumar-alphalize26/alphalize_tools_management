@@ -21,6 +21,7 @@ import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import { showToastMessage } from "@components/Toast";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import useNetworkErrorStore from "@stores/network/useNetworkErrorStore";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -182,6 +183,47 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   });
 
   const [lines, setLines] = useState(existingOrder?.lines || []);
+
+  const reconnectTick = useNetworkErrorStore((s) => s.reconnectTick);
+  const initialReconnectTickRef = useRef(reconnectTick);
+  useEffect(() => {
+    if (reconnectTick === initialReconnectTickRef.current) return;
+    if (!odooAuth) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (existingOrder?.odoo_id) {
+          const fresh = await fetchOrderDataById(odooAuth, existingOrder.odoo_id);
+          if (cancelled) return;
+          const takenByAnotherUser =
+            !fresh ||
+            (fresh.state && existingOrder.state && fresh.state !== existingOrder.state) ||
+            (fresh.write_uid && odooAuth?.uid && fresh.write_uid !== odooAuth.uid);
+          if (takenByAnotherUser) {
+            setLines([]);
+            showToastMessage(
+              "error",
+              "Order updated by another user",
+              "Returning to orders list."
+            );
+            navigation.goBack();
+            return;
+          }
+        } else {
+          setLines([]);
+        }
+        const storeFetchAll = useToolStore.getState().fetchAllData;
+        if (typeof storeFetchAll === "function") storeFetchAll(odooAuth, true);
+      } catch (_) {
+        setLines([]);
+        navigation.goBack();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reconnectTick]);
+
 
   const [timesheet, setTimesheet] = useState(existingOrder?.timesheet || []);
   const [errors, setErrors] = useState({});
