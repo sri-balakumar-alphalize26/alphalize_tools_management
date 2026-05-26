@@ -9,7 +9,11 @@ let _activeDigits = {};
 
 export const setActiveCurrency = (cfg) => {
   if (cfg && typeof cfg === "object") {
-    _activeCurrency = { ...FALLBACK_CURRENCY, ...cfg };
+    const next = { ...FALLBACK_CURRENCY, ...cfg };
+    if (next.symbol !== _activeCurrency.symbol || next.position !== _activeCurrency.position) {
+      console.log("[CURRENCY] util setActiveCurrency", { symbol: next.symbol, position: next.position });
+    }
+    _activeCurrency = next;
   }
 };
 
@@ -17,6 +21,11 @@ export const getActiveCurrency = () => _activeCurrency;
 
 export const setActiveDigits = (map) => {
   if (map && typeof map === "object") {
+    const nextKeys = Object.keys(map).length;
+    const prevKeys = Object.keys(_activeDigits).length;
+    if (nextKeys !== prevKeys || map["Product Price"] !== _activeDigits["Product Price"]) {
+      console.log("[CURRENCY] util setActiveDigits", { keys: nextKeys, productPrice: map["Product Price"] });
+    }
     _activeDigits = { ...map };
   }
 };

@@ -33,11 +33,15 @@ const SplashScreen = () => {
     const boot = async () => {
       // Hydrate currency + decimal accuracy from AsyncStorage so the first
       // paint of AppNavigator / LoginScreen already shows the right symbol.
+      console.log("[CURRENCY] splash hydrate begin");
       try {
         const pairs = await AsyncStorage.multiGet(["currencyConfig", "decimalAccuracy"]);
+        let cachedSymbol = null;
+        let cachedDigitsKeys = 0;
         if (pairs[0][1]) {
           const cfg = JSON.parse(pairs[0][1]);
           if (cfg && typeof cfg === "object") {
+            cachedSymbol = cfg.symbol || null;
             setActiveCurrency(cfg);
             useAuthStore.getState().setCurrency(cfg);
           }
@@ -45,11 +49,15 @@ const SplashScreen = () => {
         if (pairs[1][1]) {
           const digits = JSON.parse(pairs[1][1]);
           if (digits && typeof digits === "object") {
+            cachedDigitsKeys = Object.keys(digits).length;
             setActiveDigits(digits);
             useAuthStore.getState().setDecimalAccuracy(digits);
           }
         }
-      } catch (_) {}
+        console.log("[CURRENCY] splash cached", { symbol: cachedSymbol, digitsKeys: cachedDigitsKeys });
+      } catch (e) {
+        console.warn("[CURRENCY] splash hydrate failed", e?.message || e);
+      }
 
       // Device-config gate
       let deviceUuid = null;
@@ -95,20 +103,31 @@ const SplashScreen = () => {
       // navigating so the first paint already uses the latest symbol.
       // Bounded by 6s so a slow/dead server can't strand the user.
       if (isLoggedIn) {
+        console.log("[CURRENCY] splash force-refresh begin");
         try {
           const fresh = await Promise.race([
             refreshCurrencyFromStorage(),
             new Promise((resolve) => setTimeout(() => resolve(null), 6000)),
           ]);
-          if (fresh && !cancelled) {
+          if (!fresh) {
+            console.warn("[CURRENCY] splash force-refresh timed out or returned null");
+          } else if (!cancelled) {
             if (fresh.symbol || fresh.name) {
               useAuthStore.getState().setCurrency(fresh);
             }
             if (fresh._digitsMap) {
               useAuthStore.getState().setDecimalAccuracy(fresh._digitsMap);
             }
+            console.log("[CURRENCY] splash force-refresh applied", {
+              symbol: fresh.symbol,
+              digitsKeys: Object.keys(fresh._digitsMap || {}).length,
+            });
           }
-        } catch (_) {}
+        } catch (e) {
+          console.warn("[CURRENCY] splash force-refresh threw", e?.message || e);
+        }
+      } else {
+        console.log("[CURRENCY] splash force-refresh skipped (not logged in)");
       }
 
       if (cancelled) return;

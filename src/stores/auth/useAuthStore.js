@@ -41,12 +41,14 @@ const useAuthStore = create(
 
       setCurrency: (cfg) => {
         const next = cfg && typeof cfg === "object" ? { ...FALLBACK_CURRENCY, ...cfg } : FALLBACK_CURRENCY;
+        console.log("[CURRENCY] store setCurrency", { symbol: next.symbol, position: next.position });
         setActiveCurrency(next);
         set({ currency: next });
       },
 
       setDecimalAccuracy: (map) => {
         const next = map && typeof map === "object" ? { ...map } : {};
+        console.log("[CURRENCY] store setDecimalAccuracy", { keys: Object.keys(next).length });
         setActiveDigits(next);
         set({ decimalAccuracy: next });
       },
@@ -59,6 +61,10 @@ const useAuthStore = create(
         // Push persisted currency/digits into the module-level caches so
         // the first paint after a cold start already renders the right
         // symbol — no flash of empty / wrong currency.
+        console.log("[CURRENCY] store rehydrate", {
+          symbol: state?.currency?.symbol || null,
+          digitsKeys: Object.keys(state?.decimalAccuracy || {}).length,
+        });
         if (state?.currency) setActiveCurrency(state.currency);
         if (state?.decimalAccuracy) setActiveDigits(state.decimalAccuracy);
       },

@@ -5,6 +5,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { saveCurrencyConfig, setActiveDigits } from "@utils/currency";
+import useAuthStore from "@stores/auth/useAuthStore";
 
 const JSONRPC_HEADERS = { "Content-Type": "application/json" };
 const TIMEOUT_MS = 10000;
@@ -108,7 +109,10 @@ export async function fetchCompanyCurrency(baseUrl, db, uid, password, companyId
 let _refreshInFlight = null;
 
 export async function refreshCurrencyFromStorage() {
-  if (_refreshInFlight) return _refreshInFlight;
+  if (_refreshInFlight) {
+    console.log("[CURRENCY] refresh join in-flight");
+    return _refreshInFlight;
+  }
   _refreshInFlight = (async () => _refreshImpl())().finally(() => {
     _refreshInFlight = null;
   });
@@ -128,40 +132,71 @@ async function _refreshImpl() {
     const saved = pairs[2][1] ? JSON.parse(pairs[2][1]) : null;
     const user = pairs[3][1] ? JSON.parse(pairs[3][1]) : null;
 
-    const baseUrl = deviceUrl || saved?.baseUrl;
-    const db = deviceDb || saved?.db;
-    const password = saved?.password;
-    const uid = user?.uid;
-    const companyId = Array.isArray(user?.company_id)
-      ? user.company_id[0]
-      : (user?.company_id || null);
+    // Fallback: when AsyncStorage 'userData' key isn't populated yet
+    // (older builds, or first run after install), pull uid/company_id
+    // from the Zustand auth store which IS persisted under 'auth-storage'.
+    const storeUser = useAuthStore.getState().user;
+    const storeOdooAuth = useAuthStore.getState().odooAuth;
 
-    if (!baseUrl || !db || !password || !uid) return null;
+    const baseUrl = deviceUrl || saved?.baseUrl;
+    const db = deviceDb || saved?.db || storeOdooAuth?.db;
+    const password = saved?.password || storeOdooAuth?.password;
+    const uid = user?.uid || storeUser?.uid || storeOdooAuth?.uid;
+    const rawCompanyId = user?.company_id ?? storeUser?.company_id;
+    const companyId = Array.isArray(rawCompanyId) ? rawCompanyId[0] : (rawCompanyId || null);
+
+    console.log("[CURRENCY] refresh begin", {
+      baseUrl,
+      db,
+      uid,
+      hasPassword: !!password,
+      companyId,
+      uidSource: user?.uid ? "AsyncStorage" : (storeUser?.uid ? "Zustand:user" : (storeOdooAuth?.uid ? "Zustand:odooAuth" : "none")),
+    });
+
+    if (!baseUrl || !db || !password || !uid) {
+      console.warn("[CURRENCY] refresh skipped — missing prerequisite", {
+        baseUrl: !!baseUrl, db: !!db, password: !!password, uid: !!uid,
+      });
+      return null;
+    }
 
     let resolvedCompanyId = companyId;
     if (!resolvedCompanyId) {
       try {
         resolvedCompanyId = await fetchUserCompanyId(baseUrl, db, uid, password);
-      } catch (_) {
+        console.log("[CURRENCY] refresh resolved companyId", resolvedCompanyId);
+      } catch (e) {
+        console.warn("[CURRENCY] refresh resolve-companyId failed", e?.message || e);
         return null;
       }
     }
 
     const cfg = await fetchCompanyCurrency(baseUrl, db, uid, password, resolvedCompanyId);
+    console.log("[CURRENCY] refresh got cfg", { symbol: cfg?.symbol, name: cfg?.name, position: cfg?.position });
 
     let digitsMap = null;
     try {
       digitsMap = await fetchDecimalAccuracy(baseUrl, db, uid, password);
       await AsyncStorage.setItem("decimalAccuracy", JSON.stringify(digitsMap));
       setActiveDigits(digitsMap);
-    } catch (_) {}
+      console.log("[CURRENCY] refresh got digits", {
+        productPrice: digitsMap?.["Product Price"],
+        keys: Object.keys(digitsMap || {}).length,
+      });
+    } catch (e) {
+      console.warn("[CURRENCY] refresh digits fetch failed", e?.message || e);
+    }
 
     if (cfg && (cfg.symbol || cfg.name)) {
       await saveCurrencyConfig(cfg);
+      console.log("[CURRENCY] refresh persisted", { symbol: cfg.symbol });
       return { ...cfg, _digitsMap: digitsMap };
     }
+    console.warn("[CURRENCY] refresh got empty cfg", cfg);
     return digitsMap ? { _digitsMap: digitsMap } : null;
-  } catch (_) {
+  } catch (e) {
+    console.warn("[CURRENCY] refresh threw", e?.message || e);
     return null;
   }
 }

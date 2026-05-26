@@ -19,17 +19,17 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { Button } from "@components/common/Button";
-import { OverlayLoader } from "@components/Loader";
 import Text from "@components/Text";
 import { SafeAreaView } from "@components/containers";
 import { useAuthStore } from "@stores/auth";
 import { showToastMessage } from "@components/Toast";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { odooAuthenticate } from "@api/services/odooApi";
-import { fetchUserCompanies } from "@api/services/odooService";
+import { fetchUserCompanies, switchCompany } from "@api/services/odooService";
 import { getOdooUrl, setOdooUrl } from "@api/config/odooConfig";
 import { fetchCompanyCurrency, fetchUserCompanyId, fetchDecimalAccuracy } from "@api/services/currencyApi";
 import { saveCurrencyConfig } from "@utils/currency";
+import BranchPickerSheet from "@components/Auth/BranchPickerSheet";
 
 const LoginScreen = ({ navigation }) => {
   const setUser = useAuthStore((state) => state.login);
@@ -41,6 +41,10 @@ const LoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [autoFill, setAutoFill] = useState(false);
+
+  // Branch picker sheet — shown after auth when user has 2+ branches.
+  const [showBranchSheet, setShowBranchSheet] = useState(false);
+  const [pendingCtx, setPendingCtx] = useState(null); // { userData, odooAuth, companies }
 
   // Hidden service-mode entry: 7 quick taps on "Login to continue" reveals
   // a gear icon top-right that routes back to DeviceSetup. Lets technicians
@@ -161,15 +165,81 @@ const LoginScreen = ({ navigation }) => {
     if (isValid) login();
   };
 
+  // Finalize login after we know which branch to use. Called either
+  // directly (single-branch users) or after the user picks in the
+  // BranchPickerSheet (multi-branch users).
+  const finalizeLogin = async (userData, odooAuth) => {
+    // Set Zustand store FIRST (synchronous) — the rest of the app can
+    // start rendering immediately from this. AsyncStorage writes are
+    // fire-and-forget so they don't add latency to the navigation.
+    setUser(userData, odooAuth, serverUrl);
+
+    AsyncStorage.multiSet([
+      ["last_login_username", inputs.username],
+      ["last_login_password", inputs.password],
+      ["savedCredentials", JSON.stringify({ baseUrl: serverUrl, db: dbName, password: inputs.password })],
+      ["userData", JSON.stringify(userData)],
+    ]).catch(() => {});
+
+    // Fire-and-forget post-login currency fetch — copied verbatim from
+    // the previous login() body. Doesn't block navigation.
+    (async () => {
+        console.log("[CURRENCY] post-login fetch begin", { uid: odooAuth.uid });
+        try {
+          let companyId = Array.isArray(userData?.company_id)
+            ? userData.company_id[0]
+            : (userData?.company_id || null);
+          if (!companyId) {
+            try {
+              companyId = await fetchUserCompanyId(serverUrl, dbName, odooAuth.uid, inputs.password);
+              console.log("[CURRENCY] post-login resolved companyId", companyId);
+            } catch (e) {
+              console.warn("[CURRENCY] post-login resolve-companyId failed", e?.message || e);
+              return;
+            }
+          }
+          const cfg = await fetchCompanyCurrency(
+            serverUrl, dbName, odooAuth.uid, inputs.password, companyId
+          );
+          if (cfg && (cfg.symbol || cfg.name)) {
+            await saveCurrencyConfig(cfg);
+            useAuthStore.getState().setCurrency(cfg);
+            console.log("[CURRENCY] post-login fetch applied", { symbol: cfg.symbol });
+          } else {
+            console.warn("[CURRENCY] post-login fetch returned empty cfg", cfg);
+          }
+        } catch (e) {
+          console.warn("[CURRENCY] post-login currency fetch threw", e?.message || e);
+        }
+
+        try {
+          const digitsMap = await fetchDecimalAccuracy(
+            serverUrl, dbName, odooAuth.uid, inputs.password
+          );
+          await AsyncStorage.setItem("decimalAccuracy", JSON.stringify(digitsMap));
+          useAuthStore.getState().setDecimalAccuracy(digitsMap);
+          console.log("[CURRENCY] post-login digits applied", { keys: Object.keys(digitsMap || {}).length });
+        } catch (e) {
+          console.warn("[CURRENCY] post-login digits fetch threw", e?.message || e);
+        }
+    })();
+
+    showToastMessage("Logged in");
+    navigation.navigate("AppNavigator");
+  };
+
+  // Auth + decide single-branch vs multi-branch flow.
   const login = async () => {
     setLoading(true);
     try {
       const odooAuth = await odooAuthenticate(dbName, inputs.username, inputs.password);
+      console.log("[BRANCH] login auth ok", { uid: odooAuth?.uid });
 
       let companyInfo = { current_company_id: null, current_company_name: "", allowed_companies: [] };
       try {
         companyInfo = await fetchUserCompanies(odooAuth);
       } catch (_) {}
+      console.log("[BRANCH] login companies fetched count=" + (companyInfo.allowed_companies?.length || 0));
 
       const userData = {
         username: inputs.username,
@@ -181,57 +251,55 @@ const LoginScreen = ({ navigation }) => {
         allowed_companies: companyInfo.allowed_companies,
       };
 
-      try {
-        await AsyncStorage.multiSet([
-          ["last_login_username", inputs.username],
-          ["last_login_password", inputs.password],
-          // Minimal savedCredentials so refreshCurrencyFromStorage() has
-          // what it needs (baseUrl, db, password) to re-fetch on boot.
-          [
-            "savedCredentials",
-            JSON.stringify({ baseUrl: serverUrl, db: dbName, password: inputs.password }),
-          ],
-        ]);
-      } catch (_) {}
-
-      setUser(userData, odooAuth, serverUrl);
-
-      // Fire-and-forget post-login currency fetch. Never blocks navigation.
-      // On failure the app keeps using whatever was cached in AsyncStorage.
-      (async () => {
-        try {
-          let companyId = Array.isArray(userData?.company_id)
-            ? userData.company_id[0]
-            : (userData?.company_id || null);
-          if (!companyId) {
-            try {
-              companyId = await fetchUserCompanyId(serverUrl, dbName, odooAuth.uid, inputs.password);
-            } catch (_) { return; }
-          }
-          const cfg = await fetchCompanyCurrency(
-            serverUrl, dbName, odooAuth.uid, inputs.password, companyId
-          );
-          if (cfg && (cfg.symbol || cfg.name)) {
-            await saveCurrencyConfig(cfg);
-            useAuthStore.getState().setCurrency(cfg);
-          }
-        } catch (_) {}
-
-        try {
-          const digitsMap = await fetchDecimalAccuracy(
-            serverUrl, dbName, odooAuth.uid, inputs.password
-          );
-          await AsyncStorage.setItem("decimalAccuracy", JSON.stringify(digitsMap));
-          useAuthStore.getState().setDecimalAccuracy(digitsMap);
-        } catch (_) {}
-      })();
-
-      showToastMessage("Logged in");
-      navigation.navigate("AppNavigator");
+      const branches = companyInfo.allowed_companies || [];
+      if (branches.length <= 1) {
+        // 0 or 1 branch → no picker, proceed straight to AppNavigator.
+        console.log(`[BRANCH] login auto-selected "${companyInfo.current_company_name || "(none)"}" (only branch)`);
+        await finalizeLogin(userData, odooAuth);
+      } else {
+        // 2+ branches → show picker. Login button stops spinning;
+        // sheet covers screen until user picks.
+        console.log(`[BRANCH] login sheet shown ${branches.length} branches (default=${companyInfo.current_company_id})`);
+        setPendingCtx({ userData, odooAuth, companies: branches });
+        setShowBranchSheet(true);
+      }
     } catch (error) {
       showToastMessage(error.message || "Login failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Called when user picks a branch in the BranchPickerSheet.
+  const handleBranchPicked = async (branch) => {
+    if (!pendingCtx) return;
+    const { userData, odooAuth } = pendingCtx;
+    console.log(`[BRANCH] login sheet picked "${branch.name}" (${branch.id})`);
+    setShowBranchSheet(false);
+    setLoading(true);
+
+    try {
+      // Switch Odoo's active company if it differs from the pre-login default.
+      if (branch.id !== userData.company_id) {
+        console.log("[BRANCH] login switchCompany begin", { uid: odooAuth.uid, companyId: branch.id });
+        try {
+          await switchCompany(odooAuth, branch.id);
+          console.log("[BRANCH] login switchCompany ok", { uid: odooAuth.uid, companyId: branch.id });
+        } catch (e) {
+          console.warn("[BRANCH] login switchCompany failed", e?.message || e);
+          showToastMessage("Failed to switch branch. Logging in with default.");
+        }
+      }
+
+      const finalUserData = {
+        ...userData,
+        company_id: branch.id,
+        company_name: branch.name,
+      };
+      await finalizeLogin(finalUserData, odooAuth);
+    } finally {
+      setLoading(false);
+      setPendingCtx(null);
     }
   };
 
@@ -244,8 +312,6 @@ const LoginScreen = ({ navigation }) => {
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <SafeAreaView backgroundColor="#fff">
-        <OverlayLoader visible={loading} />
-
         {gearVisible ? (
           <TouchableOpacity
             style={styles.gearBtn}
@@ -374,6 +440,19 @@ const LoginScreen = ({ navigation }) => {
             </LinearGradient>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        <BranchPickerSheet
+          visible={showBranchSheet}
+          branches={pendingCtx?.companies || []}
+          defaultBranchId={pendingCtx?.userData?.company_id || null}
+          onPick={handleBranchPicked}
+          onClose={() => {
+            console.log("[BRANCH] login sheet closed by user (back to login form)");
+            setShowBranchSheet(false);
+            setPendingCtx(null);
+            setLoading(false);
+          }}
+        />
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );

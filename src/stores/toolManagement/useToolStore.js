@@ -70,6 +70,13 @@ const useToolStore = create(
               fetchCustomers(auth).catch(() => []),
               fetchPricingRules(auth).catch(() => []),
             ]);
+          console.log("[BRANCH] new branch data", {
+            tools: tools.length,
+            categories: categories.length,
+            customers: customers.length,
+            orders: orders.length,
+            pricingRules: pricingRules.length,
+          });
           set({ categories, tools, orders, customers, pricingRules, loading: false });
           markFetched("all"); markFetched("categories"); markFetched("tools");
           markFetched("orders"); markFetched("customers"); markFetched("pricingRules");

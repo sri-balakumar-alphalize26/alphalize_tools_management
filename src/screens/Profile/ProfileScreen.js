@@ -1,25 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions } from "react-native";
+import React, { useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "@components/containers";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { useAuthStore } from "@stores/auth";
-import useToolStore from "@stores/toolManagement/useToolStore";
-import { switchCompany } from "@api/services/odooService";
-import { showToastMessage } from "@components/Toast";
-import showAlert from "@components/Modal/alertHost";
-import Constants from "expo-constants";
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const user = useAuthStore((state) => state.user);
-  const odooAuth = useAuthStore((state) => state.odooAuth);
-  const updateUser = useAuthStore((state) => state.updateUser);
-  const clearData = useToolStore((state) => state.clearData);
-  const fetchAllData = useToolStore((state) => state.fetchAllData);
   const initial = (user?.username || "U").charAt(0).toUpperCase();
-  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
     const d = Dimensions.get("window");
@@ -41,42 +31,8 @@ const ProfileScreen = () => {
     { icon: "business", label: "Current Branch", value: user?.company_name || "-", color: "#00897B" },
   ];
 
-  const companies = user?.allowed_companies || [];
-
-  const handleSwitchCompany = async (company) => {
-    console.log("[PROFILE] branch tap", { id: company?.id, name: company?.name });
-    if (company.id === user?.company_id) {
-      console.log("[PROFILE] branch tap ignored (already active)", { id: company.id });
-      return;
-    }
-    showAlert(
-      "Switch Branch",
-      `Switch to "${company.name}"? The app will reload data for this branch.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Switch",
-          onPress: async () => {
-            console.log("[PROFILE] branch switch begin", { id: company.id, name: company.name });
-            setSwitching(true);
-            try {
-              await switchCompany(odooAuth, company.id);
-              updateUser({ company_id: company.id, company_name: company.name });
-              clearData();
-              await fetchAllData(odooAuth, true);
-              console.log("[PROFILE] branch switch ok", { id: company.id });
-              showToastMessage(`Switched to ${company.name}`);
-            } catch (e) {
-              console.warn("[PROFILE] branch switch fail", e?.message || e);
-              showToastMessage("Failed to switch branch");
-            } finally {
-              setSwitching(false);
-            }
-          },
-        },
-      ]
-    );
-  };
+  // Branch switching now lives on the Login screen (bottom-sheet picker
+  // after auth). To change branch, the user logs out and back in.
 
   return (
     <SafeAreaView backgroundColor={COLORS.primaryThemeColor}>
@@ -87,7 +43,11 @@ const ProfileScreen = () => {
         {/* Header Banner */}
         <View
           style={styles.header}
-          onLayout={(e) => console.log("[PROFILE] header LAYOUT", e?.nativeEvent?.layout)}
+          onLayout={(e) => {
+            const l = e?.nativeEvent?.layout;
+            console.log("[PROFILE] header LAYOUT", l);
+            console.log("[PROFILE] blue band height", l?.height, "(extended bg)");
+          }}
         >
           <View
             style={styles.logoOval}
@@ -162,57 +122,6 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Branches Card */}
-        {companies.length > 0 && (
-          <View style={styles.branchCard}>
-            <View style={styles.branchHeader}>
-              <MaterialIcons name="account-tree" size={20} color={COLORS.primaryThemeColor} />
-              <Text style={styles.branchTitle}>Branches</Text>
-            </View>
-            {companies.map((company) => {
-              const isActive = company.id === user?.company_id;
-              return (
-                <TouchableOpacity
-                  key={company.id}
-                  style={[styles.branchItem, isActive && styles.branchItemActive]}
-                  onPress={() => handleSwitchCompany(company)}
-                  disabled={switching}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.branchIcon, isActive && styles.branchIconActive]}>
-                    <MaterialIcons
-                      name={isActive ? "radio-button-checked" : "radio-button-unchecked"}
-                      size={20}
-                      color={isActive ? "#fff" : COLORS.primaryThemeColor}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.branchName, isActive && styles.branchNameActive]}>
-                      {company.name}
-                    </Text>
-                    {company.phone ? (
-                      <Text style={[styles.branchSub, isActive && { color: "#ffffffaa" }]}>
-                        {company.phone}
-                      </Text>
-                    ) : null}
-                  </View>
-                  {isActive && (
-                    <View style={styles.activeBadge}>
-                      <Text style={styles.activeBadgeText}>Active</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-            {switching && (
-              <View style={styles.switchingOverlay}>
-                <ActivityIndicator size="small" color={COLORS.primaryThemeColor} />
-                <Text style={styles.switchingText}>Switching branch...</Text>
-              </View>
-            )}
-          </View>
-        )}
-
         {/* Version */}
         <Text style={styles.version}>Powered by 369ai  |  v{require("../../../app.json").expo.version}</Text>
       </ScrollView>
@@ -231,7 +140,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingTop: 30,
-    paddingBottom: 70,
+    // Extended bottom padding so the blue band runs further down behind
+    // the avatar/username area of the profile card.
+    paddingBottom: 200,
   },
   logoOval: {
     backgroundColor: "#FFFFFF",
@@ -254,7 +165,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     marginHorizontal: 16,
-    marginTop: -10,
+    // Big negative margin so the card overlaps deep into the (now much
+    // taller) blue header. Blue band stays visible above the avatar +
+    // username area; the rest of the card sits on the gray page bg.
+    marginTop: -100,
     paddingHorizontal: 20,
     paddingBottom: 24,
     paddingTop: 60,
@@ -396,97 +310,10 @@ const styles = StyleSheet.create({
     fontFamily: FONT_FAMILY.urbanistBold,
     letterSpacing: 0.4,
   },
-  // Branches Card
-  branchCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  branchHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
-  branchTitle: {
-    fontSize: 18,
-    fontFamily: FONT_FAMILY.urbanistBold,
-    color: COLORS.primaryThemeColor,
-  },
-  branchItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 8,
-    backgroundColor: "#F8F9FA",
-    borderWidth: 1,
-    borderColor: "#E8E8E8",
-  },
-  branchItemActive: {
-    backgroundColor: COLORS.primaryThemeColor,
-    borderColor: COLORS.primaryThemeColor,
-  },
-  branchIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.primaryThemeColor + "15",
-    marginRight: 12,
-  },
-  branchIconActive: {
-    backgroundColor: "#ffffff30",
-  },
-  branchName: {
-    fontSize: 15,
-    fontFamily: FONT_FAMILY.urbanistSemiBold,
-    color: "#333",
-  },
-  branchNameActive: {
-    color: "#fff",
-  },
-  branchSub: {
-    fontSize: 12,
-    fontFamily: FONT_FAMILY.urbanistMedium,
-    color: "#999",
-    marginTop: 2,
-  },
-  activeBadge: {
-    backgroundColor: "#ffffff30",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  activeBadgeText: {
-    fontSize: 11,
-    fontFamily: FONT_FAMILY.urbanistSemiBold,
-    color: "#fff",
-  },
-  switchingOverlay: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 10,
-  },
-  switchingText: {
-    fontSize: 13,
-    fontFamily: FONT_FAMILY.urbanistMedium,
-    color: COLORS.primaryThemeColor,
-  },
   version: {
     fontSize: 11,
     fontFamily: FONT_FAMILY.urbanistMedium,
-    color: "#B0B0B0",
+    color: "rgba(255,255,255,0.6)",
     textAlign: "center",
     marginTop: 20,
   },
