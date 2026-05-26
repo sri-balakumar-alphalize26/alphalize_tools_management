@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "@components/containers";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { useAuthStore } from "@stores/auth";
@@ -11,6 +12,7 @@ import showAlert from "@components/Modal/alertHost";
 import Constants from "expo-constants";
 
 const ProfileScreen = () => {
+  const navigation = useNavigation();
   const user = useAuthStore((state) => state.user);
   const odooAuth = useAuthStore((state) => state.odooAuth);
   const updateUser = useAuthStore((state) => state.updateUser);
@@ -18,6 +20,19 @@ const ProfileScreen = () => {
   const fetchAllData = useToolStore((state) => state.fetchAllData);
   const initial = (user?.username || "U").charAt(0).toUpperCase();
   const [switching, setSwitching] = useState(false);
+
+  useEffect(() => {
+    const d = Dimensions.get("window");
+    console.log("[PROFILE] mount window=", d.width, "x", d.height, "scale=", d.scale);
+    console.log("[PROFILE] user snapshot", {
+      uid: user?.uid,
+      username: user?.username,
+      is_admin: user?.is_admin,
+      database: user?.database,
+      company_name: user?.company_name,
+      branchesCount: (user?.allowed_companies || []).length,
+    });
+  }, []);
 
   const details = [
     { icon: "fingerprint", label: "User ID", value: user?.uid ?? "-", color: "#2196F3" },
@@ -29,7 +44,11 @@ const ProfileScreen = () => {
   const companies = user?.allowed_companies || [];
 
   const handleSwitchCompany = async (company) => {
-    if (company.id === user?.company_id) return;
+    console.log("[PROFILE] branch tap", { id: company?.id, name: company?.name });
+    if (company.id === user?.company_id) {
+      console.log("[PROFILE] branch tap ignored (already active)", { id: company.id });
+      return;
+    }
     showAlert(
       "Switch Branch",
       `Switch to "${company.name}"? The app will reload data for this branch.`,
@@ -38,14 +57,17 @@ const ProfileScreen = () => {
         {
           text: "Switch",
           onPress: async () => {
+            console.log("[PROFILE] branch switch begin", { id: company.id, name: company.name });
             setSwitching(true);
             try {
               await switchCompany(odooAuth, company.id);
               updateUser({ company_id: company.id, company_name: company.name });
               clearData();
               await fetchAllData(odooAuth, true);
+              console.log("[PROFILE] branch switch ok", { id: company.id });
               showToastMessage(`Switched to ${company.name}`);
             } catch (e) {
+              console.warn("[PROFILE] branch switch fail", e?.message || e);
               showToastMessage("Failed to switch branch");
             } finally {
               setSwitching(false);
@@ -63,16 +85,27 @@ const ProfileScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* Header Banner */}
-        <View style={styles.header}>
-          <Image
-            source={require("@assets/images/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        <View
+          style={styles.header}
+          onLayout={(e) => console.log("[PROFILE] header LAYOUT", e?.nativeEvent?.layout)}
+        >
+          <View
+            style={styles.logoOval}
+            onLayout={(e) => console.log("[PROFILE] logoOval LAYOUT", e?.nativeEvent?.layout)}
+          >
+            <Image
+              source={require("@assets/images/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
         {/* Profile Card */}
-        <View style={styles.card}>
+        <View
+          style={styles.card}
+          onLayout={(e) => console.log("[PROFILE] card LAYOUT", e?.nativeEvent?.layout)}
+        >
           {/* Avatar */}
           <View style={styles.avatarWrapper}>
             <View style={styles.avatar}>
@@ -103,6 +136,30 @@ const ProfileScreen = () => {
               {index < details.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
+
+          {/* App Banners — visually distinct admin shortcut. Tinted pink
+              container, solid icon tile, Admin pill, chevron. */}
+          <TouchableOpacity
+            style={styles.bannersRow}
+            activeOpacity={0.85}
+            onPress={() => {
+              console.log("[PROFILE] banners row tap → BannersScreen");
+              navigation.navigate("BannersScreen");
+            }}
+            onLayout={(e) => console.log("[PROFILE] bannersRow LAYOUT", e?.nativeEvent?.layout)}
+          >
+            <View style={styles.bannersIconBox}>
+              <MaterialIcons name="image" size={22} color="#fff" />
+            </View>
+            <View style={styles.bannersText}>
+              <Text style={styles.bannersTitle}>App Banners</Text>
+              <Text style={styles.bannersSubtitle}>Manage home-screen banners</Text>
+            </View>
+            <View style={styles.adminPill}>
+              <Text style={styles.adminPillText}>Admin</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
 
         {/* Branches Card */}
@@ -174,7 +231,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingTop: 30,
-    paddingBottom: 100,
+    paddingBottom: 70,
+  },
+  logoOval: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 30,
+    paddingVertical: 14,
+    // Very large radius forms an oval/pill regardless of inner content.
+    borderRadius: 80,
+    shadowColor: "#000",
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   logo: {
     width: 320,
@@ -185,7 +254,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     marginHorizontal: 16,
-    marginTop: -40,
+    marginTop: -10,
     paddingHorizontal: 20,
     paddingBottom: 24,
     paddingTop: 60,
@@ -280,6 +349,52 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: "#F0F0F0",
+  },
+  // Unique-looking App Banners shortcut row
+  bannersRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "#FCE4EC",
+    width: "100%",
+  },
+  bannersIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#E91E63",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bannersText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  bannersTitle: {
+    fontSize: 15,
+    fontFamily: FONT_FAMILY.urbanistBold,
+    color: COLORS.primaryThemeColor,
+  },
+  bannersSubtitle: {
+    fontSize: 11,
+    fontFamily: FONT_FAMILY.urbanistMedium,
+    color: "#7a4664",
+    marginTop: 2,
+  },
+  adminPill: {
+    backgroundColor: "#E91E63",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginRight: 6,
+  },
+  adminPillText: {
+    color: "#fff",
+    fontSize: 10,
+    fontFamily: FONT_FAMILY.urbanistBold,
+    letterSpacing: 0.4,
   },
   // Branches Card
   branchCard: {

@@ -14,7 +14,7 @@ import { RoundedContainer, SafeAreaView } from "@components/containers";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { showToastMessage } from "@components/Toast";
 import { useAuthStore } from "@stores/auth";
-import CarouselPagination from "@components/Home/CarouselPagination";
+import BannerCarousel from "@components/Home/BannerCarousel";
 
 const SECTIONS = [
   {
@@ -161,7 +161,7 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Carousel Banner */}
-        <CarouselPagination />
+        <BannerCarousel />
 
         {/* Date & Time */}
         <View style={styles.greetingContainer}>
