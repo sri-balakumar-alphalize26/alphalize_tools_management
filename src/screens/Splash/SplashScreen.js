@@ -130,8 +130,15 @@ const SplashScreen = () => {
         source={SPLASH_ASSET}
         style={styles.image}
         resizeMode="contain"
+        // Android decodes a 2048x2048 source into a full ~16MB bitmap
+        // before scaling. "resize" tells the native decoder to scale
+        // DOWN during decode, which avoids the silent stall we hit.
+        // No-op on iOS.
+        resizeMethod="resize"
+        fadeDuration={0}
         onLoadStart={() => console.log("[SPLASH] image load START")}
         onLoad={(e) => console.log("[SPLASH] image LOADED", e?.nativeEvent?.source)}
+        onLoadEnd={() => console.log("[SPLASH] image load END")}
         onError={(e) => console.warn("[SPLASH] image ERROR", e?.nativeEvent?.error)}
         onLayout={(e) => console.log("[SPLASH] image LAYOUT", e?.nativeEvent?.layout)}
       />

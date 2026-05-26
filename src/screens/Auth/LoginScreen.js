@@ -12,8 +12,10 @@ import {
   Platform,
   TextInput as RNTextInput,
   Switch,
+  Dimensions,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { Button } from "@components/common/Button";
@@ -233,9 +235,15 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
+  // One-time mount log so we can see the viewport dimensions in Metro.
+  useEffect(() => {
+    const d = Dimensions.get("window");
+    console.log("[LOGIN] mount window=", d.width, "x", d.height, "scale=", d.scale);
+  }, []);
+
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-      <SafeAreaView backgroundColor={COLORS.primaryThemeColor}>
+      <SafeAreaView backgroundColor="#fff">
         <OverlayLoader visible={loading} />
 
         {gearVisible ? (
@@ -264,23 +272,44 @@ const LoginScreen = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.header}>
-              <Image
-                source={require("@assets/images/logo.png")}
-                style={styles.logo}
-                resizeMode="contain"
-              />
+            {/* TOP WHITE SECTION: logo only */}
+            <View
+              style={styles.topSection}
+              onLayout={(e) => console.log("[LOGIN] top section LAYOUT", e?.nativeEvent?.layout)}
+            >
+              <View style={styles.header}>
+                <Image
+                  source={require("@assets/images/logo.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
             </View>
 
-            <View style={styles.cardWrapper}>
-              <View style={styles.titleBlock}>
+            {/* BOTTOM PURPLE SECTION: gradient fade from white to purple
+                at the top edge so it blends smoothly with the white top
+                section instead of showing a hard line. Contains the
+                "Welcome back" title block + form card + footer. */}
+            <LinearGradient
+              colors={["#ffffff", COLORS.primaryThemeColor, COLORS.primaryThemeColor]}
+              locations={[0, 0.08, 1]}
+              style={styles.bottomSection}
+              onLayout={(e) => console.log("[LOGIN] bottom section LAYOUT", e?.nativeEvent?.layout)}
+            >
+              <View
+                style={styles.titleBlock}
+                onLayout={(e) => console.log("[LOGIN] title block LAYOUT", e?.nativeEvent?.layout)}
+              >
                 <TouchableOpacity activeOpacity={1} onPress={handleTitleTap}>
                   <Text style={styles.titleText}>Welcome back</Text>
                 </TouchableOpacity>
                 <Text style={styles.subtitleText}>Login to continue to your store</Text>
               </View>
 
-              <View style={styles.card}>
+              <View
+                style={styles.card}
+                onLayout={(e) => console.log("[LOGIN] card LAYOUT", e?.nativeEvent?.layout)}
+              >
                 {/* Username */}
                 <Animated.View style={[styles.inputGroup, { transform: [{ translateX: shakeUsername }] }]}>
                   <Text style={styles.label}>Username or Email</Text>
@@ -340,9 +369,9 @@ const LoginScreen = ({ navigation }) => {
                   <Button title="Login" onPress={validate} loading={loading} />
                 </View>
               </View>
-            </View>
 
-            <Text style={styles.footer}>Powered by 369ai  |  v{require("../../../app.json").expo.version}</Text>
+              <Text style={styles.footer}>Powered by 369ai  |  v{require("../../../app.json").expo.version}</Text>
+            </LinearGradient>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -354,8 +383,23 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     backgroundColor: "transparent",
+  },
+  topSection: {
+    backgroundColor: "#fff",
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 40,
+    paddingBottom: 12,
+    alignItems: "center",
+  },
+  bottomSection: {
+    flex: 1,
+    // Background is the LinearGradient parent; no backgroundColor here.
+    paddingHorizontal: 24,
+    // Push welcome back + card further down into the purple so they don't
+    // hug the white/purple boundary. The bottom section is ~1028px tall on
+    // a 1232px screen, so 120px of top padding gives the title a relaxed
+    // landing zone past the gradient fade.
+    paddingTop: 170,
     paddingBottom: 30,
   },
   header: {
@@ -364,15 +408,11 @@ const styles = StyleSheet.create({
   logo: {
     width: 320,
     height: 128,
-    marginTop: 70,
     backgroundColor: "transparent",
-  },
-  cardWrapper: {
-    marginTop: 90,
   },
   titleBlock: {
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 18,
   },
   titleText: {
     fontSize: 26,
