@@ -31,6 +31,11 @@ import { fetchCompanyCurrency, fetchUserCompanyId, fetchDecimalAccuracy } from "
 import { saveCurrencyConfig } from "@utils/currency";
 import BranchPickerSheet from "@components/Auth/BranchPickerSheet";
 
+// Module-level so the styles factory can use them. Logo and
+// bottom-section padding cap at the original tablet values and shrink
+// proportionally on phones — same pattern as employee_attendance.
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+
 const LoginScreen = ({ navigation }) => {
   const setUser = useAuthStore((state) => state.login);
 
@@ -474,11 +479,9 @@ const styles = StyleSheet.create({
     flex: 1,
     // Background is the LinearGradient parent; no backgroundColor here.
     paddingHorizontal: 24,
-    // Push welcome back + card further down into the purple so they don't
-    // hug the white/purple boundary. The bottom section is ~1028px tall on
-    // a 1232px screen, so 120px of top padding gives the title a relaxed
-    // landing zone past the gradient fade.
-    paddingTop: 170,
+    // 14% of screen height (caps at 170 on tablets). Title + form land
+    // at the same visual band proportionally on phones AND tablets.
+    paddingTop: Math.min(screenHeight * 0.14, 170),
     paddingBottom: 30,
   },
   header: {

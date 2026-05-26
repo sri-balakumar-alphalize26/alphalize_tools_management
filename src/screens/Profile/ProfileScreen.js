@@ -6,6 +6,11 @@ import { SafeAreaView } from "@components/containers";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { useAuthStore } from "@stores/auth";
 
+// Responsive sizing. Logo cap is tighter because the oval has 60px
+// padding; header / card-overlap scale with screen height. All values
+// cap at the original tablet numbers so tablets stay identical.
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const user = useAuthStore((state) => state.user);
@@ -140,9 +145,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingTop: 30,
-    // Extended bottom padding so the blue band runs further down behind
-    // the avatar/username area of the profile card.
-    paddingBottom: 200,
+    // 16% of screen height (caps at 200 on tablets). Keeps the blue
+    // band proportional to the device — same visual weight everywhere.
+    paddingBottom: Math.min(screenHeight * 0.16, 200),
   },
   logoOval: {
     backgroundColor: "#FFFFFF",
@@ -165,10 +170,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     marginHorizontal: 16,
-    // Big negative margin so the card overlaps deep into the (now much
-    // taller) blue header. Blue band stays visible above the avatar +
-    // username area; the rest of the card sits on the gray page bg.
-    marginTop: -100,
+    // -8% of screen height (caps at -100 on tablets). Card overlaps the
+    // header proportionally so avatar/username position stays consistent.
+    marginTop: -Math.min(screenHeight * 0.08, 100),
     paddingHorizontal: 20,
     paddingBottom: 24,
     paddingTop: 60,
