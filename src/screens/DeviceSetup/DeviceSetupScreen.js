@@ -21,8 +21,7 @@ import { FONT_FAMILY } from "@constants/theme";
 import * as deviceApi from "@api/services/deviceApi";
 import { generateUUIDv4 } from "@utils/uuid";
 import StyledConfirmModal from "@components/Modal/StyledConfirmModal";
-
-const DEVICE_MODEL = "NEX GENN Tool Management";
+import { getDeviceName } from "@utils/deviceInfo";
 
 const PURPLE = "#2E294E";
 const LIGHT_PURPLE = "#eeecf5";
@@ -55,21 +54,14 @@ const DeviceSetupScreen = () => {
   useEffect(() => {
     async function init() {
       try {
-        const pairs = await AsyncStorage.multiGet([
-          "device_uuid",
-          "device_server_url",
-          "device_db_name",
-          "device_admin_username",
-        ]);
-        let uuid = pairs[0][1];
+        let uuid = await AsyncStorage.getItem("device_uuid");
         if (!uuid) {
           uuid = generateUUIDv4();
           await AsyncStorage.setItem("device_uuid", uuid);
         }
         setDeviceUUID(uuid);
-
-        if (pairs[1][1]) setServerUrl(pairs[1][1]);
-        if (pairs[3][1]) setUsername(pairs[3][1]);
+        // Form fields stay blank on every entry — user re-enters URL,
+        // database, username, password from scratch.
       } catch (_) {}
     }
     init();
@@ -144,12 +136,20 @@ const DeviceSetupScreen = () => {
       }
 
       // Persist admin creds so the Login screen's Auto Fill toggle can read
-      // them back. This is the only place these are written.
+      // them back. If the database changed, also clear the cached
+      // last-login credentials — those were tied to a different DB and
+      // would auto-fill the wrong user on the next Login visit.
       try {
-        await AsyncStorage.multiSet([
+        const prevDb = await AsyncStorage.getItem("device_db_name");
+        const dbChanged = !prevDb || prevDb !== selectedDb;
+        const writes = [
           ["device_admin_username", username.trim()],
           ["device_admin_password", password],
-        ]);
+        ];
+        await AsyncStorage.multiSet(writes);
+        if (dbChanged) {
+          await AsyncStorage.multiRemove(["last_login_username", "last_login_password"]);
+        }
       } catch (_) {}
 
       setScanPromptOpen(true);
@@ -378,14 +378,14 @@ const DeviceSetupScreen = () => {
         <StyledConfirmModal
           isVisible={scanPromptOpen}
           title="Ready to scan?"
-          message={`Open Odoo → Device Registry → New Device on the admin screen. A QR code will appear there — scan it next.\n\nDevice Model: ${DEVICE_MODEL}\nDevice ID: ${deviceUUID}`}
+          message={`Open Odoo → Device Registry → New Device on the admin screen. A QR code will appear there — scan it next.\n\nDevice Model: ${getDeviceName()}\nDevice ID: ${deviceUUID}`}
           confirmLabel="Scan QR"
           cancelLabel="Cancel"
           onConfirm={() => {
             setScanPromptOpen(false);
             navigation.navigate("DeviceQRScanner", {
               deviceUUID,
-              deviceModel: DEVICE_MODEL,
+              deviceModel: getDeviceName(),
               serverUrl: normalizeUrl(serverUrl),
               databaseName: selectedDb,
             });

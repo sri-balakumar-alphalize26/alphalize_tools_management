@@ -1,13 +1,15 @@
 import React, { useEffect } from "react";
-import { View, Image, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Image, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Text from "@components/Text";
-import { COLORS, FONT_FAMILY } from "@constants/theme";
+import { FONT_FAMILY } from "@constants/theme";
 import { useAuthStore } from "@stores/auth";
 import { setOdooUrl } from "@api/config/odooConfig";
 import { setActiveCurrency, setActiveDigits } from "@utils/currency";
 import { refreshCurrencyFromStorage } from "@api/services/currencyApi";
+import * as deviceApi from "@api/services/deviceApi";
+import { getDeviceName } from "@utils/deviceInfo";
 
 const SplashScreen = () => {
   const navigation = useNavigation();
@@ -37,6 +39,7 @@ const SplashScreen = () => {
       } catch (_) {}
 
       // Device-config gate
+      let deviceUuid = null;
       let deviceServerUrl = null;
       let deviceDbName = null;
       let deviceRegistered = null;
@@ -47,6 +50,7 @@ const SplashScreen = () => {
           "device_db_name",
           "device_registered",
         ]);
+        deviceUuid = pairs[0][1];
         deviceServerUrl = pairs[1][1];
         deviceDbName = pairs[2][1];
         deviceRegistered = pairs[3][1];
@@ -61,12 +65,22 @@ const SplashScreen = () => {
 
       try { setOdooUrl(deviceServerUrl); } catch (_) {}
 
+      // Fire-and-forget heartbeat so Odoo's device.registry row updates its
+      // last_login timestamp. Never blocks navigation.
+      if (deviceUuid) {
+        deviceApi.initDevice({
+          baseUrl: deviceServerUrl,
+          databaseName: deviceDbName,
+          deviceId: deviceUuid,
+          deviceName: getDeviceName(),
+        }).catch(() => {});
+      }
+
       const isLoggedIn = useAuthStore.getState().isLoggedIn;
 
       // If logged in, force a fresh currency fetch from Odoo BEFORE
-      // navigating. Bounded by 6s so a slow/dead server can't strand the
-      // user on Splash. On success, push to both the Zustand store and the
-      // module-level cache so the first paint uses the latest.
+      // navigating so the first paint already uses the latest symbol.
+      // Bounded by 6s so a slow/dead server can't strand the user.
       if (isLoggedIn) {
         try {
           const fresh = await Promise.race([
@@ -100,11 +114,10 @@ const SplashScreen = () => {
   return (
     <View style={styles.container}>
       <Image
-        source={require("@assets/images/logo.png")}
-        style={styles.logo}
+        source={require("../../../assets/splash-icon.png")}
+        style={styles.image}
         resizeMode="contain"
       />
-      <ActivityIndicator size="small" color={COLORS.primaryThemeColor} style={{ marginTop: 16 }} />
       <Text style={styles.poweredText}>Powered by 369ai</Text>
     </View>
   );
@@ -116,11 +129,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 24,
   },
-  logo: {
-    width: 280,
-    height: 140,
+  image: {
+    width: "100%",
+    height: "100%",
   },
   poweredText: {
     position: "absolute",

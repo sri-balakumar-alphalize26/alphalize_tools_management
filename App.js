@@ -10,6 +10,7 @@ import { Provider } from 'react-native-paper';
 import StackNavigator from './src/navigation/StackNavigator';
 import installNetworkInterceptor from './src/api/utils/networkInterceptor';
 import NetworkErrorModal from './src/components/NetworkError/NetworkErrorModal';
+import { AlertHost } from './src/components/Modal/alertHost';
 
 installNetworkInterceptor();
 
@@ -54,6 +55,7 @@ export default function App() {
         </NavigationContainer>
         <Toast config={CustomToast} />
         <NetworkErrorModal />
+        <AlertHost />
       </Provider>
     </GestureHandlerRootView>
   );

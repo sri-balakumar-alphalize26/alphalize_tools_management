@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Modal,
   Image,
   TextInput as RNTextInput,
@@ -788,19 +787,19 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const confirmCheckout = async () => {
     const missing = lines.find((l) => !l.checkout_condition);
     if (missing) {
-      Alert.alert("Required", "Set condition for all tools before check-out");
+      showAlert("Required", "Set condition for all tools before check-out");
       return;
     }
     if (!idProofFrontUri) {
-      Alert.alert("Required", "ID Proof (Front Side) is mandatory for check-out");
+      showAlert("Required", "ID Proof (Front Side) is mandatory for check-out");
       return;
     }
     if (!checkoutSignatureUri) {
-      Alert.alert("Required", "Please provide customer signature for check-out");
+      showAlert("Required", "Please provide customer signature for check-out");
       return;
     }
     if (parseFloat(form.advance_amount || 0) > 0 && !form.payment_method) {
-      Alert.alert("Required", "Please select a payment method for the advance amount");
+      showAlert("Required", "Please select a payment method for the advance amount");
       return;
     }
     // Optimistic: close modal and update UI immediately
@@ -991,30 +990,30 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     const visibleLines = lines.filter((_, i) => !checkinExcludedIdx.includes(i));
 
     if (visibleLines.length === 0) {
-      Alert.alert("Error", "At least one tool must be included for check-in");
+      showAlert("Error", "At least one tool must be included for check-in");
       return;
     }
 
     const missing = visibleLines.find((l) => !l.checkin_condition);
     if (missing) {
-      Alert.alert("Required", "Set condition for all returning tools before check-in");
+      showAlert("Required", "Set condition for all returning tools before check-in");
       return;
     }
     const isPartialReturn = checkinExcludedIdx.filter((i) => !checkinAlreadyReturnedIdx.includes(i)).length > 0;
     if (!isPartialReturn && !form.checkin_payment_method) {
-      Alert.alert("Required", "Please select a payment method for check-in");
+      showAlert("Required", "Please select a payment method for check-in");
       return;
     }
     if (!checkinSignatureUri) {
-      Alert.alert("Required", "Customer signature is mandatory for check-in");
+      showAlert("Required", "Customer signature is mandatory for check-in");
       return;
     }
     if (!checkinAuthoritySignatureUri) {
-      Alert.alert("Required", "Authority signature is mandatory for check-in");
+      showAlert("Required", "Authority signature is mandatory for check-in");
       return;
     }
     if (!checkinSignerName || !checkinSignerName.trim()) {
-      Alert.alert("Required", "Signer name is mandatory for check-in");
+      showAlert("Required", "Signer name is mandatory for check-in");
       return;
     }
 
@@ -1136,7 +1135,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const actionDone = () => {
     // Block Mark Done if no customer rating yet
     if (!orderCustomerRating) {
-      Alert.alert(
+      showAlert(
         "Customer Rating Required",
         'Please give the customer rating first before marking the order as done. Tap the "Customer Rating" button.',
         [
@@ -1147,7 +1146,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       return;
     }
     if (paymentStatus === "unpaid") {
-      Alert.alert(
+      showAlert(
         "Payment Unpaid",
         "Payment is still UNPAID (Credit). The check-in invoice will show as UNPAID. Are you sure you want to proceed?",
         [
@@ -1204,7 +1203,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
 
   const saveRating = () => {
     if (!selectedRating) {
-      Alert.alert(
+      showAlert(
         "Pick a Rating",
         "Please tap one of the colored buttons (Perfect / Very Good / Good / Fair / Poor) before saving."
       );
@@ -1749,7 +1748,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   };
 
   const actionCancel = () => {
-    Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
+    showAlert("Cancel Order", "Are you sure you want to cancel this order?", [
       { text: "No", style: "cancel" },
       {
         text: "Yes, Cancel",
@@ -2193,7 +2192,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         showToastMessage("ID Proof (Front) attached");
       }
     } catch (e) {
-      Alert.alert("Error", "Could not pick file: " + e.message);
+      showAlert("Error", "Could not pick file: " + e.message);
     }
   };
 
@@ -2220,7 +2219,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         showToastMessage("ID Proof (Back) attached");
       }
     } catch (e) {
-      Alert.alert("Error", "Could not pick file: " + e.message);
+      showAlert("Error", "Could not pick file: " + e.message);
     }
   };
 
@@ -2290,7 +2289,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   const handleSignatureSave = async () => {
     if (!activeSignatureTarget) return;
     if (signatureRef.current?.isEmpty()) {
-      Alert.alert("Required", "Please draw your signature first.");
+      showAlert("Required", "Please draw your signature first.");
       return;
     }
     try {
@@ -2319,7 +2318,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
         showToastMessage("Signature saved");
       }
     } catch (e) {
-      Alert.alert("Error", "Could not save signature");
+      showAlert("Error", "Could not save signature");
     }
   };
 
@@ -2950,7 +2949,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     <TouchableOpacity
                       style={{ backgroundColor: "#FFEBEE", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: "#EF9A9A" }}
                       onPress={() => {
-                        Alert.alert(
+                        showAlert(
                           "Remove from Check-In",
                           `Skip returning "${line.tool_name || "this tool"}" now? It will remain as pending.`,
                           [
@@ -3258,15 +3257,15 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
   // ========== DISCOUNT MODAL ==========
   const discountGoNext = async () => {
     if (!discountAuthName.trim()) {
-      Alert.alert("Required", "Authorized person name is required");
+      showAlert("Required", "Authorized person name is required");
       return;
     }
     if (!discountAuthSignatureUri) {
-      Alert.alert("Required", "Authorized person signature is required");
+      showAlert("Required", "Authorized person signature is required");
       return;
     }
     if (!discountAuthPhotoUri) {
-      Alert.alert("Required", "Authorized person photo is required");
+      showAlert("Required", "Authorized person photo is required");
       return;
     }
     // Mark authorized for this visit so changing discount skips auth page
@@ -3337,28 +3336,28 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       const dl = discountLines[i];
       const val = parseFloat(dl.discount_value) || 0;
       if (val < 0) {
-        Alert.alert("Invalid", "Discount value cannot be negative");
+        showAlert("Invalid", "Discount value cannot be negative");
         return;
       }
       if (dl.discount_type === "percentage" && val > 100) {
-        Alert.alert("Invalid", "Percentage cannot exceed 100%");
+        showAlert("Invalid", "Percentage cannot exceed 100%");
         return;
       }
       const base = dl.rental_cost + dl.late_fee + dl.damage_charge;
       const discAmt = calcDiscountLineAmt(dl);
       if (dl.discount_type === "fixed" && val > base) {
-        Alert.alert("Invalid", `Discount (${formatCurrency(val)}) for "${dl.tool_name}" exceeds its total (${formatCurrency(base)}). Discount cannot be more than the original amount.`);
+        showAlert("Invalid", `Discount (${formatCurrency(val)}) for "${dl.tool_name}" exceeds its total (${formatCurrency(base)}). Discount cannot be more than the original amount.`);
         return;
       }
       totalDiscount += discAmt;
     }
     if (totalDiscount <= 0) {
-      Alert.alert("Invalid", "Enter discount for at least one line");
+      showAlert("Invalid", "Enter discount for at least one line");
       return;
     }
     const grandBase = discountLines.reduce((s, dl) => s + dl.rental_cost + dl.late_fee + dl.damage_charge, 0);
     if (totalDiscount > grandBase) {
-      Alert.alert("Invalid", `Total discount (${formatCurrency(totalDiscount)}) exceeds the total amount (${formatCurrency(grandBase)}). Discount cannot be more than the original amount.`);
+      showAlert("Invalid", `Total discount (${formatCurrency(totalDiscount)}) exceeds the total amount (${formatCurrency(grandBase)}). Discount cannot be more than the original amount.`);
       return;
     }
     // Apply locally and close modal immediately for snappy UI

@@ -8,7 +8,6 @@ import {
   TextInput as RNTextInput,
   ActivityIndicator,
   Image,
-  Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -23,6 +22,7 @@ import { showToastMessage } from "@components/Toast";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
 import { generateSerializedProducts } from "@api/services/odooService";
+import showAlert from "@components/Modal/alertHost";
 
 const ToolFormScreen = ({ navigation, route }) => {
   const mode = route?.params?.mode || "create";
@@ -85,14 +85,14 @@ const ToolFormScreen = ({ navigation, route }) => {
         setImageBase64(base64);
       }
     } catch (e) {
-      Alert.alert("Error", "Could not open file picker.");
+      showAlert("Error", "Could not open file picker.");
     }
   };
 
   const pickFromCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Camera permission is required to take photos.");
+      showAlert("Permission needed", "Camera permission is required to take photos.");
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -105,7 +105,7 @@ const ToolFormScreen = ({ navigation, route }) => {
   };
 
   const pickImage = () => {
-    Alert.alert("Select Photo", "Choose an option", [
+    showAlert("Select Photo", "Choose an option", [
       { text: "Camera", onPress: pickFromCamera },
       { text: "Files", onPress: pickFromGallery },
       { text: "Cancel", style: "cancel" },

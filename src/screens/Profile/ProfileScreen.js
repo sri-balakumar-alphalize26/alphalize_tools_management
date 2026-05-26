@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "@components/containers";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
@@ -7,6 +7,7 @@ import { useAuthStore } from "@stores/auth";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import { switchCompany } from "@api/services/odooService";
 import { showToastMessage } from "@components/Toast";
+import showAlert from "@components/Modal/alertHost";
 import Constants from "expo-constants";
 
 const ProfileScreen = () => {
@@ -29,7 +30,7 @@ const ProfileScreen = () => {
 
   const handleSwitchCompany = async (company) => {
     if (company.id === user?.company_id) return;
-    Alert.alert(
+    showAlert(
       "Switch Branch",
       `Switch to "${company.name}"? The app will reload data for this branch.`,
       [

@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   Modal,
-  Alert,
   ScrollView,
   TextInput as RNTextInput,
   KeyboardAvoidingView,
@@ -14,6 +13,7 @@ import {
   Image,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import showAlert from "@components/Modal/alertHost";
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView, RoundedContainer } from "@components/containers";
 import NavigationHeader from "@components/Header/NavigationHeader";
@@ -240,7 +240,7 @@ const CustomersScreen = ({ navigation, route }) => {
   };
 
   const showIdProofOptions = (side) => {
-    Alert.alert(
+    showAlert(
       `ID Proof - ${side === "front" ? "Front" : "Back"}`,
       "Choose an option",
       [
@@ -253,7 +253,7 @@ const CustomersScreen = ({ navigation, route }) => {
 
   const handleDelete = () => {
     if (!editCustomer || !odooAuth) return;
-    Alert.alert(
+    showAlert(
       "Delete Customer",
       `Are you sure you want to delete "${editCustomer.name}"? This will also delete all related rental orders and invoices. This action cannot be undone.`,
       [
@@ -268,7 +268,7 @@ const CustomersScreen = ({ navigation, route }) => {
               await deleteCustomerFromStore(odooAuth, custId);
               setShowEditModal(false);
             } catch (e) {
-              Alert.alert("Error", "Failed to delete: " + e.message);
+              showAlert("Error", "Failed to delete: " + e.message);
             } finally {
               setDeleting(false);
             }
@@ -314,7 +314,7 @@ const CustomersScreen = ({ navigation, route }) => {
     updateCustomer(odooAuth, custId, updatedFields).then(() => {
       fetchCustomers(odooAuth, true);
     }).catch((e) => {
-      Alert.alert("Error", "Failed to update: " + e.message);
+      showAlert("Error", "Failed to update: " + e.message);
       fetchCustomers(odooAuth, true); // Revert to server state on error
     });
   };

@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera/next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -16,9 +15,10 @@ import Text from "@components/Text";
 import { FONT_FAMILY } from "@constants/theme";
 import * as deviceApi from "@api/services/deviceApi";
 import StyledConfirmModal from "@components/Modal/StyledConfirmModal";
+import showAlert from "@components/Modal/alertHost";
+import { getDeviceName } from "@utils/deviceInfo";
 
 const PURPLE = "#2E294E";
-const DEFAULT_DEVICE_NAME = "NEX GENN Tool Management";
 
 const DeviceQRScannerScreen = () => {
   const navigation = useNavigation();
@@ -52,7 +52,7 @@ const DeviceQRScannerScreen = () => {
       try {
         parsed = JSON.parse(data);
       } catch (_) {
-        Alert.alert("Invalid QR", "This QR code is not a valid device registration code.", [
+        showAlert("Invalid QR", "This QR code is not a valid device registration code.", [
           { text: "Try Again", onPress: resetScanner },
           { text: "Cancel", onPress: () => navigation.goBack() },
         ]);
@@ -60,7 +60,7 @@ const DeviceQRScannerScreen = () => {
       }
 
       if (parsed.a !== "ng_reg" || !parsed.d) {
-        Alert.alert("Invalid QR", "This QR code is not a device registration code.", [
+        showAlert("Invalid QR", "This QR code is not a device registration code.", [
           { text: "Try Again", onPress: resetScanner },
           { text: "Cancel", onPress: () => navigation.goBack() },
         ]);
@@ -76,7 +76,7 @@ const DeviceQRScannerScreen = () => {
         baseUrl: serverUrl,
         databaseName: parsed.d,
         deviceId: deviceUUID,
-        deviceName: deviceModel || DEFAULT_DEVICE_NAME,
+        deviceName: deviceModel || getDeviceName(),
         recordId: parsed.rid || null,
       });
 
@@ -89,17 +89,17 @@ const DeviceQRScannerScreen = () => {
         setStatusMsg("Device registered! Redirecting…");
         navigation.reset({ index: 0, routes: [{ name: "LoginScreen" }] });
       } else if (result.status === "blocked") {
-        Alert.alert("Device Blocked", "This device has been blocked by the administrator.", [
+        showAlert("Device Blocked", "This device has been blocked by the administrator.", [
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
       } else {
-        Alert.alert("Registration Failed", result.message || "Could not register device. Try again.", [
+        showAlert("Registration Failed", result.message || "Could not register device. Try again.", [
           { text: "Try Again", onPress: resetScanner },
           { text: "Cancel", onPress: () => navigation.goBack() },
         ]);
       }
     } catch (err) {
-      Alert.alert(
+      showAlert(
         "Cannot Reach Server",
         `Check that the device and server are on the same network.\n\nServer URL: ${serverUrl}\n\nMake sure the URL uses the network IP (not localhost).`,
         [

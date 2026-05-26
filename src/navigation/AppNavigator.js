@@ -1,9 +1,10 @@
 import React, { useRef } from "react";
-import { View, Text, StyleSheet, Alert, Animated, Pressable } from "react-native";
+import { View, Text, StyleSheet, Animated, Pressable } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialIcons } from "@expo/vector-icons";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { useAuthStore } from "@stores/auth";
+import showAlert from "@components/Modal/alertHost";
 
 import HomeScreen from "@screens/Home/HomeScreen";
 import ProfileScreen from "@screens/Profile/ProfileScreen";
@@ -56,7 +57,7 @@ const AppNavigator = () => {
   const logout = useAuthStore((state) => state.logout);
 
   const handleLogout = (navigation) => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
+    showAlert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "OK",

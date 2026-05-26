@@ -60,16 +60,25 @@ const LoginScreen = ({ navigation }) => {
         const pairs = await AsyncStorage.multiGet([
           "device_server_url",
           "device_db_name",
+          "device_registered",
         ]);
         const url = pairs[0][1] || "";
         const db = pairs[1][1] || "";
-        if (url) {
-          setServerUrl(url);
-          try { setOdooUrl(url); } catch (_) {}
-        } else {
-          setServerUrl(getOdooUrl());
+        const registered = pairs[2][1];
+
+        // Defensive gate: if the device isn't registered (or the config is
+        // incomplete), bounce back to Device Setup. Splash already does
+        // this, but if any stale state slipped through (e.g. gear tapped
+        // in an older build that didn't clear device_registered), this
+        // catches it so the user can never land on Login unregistered.
+        if (!url || !db || registered !== "true") {
+          navigation.reset({ index: 0, routes: [{ name: "DeviceSetup" }] });
+          return;
         }
-        if (db) setDbName(db);
+
+        setServerUrl(url);
+        try { setOdooUrl(url); } catch (_) {}
+        setDbName(db);
       } catch (_) {
         setServerUrl(getOdooUrl());
       }
@@ -233,7 +242,13 @@ const LoginScreen = ({ navigation }) => {
           <TouchableOpacity
             style={styles.gearBtn}
             activeOpacity={0.7}
-            onPress={() => navigation.reset({ index: 0, routes: [{ name: "DeviceSetup" }] })}
+            onPress={async () => {
+              // Mark the device as unconfigured so the user can't escape
+              // back to Login without completing a fresh setup. The Splash
+              // boot gate keys off device_registered.
+              try { await AsyncStorage.removeItem("device_registered"); } catch (_) {}
+              navigation.reset({ index: 0, routes: [{ name: "DeviceSetup" }] });
+            }}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <MaterialIcons name="settings" size={24} color="#2e2a4f" />

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  Alert,
   Image,
   ActivityIndicator,
   Platform,
@@ -20,6 +19,7 @@ import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
 import { fetchExpenseById, fetchInternalUsers, fetchAccounts, fetchExpenseCategories } from "@api/services/odooService";
 import { formatCurrency, getActiveCurrency } from "@utils/currency";
+import showAlert from "@components/Modal/alertHost";
 
 // Categories are now fetched from rental.expense.category (no longer hardcoded).
 // The CATEGORY_LABELS fallback is only used if old legacy Selection values appear.
@@ -281,7 +281,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
     if (!name.trim()) missing.push("Description");
     if (!categoryId) missing.push("Category");
     if (missing.length) {
-      Alert.alert(
+      showAlert(
         "Missing Required Fields",
         "Please fill in: " + missing.join(" and ") + " before continuing.",
       );
@@ -346,7 +346,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
   const handleSave = async () => {
     if (!requireFieldsOrAlert()) return;
     if (totalAmount <= 0) {
-      Alert.alert("Invalid Amount", "Quantity × Unit Price must be greater than zero.");
+      showAlert("Invalid Amount", "Quantity × Unit Price must be greater than zero.");
       return;
     }
     if (!odooAuth) return;
@@ -369,7 +369,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
 
   const handleDelete = () => {
     if (isNew) return;
-    Alert.alert("Delete Expense", "Are you sure? This cannot be undone.", [
+    showAlert("Delete Expense", "Are you sure? This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -392,7 +392,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
 
   const runWorkflow = async (fn, successMsg) => {
     if (isNew) {
-      Alert.alert("Save First", "Please save the expense before running this action.");
+      showAlert("Save First", "Please save the expense before running this action.");
       return;
     }
     setSaving(true);
@@ -423,7 +423,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
 
   const onAttachReceipt = () => {
     if (!requireFieldsOrAlert()) return;
-    Alert.alert(
+    showAlert(
       "Attach Receipt",
       "Pick a file from camera or browse any document (PDF, image, etc.).",
       [
@@ -512,11 +512,11 @@ const ExpenseFormScreen = ({ navigation, route }) => {
   const onSplitConfirm = async () => {
     const n = parseInt(splitParts, 10) || 0;
     if (n < 2 || n > 20) {
-      Alert.alert("Invalid", "Number of parts must be between 2 and 20.");
+      showAlert("Invalid", "Number of parts must be between 2 and 20.");
       return;
     }
     if (isNew) {
-      Alert.alert("Save First", "Please save the expense before splitting it.");
+      showAlert("Save First", "Please save the expense before splitting it.");
       return;
     }
     setSaving(true);
@@ -613,7 +613,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
                 onPress={() => {
                   if (!requireFieldsOrAlert()) return;
                   if (isNew) {
-                    Alert.alert("Save First", "Please save the expense before submitting.");
+                    showAlert("Save First", "Please save the expense before submitting.");
                     return;
                   }
                   onSubmit();
@@ -631,7 +631,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
                 onPress={() => {
                   if (!requireFieldsOrAlert()) return;
                   if (isNew) {
-                    Alert.alert("Save First", "Please save the expense before splitting it.");
+                    showAlert("Save First", "Please save the expense before splitting it.");
                     return;
                   }
                   setSplitParts("2");
