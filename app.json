@@ -15,7 +15,10 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan device registration QR codes."
+      }
     },
     "android": {
       "package": "com.toolmanagement.app",
@@ -26,7 +29,8 @@
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.DETECT_SCREEN_CAPTURE"
+        "android.permission.DETECT_SCREEN_CAPTURE",
+        "android.permission.CAMERA"
       ]
     },
     "plugins": [
@@ -37,6 +41,12 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Used to scan device registration QR codes."
+        }
       ]
     ],
     "web": {
@@ -44,7 +54,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ab7a1adc-ad49-4fb0-a2ed-ed7b66f9af17"
+        "projectId": "2778a8f7-b41e-4f29-8111-e9b5f9ca2470"
       }
     },
     "owner": ""

@@ -1,7 +1,9 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import useAuthStore from "@stores/auth/useAuthStore";
 
+import SplashScreen from "@screens/Splash/SplashScreen";
+import DeviceSetupScreen from "@screens/DeviceSetup/DeviceSetupScreen";
+import DeviceQRScannerScreen from "@screens/DeviceSetup/DeviceQRScannerScreen";
 import LoginScreen from "@screens/Auth/LoginScreen";
 import AppNavigator from "./AppNavigator";
 import OptionsScreen from "@screens/Home/Options/OptionsScreen";
@@ -27,17 +29,34 @@ import RentalDashboardScreen from "@screens/ToolManagement/RentalDashboardScreen
 const Stack = createNativeStackNavigator();
 
 const StackNavigator = () => {
-  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-
   return (
     <Stack.Navigator
-      initialRouteName={isLoggedIn ? "AppNavigator" : "LoginScreen"}
+      initialRouteName="Splash"
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
         animationDuration: 250,
       }}
     >
+      {/* Boot gate - decides Device Setup / Login / AppNavigator */}
+      <Stack.Screen
+        name="Splash"
+        component={SplashScreen}
+        options={{ animation: "fade" }}
+      />
+
+      {/* Device Setup - fade in */}
+      <Stack.Screen
+        name="DeviceSetup"
+        component={DeviceSetupScreen}
+        options={{ animation: "fade" }}
+      />
+      <Stack.Screen
+        name="DeviceQRScanner"
+        component={DeviceQRScannerScreen}
+        options={{ animation: "fade" }}
+      />
+
       {/* Auth - fade in */}
       <Stack.Screen
         name="LoginScreen"
