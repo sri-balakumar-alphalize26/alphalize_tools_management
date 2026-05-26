@@ -21,7 +21,7 @@
       }
     },
     "android": {
-      "package": "com.toolmanagement.app",
+      "package": "com.toolmanagement.alphalize",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
@@ -30,7 +30,8 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.DETECT_SCREEN_CAPTURE",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -54,9 +55,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "2778a8f7-b41e-4f29-8111-e9b5f9ca2470"
+        "projectId": "f75aa514-908f-4caa-931c-aca5aaaa0511"
       }
     },
-    "owner": ""
+    "owner": "xakox"
   }
 }
