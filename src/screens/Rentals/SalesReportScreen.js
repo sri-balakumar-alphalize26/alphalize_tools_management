@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -141,7 +141,7 @@ const SalesReportScreen = ({ navigation }) => {
   const orders = useToolStore((s) => s.orders);
   const fetchOrders = useToolStore((s) => s.fetchOrders);
 
-  const [period, setPeriod] = useState("month");
+  const [period, setPeriod] = useState("all");
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
   const [customerLimit, setCustomerLimit] = useState(0);
@@ -149,8 +149,20 @@ const SalesReportScreen = ({ navigation }) => {
   const [paymentMethod, setPaymentMethod] = useState("all");
   const [downloading, setDownloading] = useState(null);
 
+  useEffect(() => {
+    console.log("[SALES] mount", {
+      hasOdooAuth: !!odooAuth,
+      uid: odooAuth?.uid,
+      db: odooAuth?.db,
+    });
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
+      console.log("[SALES] focus refresh", {
+        hasAuth: !!odooAuth,
+        ordersInStore: (orders || []).length,
+      });
       if (odooAuth) fetchOrders(odooAuth);
     }, [odooAuth])
   );
@@ -175,6 +187,16 @@ const SalesReportScreen = ({ navigation }) => {
         if (pm !== paymentMethod) return false;
       }
       return true;
+    });
+
+    console.log("[SALES] filter result", {
+      period,
+      paymentMethod,
+      from: from?.toISOString?.() || null,
+      to: to?.toISOString?.() || null,
+      ordersIn: (orders || []).length,
+      filteredOut: (orders || []).length - filteredOrders.length,
+      filteredIn: filteredOrders.length,
     });
 
     let totalRevenue = 0,
@@ -215,6 +237,13 @@ const SalesReportScreen = ({ navigation }) => {
       }
     }
     const tools = Object.values(toolAgg).sort((a, b) => b.revenue - a.revenue);
+
+    console.log("[SALES] summary", {
+      totalRevenue,
+      totalOrders: filteredOrders.length,
+      uniqueCustomers: customers.length,
+      uniqueTools: tools.length,
+    });
 
     return {
       totalRevenue,
