@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Image, StyleSheet } from "react-native";
+import { View, Image, StyleSheet, Dimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Text from "@components/Text";
@@ -11,10 +11,23 @@ import { refreshCurrencyFromStorage } from "@api/services/currencyApi";
 import * as deviceApi from "@api/services/deviceApi";
 import { getDeviceName } from "@utils/deviceInfo";
 
+// One-time diagnostic logs — captured at import time so they fire even if
+// the component fails to mount. Tells us how Metro resolved the asset.
+const SPLASH_ASSET = require("@assets/images/Splash/splash.png");
+try {
+  const resolved = Image.resolveAssetSource(SPLASH_ASSET);
+  console.log("[SPLASH] resolved asset =", resolved);
+} catch (e) {
+  console.warn("[SPLASH] resolveAssetSource threw", e?.message || e);
+}
+
 const SplashScreen = () => {
   const navigation = useNavigation();
 
   useEffect(() => {
+    const d = Dimensions.get("window");
+    console.log("[SPLASH] mount window=", d.width, "x", d.height, "scale=", d.scale);
+
     let cancelled = false;
 
     const boot = async () => {
@@ -114,9 +127,13 @@ const SplashScreen = () => {
   return (
     <View style={styles.container}>
       <Image
-        source={require("../../../assets/splash-icon.png")}
+        source={SPLASH_ASSET}
         style={styles.image}
         resizeMode="contain"
+        onLoadStart={() => console.log("[SPLASH] image load START")}
+        onLoad={(e) => console.log("[SPLASH] image LOADED", e?.nativeEvent?.source)}
+        onError={(e) => console.warn("[SPLASH] image ERROR", e?.nativeEvent?.error)}
+        onLayout={(e) => console.log("[SPLASH] image LAYOUT", e?.nativeEvent?.layout)}
       />
       <Text style={styles.poweredText}>Powered by 369ai</Text>
     </View>
