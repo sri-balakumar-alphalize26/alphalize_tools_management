@@ -13,6 +13,7 @@ import NavigationHeader from "@components/Header/NavigationHeader";
 import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { formatCurrency } from "@utils/currency";
 
 const STATE_CONFIG = {
   draft: { label: "Draft", color: "#9E9E9E" },
@@ -155,14 +156,14 @@ const RentalOrdersScreen = ({ navigation }) => {
             </Text>
           )}
           <Text style={styles.amountText}>
-            ر.ع.{item.total_amount?.toFixed(3) || "0.00"}
+            {formatCurrency(item.total_amount || 0)}
           </Text>
         </View>
 
         {parseFloat(item.advance_amount) > 0 && (
           <View style={styles.depositRow}>
             <Text style={styles.depositText}>
-              Advance: ر.ع.{parseFloat(item.advance_amount).toFixed(3)}
+              Advance: {formatCurrency(item.advance_amount)}
             </Text>
             {item.advance_returned && (
               <Text style={styles.depositReturned}>Returned</Text>

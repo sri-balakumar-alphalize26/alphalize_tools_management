@@ -26,6 +26,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { odooAuthenticate } from "@api/services/odooApi";
 import { fetchUserCompanies } from "@api/services/odooService";
 import { getOdooUrl, setOdooUrl } from "@api/config/odooConfig";
+import { fetchCompanyCurrency, fetchUserCompanyId, fetchDecimalAccuracy } from "@api/services/currencyApi";
+import { saveCurrencyConfig } from "@utils/currency";
 
 const LoginScreen = ({ navigation }) => {
   const setUser = useAuthStore((state) => state.login);
@@ -172,10 +174,47 @@ const LoginScreen = ({ navigation }) => {
         await AsyncStorage.multiSet([
           ["last_login_username", inputs.username],
           ["last_login_password", inputs.password],
+          // Minimal savedCredentials so refreshCurrencyFromStorage() has
+          // what it needs (baseUrl, db, password) to re-fetch on boot.
+          [
+            "savedCredentials",
+            JSON.stringify({ baseUrl: serverUrl, db: dbName, password: inputs.password }),
+          ],
         ]);
       } catch (_) {}
 
       setUser(userData, odooAuth, serverUrl);
+
+      // Fire-and-forget post-login currency fetch. Never blocks navigation.
+      // On failure the app keeps using whatever was cached in AsyncStorage.
+      (async () => {
+        try {
+          let companyId = Array.isArray(userData?.company_id)
+            ? userData.company_id[0]
+            : (userData?.company_id || null);
+          if (!companyId) {
+            try {
+              companyId = await fetchUserCompanyId(serverUrl, dbName, odooAuth.uid, inputs.password);
+            } catch (_) { return; }
+          }
+          const cfg = await fetchCompanyCurrency(
+            serverUrl, dbName, odooAuth.uid, inputs.password, companyId
+          );
+          if (cfg && (cfg.symbol || cfg.name)) {
+            await saveCurrencyConfig(cfg);
+            useAuthStore.getState().setCurrency(cfg);
+          }
+        } catch (_) {}
+
+        try {
+          const digitsMap = await fetchDecimalAccuracy(
+            serverUrl, dbName, odooAuth.uid, inputs.password
+          );
+          await AsyncStorage.setItem("decimalAccuracy", JSON.stringify(digitsMap));
+          useAuthStore.getState().setDecimalAccuracy(digitsMap);
+        } catch (_) {}
+      })();
+
       showToastMessage("Logged in");
       navigation.navigate("AppNavigator");
     } catch (error) {

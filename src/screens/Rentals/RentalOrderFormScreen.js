@@ -22,6 +22,7 @@ import { showToastMessage } from "@components/Toast";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
 import useNetworkErrorStore from "@stores/network/useNetworkErrorStore";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -1238,7 +1239,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     const cashBalance = cashReceived - advance;
     const checkinCashBalance = checkinCashReceived - amountDue;
     const totalAmt = grandTotal; // For compatibility with existing total row display
-    const cur = "ر.ع.";
+    const cur = getActiveCurrency().symbol || getActiveCurrency().name || "";
 
     // --- Checkout tool rows ---
     const checkoutToolRows = lines.map((l, i) => {
@@ -1457,7 +1458,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       <thead><tr>
         <th>#</th><th>Tool</th><th>S/N</th><th>Out</th><th>In</th>
         <th class="text-end">Price</th><th class="text-end">Duration</th><th class="text-end">Extra Days</th>
-        <th class="text-end">Late Fee</th><th>Damage</th><th class="text-end">Dmg ر.ع.</th><th class="text-end">Disc.</th>${taxTotal > 0 ? '<th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>' : ''}
+        <th class="text-end">Late Fee</th><th>Damage</th><th class="text-end">Dmg ${cur}</th><th class="text-end">Disc.</th>${taxTotal > 0 ? '<th class="text-end">Tax %</th><th class="text-end">Tax Amt</th>' : ''}
       </tr></thead>
       <tbody>${checkinToolRows}</tbody>
     </table>`}
@@ -2597,7 +2598,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   <View style={coStyles.pricingItem}>
                     <Text style={ciStyles.lateFeeLabel}>Price / {PERIOD_LABELS[form.rental_period_type] || "Day"}</Text>
                     <View style={ciStyles.readOnlyBox}>
-                      <Text style={ciStyles.readOnlyText}>ر.ع.{parseFloat(line.unit_price || 0).toFixed(3)}</Text>
+                      <Text style={ciStyles.readOnlyText}>{formatCurrency(parseFloat(line.unit_price || 0))}</Text>
                     </View>
                   </View>
                   <View style={coStyles.pricingItem}>
@@ -2609,7 +2610,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   <View style={coStyles.pricingItem}>
                     <Text style={ciStyles.lateFeeLabel}>Total</Text>
                     <View style={[ciStyles.readOnlyBox, { backgroundColor: "#E3F2FD", borderColor: "#90CAF9" }]}>
-                      <Text style={[ciStyles.readOnlyText, { color: "#1565C0", fontWeight: "700" }]}>ر.ع.{calcLineTotal(line).toFixed(3)}</Text>
+                      <Text style={[ciStyles.readOnlyText, { color: "#1565C0", fontWeight: "700" }]}>{formatCurrency(calcLineTotal(line))}</Text>
                     </View>
                   </View>
                   {parseFloat(line.tax_amount || 0) > 0 && (
@@ -2623,7 +2624,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={coStyles.pricingItem}>
                         <Text style={ciStyles.lateFeeLabel}>Tax Amt</Text>
                         <View style={[ciStyles.readOnlyBox, { backgroundColor: "#FFF3E0", borderColor: "#FFB74D" }]}>
-                          <Text style={[ciStyles.readOnlyText, { color: "#E65100", fontWeight: "700" }]}>ر.ع.{parseFloat(line.tax_amount).toFixed(3)}</Text>
+                          <Text style={[ciStyles.readOnlyText, { color: "#E65100", fontWeight: "700" }]}>{formatCurrency(parseFloat(line.tax_amount))}</Text>
                         </View>
                       </View>
                     </>
@@ -2686,7 +2687,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   </View>
                   {form.payment_method === "cash" && parseFloat(form.advance_amount || 0) > 0 && (
                     <View style={{ marginTop: 10 }}>
-                      <Text style={ciStyles.fieldLabel}>Cash Received (ر.ع.)</Text>
+                      <Text style={ciStyles.fieldLabel}>Cash Received ({getActiveCurrency().symbol || getActiveCurrency().name})</Text>
                       <RNTextInput
                         style={[styles.input, { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: "#fff" }]}
                         placeholder="0.000"
@@ -2698,7 +2699,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                         <View style={{ marginTop: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                           <Text style={ciStyles.fieldLabel}>Balance to Return</Text>
                           <Text style={{ fontSize: 16, fontWeight: "700", color: calcCashBalance() >= 0 ? "#4CAF50" : "#F44336" }}>
-                            ر.ع.{calcCashBalance().toFixed(3)}
+                            {formatCurrency(calcCashBalance())}
                           </Text>
                         </View>
                       )}
@@ -2713,13 +2714,13 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               <View style={ciStyles.totalRow}>
                 <Text style={ciStyles.totalLabel}>Subtotal</Text>
                 <Text style={ciStyles.totalValue}>
-                  ر.ع.{lines.reduce((sum, l) => sum + calcLineTotal(l), 0).toFixed(3)}
+                  {formatCurrency(lines.reduce((sum, l) => sum + calcLineTotal(l), 0))}
                 </Text>
               </View>
               {parseFloat(form.advance_amount || 0) > 0 && (
                 <View style={ciStyles.totalRow}>
                   <Text style={ciStyles.totalLabel}>Advance</Text>
-                  <Text style={[ciStyles.totalValue, { color: "#4CAF50" }]}>-ر.ع.{parseFloat(form.advance_amount || 0).toFixed(3)}</Text>
+                  <Text style={[ciStyles.totalValue, { color: "#4CAF50" }]}>-{formatCurrency(parseFloat(form.advance_amount || 0))}</Text>
                 </View>
               )}
             </View>
@@ -2919,7 +2920,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   {checkinReturnAdvance && <Text style={styles.checkMark}>{"\u2713"}</Text>}
                 </View>
                 <Text style={ciStyles.depositLabel}>Return Advance</Text>
-                <Text style={ciStyles.depositAmt}>ر.ع.{parseFloat(form.advance_amount || 0).toFixed(3)}</Text>
+                <Text style={ciStyles.depositAmt}>{formatCurrency(parseFloat(form.advance_amount || 0))}</Text>
               </TouchableOpacity>
             </View>
 
@@ -2969,7 +2970,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   <View style={coStyles.pricingItem}>
                     <Text style={ciStyles.lateFeeLabel}>Price / {PERIOD_LABELS[form.rental_period_type] || "Day"}</Text>
                     <View style={ciStyles.readOnlyBox}>
-                      <Text style={ciStyles.readOnlyText}>ر.ع.{parseFloat(line.unit_price || 0).toFixed(3)}</Text>
+                      <Text style={ciStyles.readOnlyText}>{formatCurrency(parseFloat(line.unit_price || 0))}</Text>
                     </View>
                   </View>
                   <View style={coStyles.pricingItem}>
@@ -2981,7 +2982,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   <View style={coStyles.pricingItem}>
                     <Text style={ciStyles.lateFeeLabel}>Total</Text>
                     <View style={[ciStyles.readOnlyBox, { backgroundColor: "#E8F5E9", borderColor: "#81C784" }]}>
-                      <Text style={[ciStyles.readOnlyText, { color: "#2E7D32", fontWeight: "700" }]}>ر.ع.{calcLineTotal(line).toFixed(3)}</Text>
+                      <Text style={[ciStyles.readOnlyText, { color: "#2E7D32", fontWeight: "700" }]}>{formatCurrency(calcLineTotal(line))}</Text>
                     </View>
                   </View>
                   {parseFloat(line.tax_amount || 0) > 0 && (
@@ -2995,7 +2996,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={coStyles.pricingItem}>
                         <Text style={ciStyles.lateFeeLabel}>Tax Amt</Text>
                         <View style={[ciStyles.readOnlyBox, { backgroundColor: "#FFF3E0", borderColor: "#FFB74D" }]}>
-                          <Text style={[ciStyles.readOnlyText, { color: "#E65100", fontWeight: "700" }]}>ر.ع.{parseFloat(line.tax_amount).toFixed(3)}</Text>
+                          <Text style={[ciStyles.readOnlyText, { color: "#E65100", fontWeight: "700" }]}>{formatCurrency(parseFloat(line.tax_amount))}</Text>
                         </View>
                       </View>
                     </>
@@ -3034,7 +3035,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     <View style={ciStyles.lateFeeItem}>
                       <Text style={ciStyles.lateFeeLabel}>Fee / Day</Text>
                       <View style={ciStyles.readOnlyBox}>
-                        <Text style={ciStyles.readOnlyText}>ر.ع.{parseFloat(line.late_fee_per_day || 0).toFixed(3)}</Text>
+                        <Text style={ciStyles.readOnlyText}>{formatCurrency(parseFloat(line.late_fee_per_day || 0))}</Text>
                       </View>
                     </View>
                     <View style={ciStyles.lateFeeItem}>
@@ -3049,7 +3050,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <Text style={ciStyles.lateFeeLabel}>Total Late Fee</Text>
                       <View style={[ciStyles.readOnlyBox, parseFloat(line.late_fee_amount) > 0 && { backgroundColor: "#FFF3E0", borderColor: "#FFB74D" }]}>
                         <Text style={[ciStyles.readOnlyText, parseFloat(line.late_fee_amount) > 0 && { color: "#E65100", fontWeight: "700" }]}>
-                          ر.ع.{parseFloat(line.late_fee_amount || 0).toFixed(3)}
+                          {formatCurrency(parseFloat(line.late_fee_amount || 0))}
                         </Text>
                       </View>
                     </View>
@@ -3070,7 +3071,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     />
                   </View>
                   <View>
-                    <Text style={ciStyles.fieldLabel}>Damage Charge (ر.ع.)</Text>
+                    <Text style={ciStyles.fieldLabel}>Damage Charge ({getActiveCurrency().symbol || getActiveCurrency().name})</Text>
                     <RNTextInput
                       style={ciStyles.editableInput}
                       placeholder="0.00"
@@ -3089,42 +3090,42 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               <Text style={[ciStyles.sectionTitle, { marginBottom: 8, marginTop: 0 }]}>PAYMENT SUMMARY</Text>
               <View style={ciStyles.totalRow}>
                 <Text style={ciStyles.totalLabel}>Rental Subtotal</Text>
-                <Text style={ciStyles.totalValue}>ر.ع.{calcSubtotal().toFixed(3)}</Text>
+                <Text style={ciStyles.totalValue}>{formatCurrency(calcSubtotal())}</Text>
               </View>
               {calcTaxTotal() > 0 && (
                 <View style={ciStyles.totalRow}>
                   <Text style={ciStyles.totalLabel}>Tax</Text>
-                  <Text style={ciStyles.totalValue}>ر.ع.{calcTaxTotal().toFixed(3)}</Text>
+                  <Text style={ciStyles.totalValue}>{formatCurrency(calcTaxTotal())}</Text>
                 </View>
               )}
               {calcLateFees() > 0 && (
                 <View style={ciStyles.totalRow}>
                   <Text style={[ciStyles.totalLabel, { color: "#F44336" }]}>Late Fees</Text>
-                  <Text style={[ciStyles.totalValue, { color: "#F44336" }]}>ر.ع.{calcLateFees().toFixed(3)}</Text>
+                  <Text style={[ciStyles.totalValue, { color: "#F44336" }]}>{formatCurrency(calcLateFees())}</Text>
                 </View>
               )}
               {calcDamageCharges() > 0 && (
                 <View style={ciStyles.totalRow}>
                   <Text style={[ciStyles.totalLabel, { color: "#F44336" }]}>Damage Charges</Text>
-                  <Text style={[ciStyles.totalValue, { color: "#F44336" }]}>ر.ع.{calcDamageCharges().toFixed(3)}</Text>
+                  <Text style={[ciStyles.totalValue, { color: "#F44336" }]}>{formatCurrency(calcDamageCharges())}</Text>
                 </View>
               )}
               {(parseFloat(form.discount_amount) || 0) > 0 && (
                 <View style={ciStyles.totalRow}>
                   <Text style={[ciStyles.totalLabel, { color: "#4CAF50" }]}>Discount</Text>
-                  <Text style={[ciStyles.totalValue, { color: "#4CAF50" }]}>-ر.ع.{(parseFloat(form.discount_amount) || 0).toFixed(3)}</Text>
+                  <Text style={[ciStyles.totalValue, { color: "#4CAF50" }]}>-{formatCurrency((parseFloat(form.discount_amount) || 0))}</Text>
                 </View>
               )}
               <View style={{ borderTopWidth: 1, borderTopColor: "#ccc", marginVertical: 6 }} />
               <View style={ciStyles.totalRow}>
                 <Text style={[ciStyles.totalLabel, { fontWeight: "700", fontSize: 14 }]}>TOTAL</Text>
-                <Text style={[ciStyles.totalValue, { fontWeight: "700", fontSize: 14 }]}>ر.ع.{calcGrandTotal().toFixed(3)}</Text>
+                <Text style={[ciStyles.totalValue, { fontWeight: "700", fontSize: 14 }]}>{formatCurrency(calcGrandTotal())}</Text>
               </View>
               {(parseFloat(form.advance_amount) || 0) > 0 && !checkinReturnAdvance && (
                 <View style={ciStyles.totalRow}>
                   <Text style={[ciStyles.totalLabel, { color: "#007bff" }]}>Advance Collected (-)</Text>
                   <Text style={[ciStyles.totalValue, { color: "#007bff" }]}>
-                    -ر.ع.{(parseFloat(form.advance_amount) || 0).toFixed(3)}
+                    -{formatCurrency((parseFloat(form.advance_amount) || 0))}
                   </Text>
                 </View>
               )}
@@ -3132,7 +3133,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 <View style={ciStyles.totalRow}>
                   <Text style={[ciStyles.totalLabel, { color: "#999" }]}>Advance (Returned)</Text>
                   <Text style={[ciStyles.totalValue, { color: "#999" }]}>
-                    ر.ع.{(parseFloat(form.advance_amount) || 0).toFixed(3)}
+                    {formatCurrency((parseFloat(form.advance_amount) || 0))}
                   </Text>
                 </View>
               )}
@@ -3140,7 +3141,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               <View style={ciStyles.totalRow}>
                 <Text style={[ciStyles.totalLabel, { fontWeight: "800", fontSize: 15, color: "#2c3e50" }]}>AMOUNT DUE</Text>
                 <Text style={[ciStyles.totalValue, { fontWeight: "800", fontSize: 15, color: "#2c3e50" }]}>
-                  ر.ع.{calcCheckinAmountDue().toFixed(3)}
+                  {formatCurrency(calcCheckinAmountDue())}
                 </Text>
               </View>
             </View>
@@ -3168,7 +3169,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 {/* Cash Received (only for cash payment) */}
                 {form.checkin_payment_method === "cash" && (
                   <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: "#e0e0e0" }}>
-                    <Text style={ciStyles.fieldLabel}>Cash Received (ر.ع.)</Text>
+                    <Text style={ciStyles.fieldLabel}>Cash Received ({getActiveCurrency().symbol || getActiveCurrency().name})</Text>
                     <RNTextInput
                       style={[styles.input, { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: "#f9f9f9" }]}
                       placeholder="0.000"
@@ -3180,7 +3181,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={{ marginTop: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                         <Text style={ciStyles.fieldLabel}>Balance to Return</Text>
                         <Text style={{ fontSize: 16, fontWeight: "700", color: calcCheckinCashBalance() >= 0 ? "#4CAF50" : "#F44336" }}>
-                          ر.ع.{calcCheckinCashBalance().toFixed(3)}
+                          {formatCurrency(calcCheckinCashBalance())}
                         </Text>
                       </View>
                     )}
@@ -3346,7 +3347,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       const base = dl.rental_cost + dl.late_fee + dl.damage_charge;
       const discAmt = calcDiscountLineAmt(dl);
       if (dl.discount_type === "fixed" && val > base) {
-        Alert.alert("Invalid", `Discount (ر.ع.${val.toFixed(3)}) for "${dl.tool_name}" exceeds its total (ر.ع.${base.toFixed(3)}). Discount cannot be more than the original amount.`);
+        Alert.alert("Invalid", `Discount (${formatCurrency(val)}) for "${dl.tool_name}" exceeds its total (${formatCurrency(base)}). Discount cannot be more than the original amount.`);
         return;
       }
       totalDiscount += discAmt;
@@ -3357,7 +3358,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
     }
     const grandBase = discountLines.reduce((s, dl) => s + dl.rental_cost + dl.late_fee + dl.damage_charge, 0);
     if (totalDiscount > grandBase) {
-      Alert.alert("Invalid", `Total discount (ر.ع.${totalDiscount.toFixed(3)}) exceeds the total amount (ر.ع.${grandBase.toFixed(3)}). Discount cannot be more than the original amount.`);
+      Alert.alert("Invalid", `Total discount (${formatCurrency(totalDiscount)}) exceeds the total amount (${formatCurrency(grandBase)}). Discount cannot be more than the original amount.`);
       return;
     }
     // Apply locally and close modal immediately for snappy UI
@@ -3391,7 +3392,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               discount_value: parseFloat(dl.discount_value) || 0,
             });
           }).filter(Boolean));
-          showToastMessage("Discount applied: ر.ع." + totalDiscount.toFixed(3));
+          showToastMessage("Discount applied: " + formatCurrency(totalDiscount));
         } catch (e) {
           console.warn("Failed to save discount data:", e.message);
           showToastMessage("Failed to save discount: " + e.message);
@@ -3483,7 +3484,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
             <Text style={{ fontSize: 18, fontWeight: "700", color: "#1565C0" }}>Apply Tax</Text>
             <View style={{ alignItems: "flex-end" }}>
               <Text style={{ fontSize: 11, color: "#888" }}>Subtotal</Text>
-              <Text style={{ fontSize: 18, fontWeight: "700", color: "#333" }}>ر.ع.{taxLines.reduce((s, tl) => s + tl.rental_cost, 0).toFixed(3)}</Text>
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#333" }}>{formatCurrency(taxLines.reduce((s, tl) => s + tl.rental_cost, 0))}</Text>
             </View>
             <TouchableOpacity onPress={() => setShowTaxModal(false)}>
               <Text style={{ fontSize: 22, color: "#999", fontWeight: "700" }}>X</Text>
@@ -3526,7 +3527,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               </View>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
                 <Text style={{ fontSize: 13, color: "#888" }}>Total Tax</Text>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: "#E65100" }}>ر.ع.{taxLines.reduce((s, tl) => s + tl.tax_amount, 0).toFixed(3)}</Text>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#E65100" }}>{formatCurrency(taxLines.reduce((s, tl) => s + tl.tax_amount, 0))}</Text>
               </View>
             </View>
           )}
@@ -3543,7 +3544,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 <View style={{ flexDirection: "row", gap: 10 }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Rental Cost</Text>
-                    <Text style={{ fontSize: 14, fontWeight: "600" }}>ر.ع.{tl.rental_cost.toFixed(3)}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "600" }}>{formatCurrency(tl.rental_cost)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Tax %</Text>
@@ -3562,11 +3563,11 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Tax Amount</Text>
-                    <Text style={{ fontSize: 14, fontWeight: "600", color: "#E65100" }}>ر.ع.{tl.tax_amount.toFixed(3)}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: "#E65100" }}>{formatCurrency(tl.tax_amount)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Final</Text>
-                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#2E7D32" }}>ر.ع.{(tl.rental_cost + tl.tax_amount).toFixed(3)}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#2E7D32" }}>{formatCurrency((tl.rental_cost + tl.tax_amount))}</Text>
                   </View>
                 </View>
               </View>
@@ -3576,7 +3577,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           {/* Total Summary */}
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#eee" }}>
             <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>Total Tax</Text>
-            <Text style={{ fontSize: 18, fontWeight: "700", color: "#1565C0" }}>ر.ع.{taxLines.reduce((s, tl) => s + tl.tax_amount, 0).toFixed(3)}</Text>
+            <Text style={{ fontSize: 18, fontWeight: "700", color: "#1565C0" }}>{formatCurrency(taxLines.reduce((s, tl) => s + tl.tax_amount, 0))}</Text>
           </View>
 
           {/* Buttons */}
@@ -3711,7 +3712,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
                       <Text style={{ fontSize: 11, color: "#888" }}>Subtotal</Text>
-                      <Text style={{ fontSize: 16, fontWeight: "800", color: "#333" }}>ر.ع.{calcSubtotal().toFixed(3)}</Text>
+                      <Text style={{ fontSize: 16, fontWeight: "800", color: "#333" }}>{formatCurrency(calcSubtotal())}</Text>
                     </View>
                   </View>
                   <TouchableOpacity onPress={() => setDiscountPage(1)} style={{ marginTop: 8 }}>
@@ -3761,7 +3762,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                         onPress={() => handleTotalDiscountChange("type", "fixed")}
                         style={{ flex: 1, paddingVertical: 7, borderRadius: 6, alignItems: "center", backgroundColor: totalDiscountType === "fixed" ? "#FF9800" : "transparent" }}
                       >
-                        <Text style={{ fontSize: 12, fontWeight: "700", color: totalDiscountType === "fixed" ? "#fff" : "#666" }}>Fixed ر.ع.</Text>
+                        <Text style={{ fontSize: 12, fontWeight: "700", color: totalDiscountType === "fixed" ? "#fff" : "#666" }}>Fixed {getActiveCurrency().symbol || getActiveCurrency().name}</Text>
                       </TouchableOpacity>
                     </View>
 
@@ -3769,7 +3770,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
                       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: totalExceeds ? "#F44336" : "#ddd", borderRadius: 8, backgroundColor: totalExceeds ? "#FFF0F0" : "#fafafa" }}>
                         <View style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: totalExceeds ? "#FFCDD2" : "#FFF3E0", borderTopLeftRadius: 7, borderBottomLeftRadius: 7 }}>
-                          <Text style={{ fontSize: 14, fontWeight: "700", color: totalExceeds ? "#F44336" : "#FF9800" }}>{totalDiscountType === "percentage" ? "%" : "ر.ع."}</Text>
+                          <Text style={{ fontSize: 14, fontWeight: "700", color: totalExceeds ? "#F44336" : "#FF9800" }}>{totalDiscountType === "percentage" ? "%" : (getActiveCurrency().symbol || getActiveCurrency().name)}</Text>
                         </View>
                         <RNTextInput
                           placeholder="0"
@@ -3783,13 +3784,13 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <View style={{ marginLeft: 10, alignItems: "flex-end" }}>
                         <Text style={{ fontSize: 11, color: "#888" }}>Total Discount</Text>
                         <Text style={{ fontSize: 15, fontWeight: "700", color: "#F44336" }}>
-                          -ر.ع.{discountLines.reduce((sum, dl) => sum + calcDiscountLineAmt(dl), 0).toFixed(3)}
+                          -{formatCurrency(discountLines.reduce((sum, dl) => sum + calcDiscountLineAmt(dl), 0))}
                         </Text>
                       </View>
                     </View>
                     {totalExceeds && (
                       <Text style={{ fontSize: 11, color: "#F44336", fontWeight: "600", marginTop: 6 }}>
-                        Discount exceeds total amount (ر.ع.{grandBase.toFixed(3)}). Must be less than original amount.
+                        Discount exceeds total amount ({formatCurrency(grandBase)}). Must be less than original amount.
                       </Text>
                     )}
                   </View>
@@ -3815,20 +3816,20 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       </View>
 
                       <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                        <Text style={{ fontSize: 12, color: "#666" }}>Rental: ر.ع.{dl.rental_cost.toFixed(3)}</Text>
-                        {dl.late_fee > 0 && <Text style={{ fontSize: 12, color: "#666" }}>Late: ر.ع.{dl.late_fee.toFixed(3)}</Text>}
-                        {dl.damage_charge > 0 && <Text style={{ fontSize: 12, color: "#666" }}>Damage: ر.ع.{dl.damage_charge.toFixed(3)}</Text>}
-                        <Text style={{ fontSize: 12, fontWeight: "700", color: "#333" }}>Total: ر.ع.{lineTotal.toFixed(3)}</Text>
+                        <Text style={{ fontSize: 12, color: "#666" }}>Rental: {formatCurrency(dl.rental_cost)}</Text>
+                        {dl.late_fee > 0 && <Text style={{ fontSize: 12, color: "#666" }}>Late: {formatCurrency(dl.late_fee)}</Text>}
+                        {dl.damage_charge > 0 && <Text style={{ fontSize: 12, color: "#666" }}>Damage: {formatCurrency(dl.damage_charge)}</Text>}
+                        <Text style={{ fontSize: 12, fontWeight: "700", color: "#333" }}>Total: {formatCurrency(lineTotal)}</Text>
                       </View>
 
                       {isTotalMode ? (
                         /* Total mode: show readonly breakdown per line */
                         <View style={{ flexDirection: "row", justifyContent: "space-between", paddingTop: 6, borderTopWidth: 1, borderTopColor: "#eee" }}>
                           <Text style={{ fontSize: 12, color: "#666" }}>
-                            Discount: {dl.discount_type === "percentage" ? (dl.discount_value || "0") + "%" : "ر.ع." + (parseFloat(dl.discount_value) || 0).toFixed(3)}
+                            Discount: {dl.discount_type === "percentage" ? (dl.discount_value || "0") + "%" : (getActiveCurrency().symbol || getActiveCurrency().name) + (parseFloat(dl.discount_value) || 0).toFixed(3)}
                           </Text>
-                          <Text style={{ fontSize: 13, fontWeight: "700", color: discAmt > 0 ? "#F44336" : "#999" }}>-ر.ع.{discAmt.toFixed(3)}</Text>
-                          <Text style={{ fontSize: 13, fontWeight: "700", color: "#333" }}>Final: ر.ع.{(lineTotal - discAmt).toFixed(3)}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: "700", color: discAmt > 0 ? "#F44336" : "#999" }}>-{formatCurrency(discAmt)}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: "700", color: "#333" }}>Final: {formatCurrency((lineTotal - discAmt))}</Text>
                         </View>
                       ) : (
                         <>
@@ -3844,14 +3845,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                               onPress={() => updateDiscountLine(idx, "discount_type", "fixed")}
                               style={{ flex: 1, paddingVertical: 7, borderRadius: 6, alignItems: "center", backgroundColor: dl.discount_type === "fixed" ? "#FF9800" : "transparent" }}
                             >
-                              <Text style={{ fontSize: 12, fontWeight: "700", color: dl.discount_type === "fixed" ? "#fff" : "#666" }}>Fixed ر.ع.</Text>
+                              <Text style={{ fontSize: 12, fontWeight: "700", color: dl.discount_type === "fixed" ? "#fff" : "#666" }}>Fixed {getActiveCurrency().symbol || getActiveCurrency().name}</Text>
                             </TouchableOpacity>
                           </View>
 
                           <View style={{ flexDirection: "row", alignItems: "center" }}>
                             <View style={{ flex: 1, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: lineExceeds ? "#F44336" : "#ddd", borderRadius: 8, backgroundColor: lineExceeds ? "#FFF0F0" : "#fafafa" }}>
                               <View style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: lineExceeds ? "#FFCDD2" : "#FFF3E0", borderTopLeftRadius: 7, borderBottomLeftRadius: 7 }}>
-                                <Text style={{ fontSize: 14, fontWeight: "700", color: lineExceeds ? "#F44336" : "#FF9800" }}>{dl.discount_type === "percentage" ? "%" : "ر.ع."}</Text>
+                                <Text style={{ fontSize: 14, fontWeight: "700", color: lineExceeds ? "#F44336" : "#FF9800" }}>{dl.discount_type === "percentage" ? "%" : (getActiveCurrency().symbol || getActiveCurrency().name)}</Text>
                               </View>
                               <RNTextInput
                                 placeholder="0"
@@ -3864,13 +3865,13 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                             </View>
                             <View style={{ marginLeft: 10, alignItems: "flex-end" }}>
                               <Text style={{ fontSize: 11, color: "#888" }}>Discount</Text>
-                              <Text style={{ fontSize: 15, fontWeight: "700", color: discAmt > 0 ? "#F44336" : "#999" }}>-ر.ع.{discAmt.toFixed(3)}</Text>
-                              <Text style={{ fontSize: 11, color: "#4CAF50" }}>Final: ر.ع.{(lineTotal - discAmt).toFixed(3)}</Text>
+                              <Text style={{ fontSize: 15, fontWeight: "700", color: discAmt > 0 ? "#F44336" : "#999" }}>-{formatCurrency(discAmt)}</Text>
+                              <Text style={{ fontSize: 11, color: "#4CAF50" }}>Final: {formatCurrency((lineTotal - discAmt))}</Text>
                             </View>
                           </View>
                           {lineExceeds && (
                             <Text style={{ fontSize: 11, color: "#F44336", fontWeight: "600", marginTop: 4 }}>
-                              Discount exceeds total (ر.ع.{lineTotal.toFixed(3)}). Must be less than original amount.
+                              Discount exceeds total ({formatCurrency(lineTotal)}). Must be less than original amount.
                             </Text>
                           )}
                         </>
@@ -3883,7 +3884,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 <View style={{ backgroundColor: "#FFF3E0", padding: 12, borderRadius: 8, flexDirection: "row", justifyContent: "space-between", marginTop: 4, marginBottom: 12 }}>
                   <Text style={{ fontSize: 15, fontWeight: "700", color: "#333" }}>Total Discount</Text>
                   <Text style={{ fontSize: 18, fontWeight: "800", color: "#F44336" }}>
-                    -ر.ع.{discountLines.reduce((sum, dl) => sum + calcDiscountLineAmt(dl), 0).toFixed(3)}
+                    -{formatCurrency(discountLines.reduce((sum, dl) => sum + calcDiscountLineAmt(dl), 0))}
                   </Text>
                 </View>
 
@@ -4165,7 +4166,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               <Text style={styles.sectionCardTitle}>FINANCIALS</Text>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Advance Collected</Text>
-                <Text style={styles.infoValue}>ر.ع.{form.advance_amount || "0.000"}</Text>
+                <Text style={styles.infoValue}>{formatCurrency(form.advance_amount || 0)}</Text>
               </View>
               {form.advance_returned && (
                 <View style={styles.infoRow}>
@@ -4250,7 +4251,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                                   {getFilteredTools(line.tool_name).map((t) => (
                                     <TouchableOpacity key={t.id} style={styles.dropdownItem} onPress={() => selectTool(idx, t)}>
                                       <Text style={styles.dropdownItemName}>{t.name}</Text>
-                                      <Text style={styles.dropdownItemSub}>S/N: {t.serial_number || "-"} {"\u2022"} ر.ع.{t.rental_price_per_day}/day</Text>
+                                      <Text style={styles.dropdownItemSub}>S/N: {t.serial_number || "-"} {"\u2022"} {formatCurrency(t.rental_price_per_day)}/day</Text>
                                     </TouchableOpacity>
                                   ))}
                                 </ScrollView>
@@ -4304,7 +4305,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       {isEditable ? (
                         <TextInput placeholder="0.00" value={line.unit_price && line.unit_price !== "0" && line.unit_price !== "0.00" ? line.unit_price : ""} onChangeText={(t) => updateLine(idx, "unit_price", t)} keyboardType="decimal-pad" column />
                       ) : (
-                        <Text style={styles.lineMetricValue}>ر.ع.{line.unit_price || "0.000"}</Text>
+                        <Text style={styles.lineMetricValue}>{formatCurrency(line.unit_price || 0)}</Text>
                       )}
                     </View>
                     <View style={styles.lineMetric}>
@@ -4339,7 +4340,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     </View>
                     <View style={[styles.lineMetric, { alignItems: "flex-end" }]}>
                       <Text style={styles.lineMetricLabel}>Total</Text>
-                      <Text style={styles.lineTotalText}>ر.ع.{calcLineTotal(line).toFixed(3)}</Text>
+                      <Text style={styles.lineTotalText}>{formatCurrency(calcLineTotal(line))}</Text>
                     </View>
                   </View>
                   {parseFloat(line.tax_amount || 0) > 0 && (
@@ -4352,11 +4353,11 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       </View>
                       <View style={styles.lineMetric}>
                         <Text style={styles.lineMetricLabel}>Tax Amount</Text>
-                        <Text style={[styles.lineMetricValue, { color: "#E65100", fontWeight: "700" }]}>ر.ع.{parseFloat(line.tax_amount).toFixed(3)}</Text>
+                        <Text style={[styles.lineMetricValue, { color: "#E65100", fontWeight: "700" }]}>{formatCurrency(parseFloat(line.tax_amount))}</Text>
                       </View>
                       <View style={[styles.lineMetric, { alignItems: "flex-end" }]}>
                         <Text style={[styles.lineMetricLabel, { textAlign: "right" }]}>Before Tax</Text>
-                        <Text style={[styles.lineMetricValue, { textAlign: "right" }]}>ر.ع.{(parseFloat(line.price_before_tax) || calcLineTotal(line)).toFixed(3)}</Text>
+                        <Text style={[styles.lineMetricValue, { textAlign: "right" }]}>{formatCurrency((parseFloat(line.price_before_tax) || calcLineTotal(line)))}</Text>
                       </View>
                     </View>
                   )}
@@ -4365,7 +4366,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       {parseFloat(line.late_fee_amount || 0) > 0 && (
                         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
                           <Text style={{ fontSize: 12, color: "#E65100" }}>Late Fee ({line.extra_days || 0} extra days)</Text>
-                          <Text style={{ fontSize: 12, fontWeight: "600", color: "#E65100" }}>ر.ع.{parseFloat(line.late_fee_amount).toFixed(3)}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: "600", color: "#E65100" }}>{formatCurrency(parseFloat(line.late_fee_amount))}</Text>
                         </View>
                       )}
                       {parseFloat(line.damage_charge || 0) > 0 && (
@@ -4374,7 +4375,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                             <Text style={{ fontSize: 12, color: "#D32F2F" }}>Damage Charge</Text>
                             {line.damage_note ? <Text style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>{line.damage_note}</Text> : null}
                           </View>
-                          <Text style={{ fontSize: 12, fontWeight: "600", color: "#D32F2F" }}>ر.ع.{parseFloat(line.damage_charge).toFixed(3)}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: "600", color: "#D32F2F" }}>{formatCurrency(parseFloat(line.damage_charge))}</Text>
                         </View>
                       )}
                     </View>
@@ -4410,35 +4411,35 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                 <View style={styles.lineTotals}>
                   <View style={styles.lineTotalRow}>
                     <Text style={styles.lineTotalLabel}>Subtotal</Text>
-                    <Text style={styles.lineTotalValue}>ر.ع.{calcSubtotal().toFixed(3)}</Text>
+                    <Text style={styles.lineTotalValue}>{formatCurrency(calcSubtotal())}</Text>
                   </View>
                   {calcTaxTotal() > 0 && (
                     <View style={styles.lineTotalRow}>
                       <Text style={styles.lineTotalLabel}>Tax</Text>
-                      <Text style={styles.lineTotalValue}>ر.ع.{calcTaxTotal().toFixed(3)}</Text>
+                      <Text style={styles.lineTotalValue}>{formatCurrency(calcTaxTotal())}</Text>
                     </View>
                   )}
                   {calcLateFees() > 0 && (
                     <View style={styles.lineTotalRow}>
                       <Text style={[styles.lineTotalLabel, { color: "#F44336" }]}>Late Fees</Text>
-                      <Text style={[styles.lineTotalValue, { color: "#F44336", fontWeight: "700" }]}>ر.ع.{calcLateFees().toFixed(3)}</Text>
+                      <Text style={[styles.lineTotalValue, { color: "#F44336", fontWeight: "700" }]}>{formatCurrency(calcLateFees())}</Text>
                     </View>
                   )}
                   {calcDamageCharges() > 0 && (
                     <View style={styles.lineTotalRow}>
                       <Text style={[styles.lineTotalLabel, { color: "#F44336" }]}>Damage Charges</Text>
-                      <Text style={[styles.lineTotalValue, { color: "#F44336", fontWeight: "700" }]}>ر.ع.{calcDamageCharges().toFixed(3)}</Text>
+                      <Text style={[styles.lineTotalValue, { color: "#F44336", fontWeight: "700" }]}>{formatCurrency(calcDamageCharges())}</Text>
                     </View>
                   )}
                   {parseFloat(form.discount_amount) > 0 && (
                     <View style={styles.lineTotalRow}>
                       <Text style={[styles.lineTotalLabel, { color: "#4CAF50" }]}>Discount</Text>
-                      <Text style={[styles.lineTotalValue, { color: "#4CAF50", fontWeight: "700" }]}>-ر.ع.{parseFloat(form.discount_amount).toFixed(3)}</Text>
+                      <Text style={[styles.lineTotalValue, { color: "#4CAF50", fontWeight: "700" }]}>-{formatCurrency(parseFloat(form.discount_amount))}</Text>
                     </View>
                   )}
                   <View style={[styles.lineTotalRow, styles.grandTotalRow, { borderTopWidth: 1, borderTopColor: "#ccc", marginTop: 6, paddingTop: 6 }]}>
                     <Text style={styles.grandTotalLabel}>Total</Text>
-                    <Text style={styles.grandTotalValue}>ر.ع.{calcGrandTotal().toFixed(3)}</Text>
+                    <Text style={styles.grandTotalValue}>{formatCurrency(calcGrandTotal())}</Text>
                   </View>
                   {form.payment_method ? (
                     <View style={styles.lineTotalRow}>
@@ -4450,11 +4451,11 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     <>
                       <View style={styles.lineTotalRow}>
                         <Text style={styles.lineTotalLabel}>Cash Received (Checkout)</Text>
-                        <Text style={styles.lineTotalValue}>ر.ع.{parseFloat(form.cash_received).toFixed(3)}</Text>
+                        <Text style={styles.lineTotalValue}>{formatCurrency(parseFloat(form.cash_received))}</Text>
                       </View>
                       <View style={styles.lineTotalRow}>
                         <Text style={styles.lineTotalLabel}>Balance Returned (Checkout)</Text>
-                        <Text style={[styles.lineTotalValue, { color: "#4CAF50" }]}>ر.ع.{calcCashBalance().toFixed(3)}</Text>
+                        <Text style={[styles.lineTotalValue, { color: "#4CAF50" }]}>{formatCurrency(calcCashBalance())}</Text>
                       </View>
                     </>
                   ) : null}
@@ -4468,11 +4469,11 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                     <>
                       <View style={styles.lineTotalRow}>
                         <Text style={styles.lineTotalLabel}>Cash Received (Check-In)</Text>
-                        <Text style={styles.lineTotalValue}>ر.ع.{parseFloat(form.checkin_cash_received).toFixed(3)}</Text>
+                        <Text style={styles.lineTotalValue}>{formatCurrency(parseFloat(form.checkin_cash_received))}</Text>
                       </View>
                       <View style={styles.lineTotalRow}>
                         <Text style={styles.lineTotalLabel}>Balance Returned (Check-In)</Text>
-                        <Text style={[styles.lineTotalValue, { color: "#4CAF50" }]}>ر.ع.{calcCheckinCashBalance().toFixed(3)}</Text>
+                        <Text style={[styles.lineTotalValue, { color: "#4CAF50" }]}>{formatCurrency(calcCheckinCashBalance())}</Text>
                       </View>
                     </>
                   ) : null}
@@ -4482,14 +4483,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                         Advance Collected{form.advance_returned ? " (Returned)" : " (-)"}
                       </Text>
                       <Text style={[styles.lineTotalValue, { color: form.advance_returned ? "#999" : "#4CAF50" }]}>
-                        {form.advance_returned ? "" : "-"}ر.ع.{parseFloat(form.advance_amount).toFixed(3)}
+                        {form.advance_returned ? "" : "-"}{formatCurrency(parseFloat(form.advance_amount))}
                       </Text>
                     </View>
                   )}
                   {parseFloat(form.advance_amount) > 0 && !form.advance_returned && (
                     <View style={[styles.lineTotalRow, { borderTopWidth: 2, borderTopColor: "#333", marginTop: 6, paddingTop: 6 }]}>
                       <Text style={[styles.grandTotalLabel, { color: "#2c3e50" }]}>Amount Due</Text>
-                      <Text style={[styles.grandTotalValue, { color: "#2c3e50" }]}>ر.ع.{calcTotal().toFixed(3)}</Text>
+                      <Text style={[styles.grandTotalValue, { color: "#2c3e50" }]}>{formatCurrency(calcTotal())}</Text>
                     </View>
                   )}
                 </View>
@@ -4605,9 +4606,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
               {/* Totals */}
               {(calcLateFees() > 0 || calcDamageCharges() > 0 || parseFloat(form.discount_amount) > 0) && (
                 <View style={{ backgroundColor: "#FFF8E1", padding: 12, borderRadius: 8, marginBottom: 12 }}>
-                  {calcLateFees() > 0 && <View style={{ flexDirection: "row", justifyContent: "space-between" }}><Text style={{ color: "#666" }}>Total Late Fees</Text><Text style={{ fontWeight: "700", color: "#E65100" }}>ر.ع.{calcLateFees().toFixed(3)}</Text></View>}
-                  {calcDamageCharges() > 0 && <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}><Text style={{ color: "#666" }}>Total Damage Charges</Text><Text style={{ fontWeight: "700", color: "#C62828" }}>ر.ع.{calcDamageCharges().toFixed(3)}</Text></View>}
-                  {parseFloat(form.discount_amount) > 0 && <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}><Text style={{ color: "#666" }}>Total Discount</Text><Text style={{ fontWeight: "700", color: "#4CAF50" }}>-ر.ع.{parseFloat(form.discount_amount).toFixed(3)}</Text></View>}
+                  {calcLateFees() > 0 && <View style={{ flexDirection: "row", justifyContent: "space-between" }}><Text style={{ color: "#666" }}>Total Late Fees</Text><Text style={{ fontWeight: "700", color: "#E65100" }}>{formatCurrency(calcLateFees())}</Text></View>}
+                  {calcDamageCharges() > 0 && <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}><Text style={{ color: "#666" }}>Total Damage Charges</Text><Text style={{ fontWeight: "700", color: "#C62828" }}>{formatCurrency(calcDamageCharges())}</Text></View>}
+                  {parseFloat(form.discount_amount) > 0 && <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}><Text style={{ color: "#666" }}>Total Discount</Text><Text style={{ fontWeight: "700", color: "#4CAF50" }}>-{formatCurrency(parseFloat(form.discount_amount))}</Text></View>}
                 </View>
               )}
 
@@ -4654,7 +4655,7 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                   </View>
                   <View style={styles.colHalf}>
                     <Text style={styles.detailSmallLabel}>Total Discount</Text>
-                    <Text style={[styles.detailSmallValue, { color: "#F44336", fontWeight: "800" }]}>-ر.ع.{parseFloat(form.discount_amount).toFixed(3)}</Text>
+                    <Text style={[styles.detailSmallValue, { color: "#F44336", fontWeight: "800" }]}>-{formatCurrency(parseFloat(form.discount_amount))}</Text>
                   </View>
                 </View>
                 <DetailItem label="Authorization Date" value={discountAuthSignatureTime ? new Date(discountAuthSignatureTime).toLocaleString() : (form.discount_auth_signature_time ? new Date(form.discount_auth_signature_time).toLocaleString() : '')} />
@@ -4705,14 +4706,14 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
                       <Text style={{ fontSize: 12, color: "#888" }}>S/N: {line.serial_number || "-"}</Text>
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
-                      <Text style={{ fontSize: 12, color: "#666" }}>Rental: ر.ع.{rentalCost.toFixed(3)}</Text>
-                      {lateFee > 0 && <Text style={{ fontSize: 12, color: "#E65100" }}>Late: ر.ع.{lateFee.toFixed(3)}</Text>}
-                      {dmgCharge > 0 && <Text style={{ fontSize: 12, color: "#C62828" }}>Damage: ر.ع.{dmgCharge.toFixed(3)}</Text>}
+                      <Text style={{ fontSize: 12, color: "#666" }}>Rental: {formatCurrency(rentalCost)}</Text>
+                      {lateFee > 0 && <Text style={{ fontSize: 12, color: "#E65100" }}>Late: {formatCurrency(lateFee)}</Text>}
+                      {dmgCharge > 0 && <Text style={{ fontSize: 12, color: "#C62828" }}>Damage: {formatCurrency(dmgCharge)}</Text>}
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: "#eee" }}>
-                      <Text style={{ fontSize: 12, color: "#666" }}>Discount: {dType === "percentage" ? dVal + "%" : "ر.ع." + dVal.toFixed(3)}</Text>
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: dAmt > 0 ? "#4CAF50" : "#999" }}>-ر.ع.{dAmt.toFixed(3)}</Text>
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: "#333" }}>Final: ر.ع.{(lineTotal - dAmt).toFixed(3)}</Text>
+                      <Text style={{ fontSize: 12, color: "#666" }}>Discount: {dType === "percentage" ? dVal + "%" : (getActiveCurrency().symbol || getActiveCurrency().name) + dVal.toFixed(3)}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: dAmt > 0 ? "#4CAF50" : "#999" }}>-{formatCurrency(dAmt)}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: "#333" }}>Final: {formatCurrency((lineTotal - dAmt))}</Text>
                     </View>
                   </View>
                 );

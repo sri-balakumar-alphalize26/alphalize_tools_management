@@ -18,6 +18,7 @@ import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
 import { fetchOrderImages } from "@api/services/odooService";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 
 const STATE_CONFIG = {
   draft: { label: "Draft", color: "#9E9E9E" },
@@ -235,7 +236,7 @@ const DiscountDetail = ({ order, navigation }) => {
             </View>
           ) : null}
           <DetailRow label="Order" value={order.name} />
-          <DetailRow label="Total Discount" value={`ر.ع.${parseFloat(order.discount_amount || 0).toFixed(3)}`} valueColor="#F44336" />
+          <DetailRow label="Total Discount" value={`${formatCurrency(parseFloat(order.discount_amount || 0))}`} valueColor="#F44336" />
         </View>
 
         {/* Authorizer Photo */}
@@ -305,7 +306,7 @@ const DiscountDetail = ({ order, navigation }) => {
             const discVal = line.discount_type === "percentage"
               ? `${parseFloat(line.discount_value || 0).toFixed(1)}%`
               : line.discount_type === "fixed"
-                ? `ر.ع.${parseFloat(line.discount_value || 0).toFixed(3)}`
+                ? `${formatCurrency(parseFloat(line.discount_value || 0))}`
                 : "-";
 
             return (
@@ -313,15 +314,15 @@ const DiscountDetail = ({ order, navigation }) => {
                 <Text style={[detailStyles.toolCell, { width: 22 }]}>{idx + 1}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 1.5 }]} numberOfLines={1}>{line.tool_name || "-"}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 1 }]}>{line.serial_number || "-"}</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.9 }]}>ر.ع.{rentalCost.toFixed(3)}</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>ر.ع.{lateFee.toFixed(3)}</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>ر.ع.{damage.toFixed(3)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.9 }]}>{formatCurrency(rentalCost)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>{formatCurrency(lateFee)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>{formatCurrency(damage)}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 0.8 }]}>{discType}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>{discVal}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 0.8, color: discAmt > 0 ? "#4CAF50" : "#333" }]}>
-                  {discAmt > 0 ? `- ر.ع.${discAmt.toFixed(3)}` : "-"}
+                  {discAmt > 0 ? `- ${formatCurrency(discAmt)}` : "-"}
                 </Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.9, fontWeight: "600" }]}>ر.ع.{finalAmt.toFixed(3)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.9, fontWeight: "600" }]}>{formatCurrency(finalAmt)}</Text>
               </View>
             );
           })}
@@ -612,13 +613,13 @@ const DiscountDetailsScreen = ({ navigation }) => {
           <View style={styles.vLineData} />
           <Text style={[styles.cell, { flex: 1 }]}>{formatDate(item.date_order)}</Text>
           <View style={styles.vLineData} />
-          <Text style={[styles.cell, { flex: 0.9 }]}>ر.ع.{subtotal.toFixed(3)}</Text>
+          <Text style={[styles.cell, { flex: 0.9 }]}>{formatCurrency(subtotal)}</Text>
           <View style={styles.vLineData} />
           <View style={{ flex: 0.9, alignItems: "center", justifyContent: "center", backgroundColor: "#E8F5E9", borderRadius: 4, marginHorizontal: 1 }}>
-            <Text style={[styles.cell, { color: "#4CAF50", fontWeight: "600" }]}>- ر.ع.{discount.toFixed(3)}</Text>
+            <Text style={[styles.cell, { color: "#4CAF50", fontWeight: "600" }]}>- {formatCurrency(discount)}</Text>
           </View>
           <View style={styles.vLineData} />
-          <Text style={[styles.cell, { flex: 1, fontWeight: "600", color: "#333" }]}>ر.ع.{finalAmount.toFixed(3)}</Text>
+          <Text style={[styles.cell, { flex: 1, fontWeight: "600", color: "#333" }]}>{formatCurrency(finalAmount)}</Text>
           <View style={styles.vLineData} />
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
             <View style={[styles.statusBadge, { backgroundColor: stateInfo.color }]}>
@@ -650,15 +651,15 @@ const DiscountDetailsScreen = ({ navigation }) => {
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#FF9800" }]}>
             <Text style={styles.summaryLabel}>TOTAL DISCOUNT GIVEN</Text>
-            <Text style={[styles.summaryNumber, { color: "#FF9800" }]}>ر.ع.{summary.totalDiscount.toFixed(3)}</Text>
+            <Text style={[styles.summaryNumber, { color: "#FF9800" }]}>{formatCurrency(summary.totalDiscount)}</Text>
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#2196F3" }]}>
             <Text style={styles.summaryLabel}>AVG. DISCOUNT/ORDER</Text>
-            <Text style={[styles.summaryNumber, { color: "#2196F3" }]}>ر.ع.{summary.avgDiscount.toFixed(3)}</Text>
+            <Text style={[styles.summaryNumber, { color: "#2196F3" }]}>{formatCurrency(summary.avgDiscount)}</Text>
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#F44336" }]}>
             <Text style={styles.summaryLabel}>REVENUE AFTER DISCOUNT</Text>
-            <Text style={[styles.summaryNumber, { color: "#F44336" }]}>ر.ع.{summary.revenueAfterDiscount.toFixed(3)}</Text>
+            <Text style={[styles.summaryNumber, { color: "#F44336" }]}>{formatCurrency(summary.revenueAfterDiscount)}</Text>
           </View>
         </View>
 

@@ -4,8 +4,10 @@ import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Text from "@components/Text";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
-import useAuthStore from "@stores/auth/useAuthStore";
+import { useAuthStore } from "@stores/auth";
 import { setOdooUrl } from "@api/config/odooConfig";
+import { setActiveCurrency, setActiveDigits } from "@utils/currency";
+import { refreshCurrencyFromStorage } from "@api/services/currencyApi";
 
 const SplashScreen = () => {
   const navigation = useNavigation();
@@ -14,10 +16,30 @@ const SplashScreen = () => {
     let cancelled = false;
 
     const boot = async () => {
+      // Hydrate currency + decimal accuracy from AsyncStorage so the first
+      // paint of AppNavigator / LoginScreen already shows the right symbol.
+      try {
+        const pairs = await AsyncStorage.multiGet(["currencyConfig", "decimalAccuracy"]);
+        if (pairs[0][1]) {
+          const cfg = JSON.parse(pairs[0][1]);
+          if (cfg && typeof cfg === "object") {
+            setActiveCurrency(cfg);
+            useAuthStore.getState().setCurrency(cfg);
+          }
+        }
+        if (pairs[1][1]) {
+          const digits = JSON.parse(pairs[1][1]);
+          if (digits && typeof digits === "object") {
+            setActiveDigits(digits);
+            useAuthStore.getState().setDecimalAccuracy(digits);
+          }
+        }
+      } catch (_) {}
+
+      // Device-config gate
       let deviceServerUrl = null;
       let deviceDbName = null;
       let deviceRegistered = null;
-
       try {
         const pairs = await AsyncStorage.multiGet([
           "device_uuid",
@@ -40,6 +62,28 @@ const SplashScreen = () => {
       try { setOdooUrl(deviceServerUrl); } catch (_) {}
 
       const isLoggedIn = useAuthStore.getState().isLoggedIn;
+
+      // If logged in, force a fresh currency fetch from Odoo BEFORE
+      // navigating. Bounded by 6s so a slow/dead server can't strand the
+      // user on Splash. On success, push to both the Zustand store and the
+      // module-level cache so the first paint uses the latest.
+      if (isLoggedIn) {
+        try {
+          const fresh = await Promise.race([
+            refreshCurrencyFromStorage(),
+            new Promise((resolve) => setTimeout(() => resolve(null), 6000)),
+          ]);
+          if (fresh && !cancelled) {
+            if (fresh.symbol || fresh.name) {
+              useAuthStore.getState().setCurrency(fresh);
+            }
+            if (fresh._digitsMap) {
+              useAuthStore.getState().setDecimalAccuracy(fresh._digitsMap);
+            }
+          }
+        } catch (_) {}
+      }
+
       if (cancelled) return;
 
       if (isLoggedIn) {

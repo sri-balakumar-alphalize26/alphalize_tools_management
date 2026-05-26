@@ -15,6 +15,7 @@ import NavigationHeader from "@components/Header/NavigationHeader";
 import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 
 const PERIOD_LABELS = {
   day: "Day",
@@ -214,9 +215,9 @@ const PricingScreen = ({ navigation }) => {
           </Text>
         </View>
       </View>
-      <Text style={styles.cellPrice}>ر.ع.{item.price?.toFixed(3)}</Text>
+      <Text style={styles.cellPrice}>{formatCurrency(item.price)}</Text>
       <Text style={styles.cellLateFee}>
-        {item.late_fee_per_day > 0 ? `ر.ع.${item.late_fee_per_day.toFixed(3)}` : "—"}
+        {item.late_fee_per_day > 0 ? `${formatCurrency(item.late_fee_per_day)}` : "—"}
       </Text>
     </TouchableOpacity>
   );

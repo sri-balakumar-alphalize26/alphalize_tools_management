@@ -15,6 +15,7 @@ import NavigationHeader from "@components/Header/NavigationHeader";
 import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 
 const STATE_CONFIG = {
   draft: { label: "Draft", color: "#9E9E9E" },
@@ -156,14 +157,14 @@ const OrderDetail = ({ order, navigation }) => {
         {/* Financial Summary */}
         <View style={[detailStyles.infoCard, { borderLeftColor: "#4CAF50" }]}>
           <Text style={detailStyles.infoTitle}>Financial Summary</Text>
-          <DetailRow label="Subtotal" value={`ر.ع.${(order.subtotal || 0).toFixed(3)}`} />
+          <DetailRow label="Subtotal" value={`${formatCurrency((order.subtotal || 0))}`} />
           <View style={detailStyles.detailRow}>
             <Text style={[detailStyles.detailLabel, { fontWeight: "700", fontSize: 13 }]}>Total:</Text>
             <Text style={[detailStyles.detailValue, { fontWeight: "700", fontSize: 13, color: "#714B67" }]}>
-              ر.ع.{(order.total_amount || 0).toFixed(3)}
+              {formatCurrency((order.total_amount || 0))}
             </Text>
           </View>
-          <DetailRow label="Advance" value={`ر.ع.${parseFloat(order.advance_amount || 0).toFixed(3)}`} />
+          <DetailRow label="Advance" value={`${formatCurrency(parseFloat(order.advance_amount || 0))}`} />
           <DetailRow label="Responsible" value={order.responsible || "Admin"} />
         </View>
       </View>
@@ -203,11 +204,11 @@ const OrderDetail = ({ order, navigation }) => {
                 <Text style={[detailStyles.toolCell, { flex: 1 }]}>{line.serial_number || "-"}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 1, color: condColor(outCond) }]}>{outCond}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 1, color: condColor(inCond) }]}>{inCond}</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.8 }]}>ر.ع.{parseFloat(line.unit_price || 0).toFixed(3)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.8 }]}>{formatCurrency(parseFloat(line.unit_price || 0))}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>{line.planned_duration || "-"} Days</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.9 }]}>ر.ع.{(line.rental_cost || 0).toFixed(3)}</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>ر.ع.{parseFloat(line.late_fee_amount || 0).toFixed(3)}</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>ر.ع.{parseFloat(line.damage_charge || 0).toFixed(3)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.9 }]}>{formatCurrency((line.rental_cost || 0))}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>{formatCurrency(parseFloat(line.late_fee_amount || 0))}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.7 }]}>{formatCurrency(parseFloat(line.damage_charge || 0))}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 1 }]} numberOfLines={1}>{line.damage_note || "-"}</Text>
               </View>
             );
@@ -465,7 +466,7 @@ const OrderReportsScreen = ({ navigation }) => {
           </View>
           <View style={styles.vLineData} />
           <Text style={[styles.cell, { flex: 1, fontWeight: "600", color: "#333" }]}>
-            ر.ع.{(item.total_amount || 0).toFixed(3)}
+            {formatCurrency((item.total_amount || 0))}
           </Text>
           <View style={styles.vLineData} />
           <View style={{ width: 28, alignItems: "center", justifyContent: "center" }}>
@@ -496,7 +497,7 @@ const OrderReportsScreen = ({ navigation }) => {
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#4CAF50" }]}>
             <Text style={styles.summaryLabel}>TOTAL REVENUE</Text>
-            <Text style={[styles.summaryNumber, { color: "#4CAF50" }]}>ر.ع.{summary.totalRevenue.toFixed(3)}</Text>
+            <Text style={[styles.summaryNumber, { color: "#4CAF50" }]}>{formatCurrency(summary.totalRevenue)}</Text>
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#F44336" }]}>
             <Text style={styles.summaryLabel}>LATE RETURNS</Text>

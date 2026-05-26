@@ -23,6 +23,7 @@ import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
 import { updateCustomer } from "@api/services/odooService";
 import { isEmail, isPhone, getPhoneLength, getEmailSuggestion } from "@utils/validation/validation";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 
 const COUNTRY_CODES = [
   { code: "+93", name: "Afghanistan" }, { code: "+355", name: "Albania" }, { code: "+213", name: "Algeria" },
@@ -365,7 +366,7 @@ const CustomersScreen = ({ navigation, route }) => {
           <Text style={styles.rentalLabel}>Rentals</Text>
           {item.total_revenue > 0 && (
             <Text style={styles.revenueText}>
-              ر.ع.{parseFloat(item.total_revenue).toFixed(3)}
+              {formatCurrency(parseFloat(item.total_revenue))}
             </Text>
           )}
         </View>

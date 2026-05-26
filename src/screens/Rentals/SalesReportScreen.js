@@ -22,6 +22,7 @@ import { showToastMessage } from "@components/Toast";
 import { COLORS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { formatCurrency } from "@utils/currency";
 
 // ── Period bounds helper ─────────────────────────────────────────────
 const periodBounds = (period, customFrom, customTo) => {
@@ -154,7 +155,7 @@ const SalesReportScreen = ({ navigation }) => {
     }, [odooAuth])
   );
 
-  const formatMoney = (val) => "ر.ع." + (parseFloat(val) || 0).toFixed(2);
+  const formatMoney = (val) => formatCurrency(val);
   const formatNumber = (val) => String(Math.round(parseFloat(val) || 0));
 
   // ── Aggregation ────────────────────────────────────────────────────

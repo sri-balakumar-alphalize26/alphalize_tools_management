@@ -19,6 +19,7 @@ import { showToastMessage } from "@components/Toast";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
 import { fetchExpenseById, fetchInternalUsers, fetchAccounts, fetchExpenseCategories } from "@api/services/odooService";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 
 // Categories are now fetched from rental.expense.category (no longer hardcoded).
 // The CATEGORY_LABELS fallback is only used if old legacy Selection values appear.
@@ -788,8 +789,8 @@ const ExpenseFormScreen = ({ navigation, route }) => {
           <View style={styles.totalCard}>
             <Text style={styles.totalLabel}>Total Amount</Text>
             <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-              <Text style={styles.totalValue}>{totalAmount.toFixed(3)}</Text>
-              <Text style={styles.totalCurrency}>OMR</Text>
+              <Text style={styles.totalValue}>{formatCurrency(totalAmount)}</Text>
+              <Text style={styles.totalCurrency}>{getActiveCurrency().name || ""}</Text>
             </View>
           </View>
 
@@ -802,7 +803,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
               </View>
             ) : null}
             <Text style={styles.taxAmount}>
-              {parseFloat(includedTaxes || 0).toFixed(3)} OMR
+              {formatCurrency(includedTaxes || 0)}
             </Text>
           </View>
 
@@ -1020,7 +1021,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
               </Text>
               <Text style={styles.splitInfo}>
                 Current total: <Text style={{ fontWeight: "800", color: "#714B67" }}>
-                  ر.ع.{totalAmount.toFixed(3)}
+                  {formatCurrency(totalAmount)}
                 </Text>
               </Text>
               <TextInput
@@ -1033,8 +1034,7 @@ const ExpenseFormScreen = ({ navigation, route }) => {
                 placeholderTextColor="#999"
               />
               <Text style={styles.splitPreview}>
-                Each part will be ≈ ر.ع.
-                {((totalAmount || 0) / (parseInt(splitParts, 10) || 2)).toFixed(3)}
+                Each part will be ≈ {formatCurrency((totalAmount || 0) / (parseInt(splitParts, 10) || 2))}
               </Text>
               <View style={styles.splitBtnRow}>
                 <TouchableOpacity

@@ -15,6 +15,7 @@ import NavigationHeader from "@components/Header/NavigationHeader";
 import { showToastMessage } from "@components/Toast";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { formatCurrency } from "@utils/currency";
 
 const STATE_LABELS = {
   draft: "Draft",
@@ -74,7 +75,7 @@ const periodBounds = (period) => {
   }
 };
 
-const formatMoney = (val) => "ر.ع." + (parseFloat(val) || 0).toFixed(3);
+const formatMoney = (val) => formatCurrency(val);
 
 const ExpensesScreen = ({ navigation }) => {
   const odooAuth = useAuthStore((s) => s.odooAuth);

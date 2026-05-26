@@ -15,6 +15,7 @@ import NavigationHeader from "@components/Header/NavigationHeader";
 import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 
 const STATES = [
   { label: "All", value: "all" },
@@ -144,7 +145,7 @@ const ToolsScreen = ({ navigation, route }) => {
         <View style={styles.priceRow}>
           {parseFloat(item.rental_price_per_day) > 0 ? (
             <Text style={styles.priceText}>
-              ر.ع.{parseFloat(item.rental_price_per_day).toFixed(3)}
+              {formatCurrency(parseFloat(item.rental_price_per_day))}
               <Text style={styles.perDay}>/day</Text>
             </Text>
           ) : (
@@ -154,7 +155,7 @@ const ToolsScreen = ({ navigation, route }) => {
 
         {parseFloat(item.late_fee_per_day) > 0 && (
           <Text style={styles.lateFeeText}>
-            Late: ر.ع.{parseFloat(item.late_fee_per_day).toFixed(3)}/day
+            Late: {formatCurrency(parseFloat(item.late_fee_per_day))}/day
           </Text>
         )}
       </View>

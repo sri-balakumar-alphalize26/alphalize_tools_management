@@ -15,6 +15,7 @@ import NavigationHeader from "@components/Header/NavigationHeader";
 import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 
 const STATE_CONFIG = {
   draft: { label: "Draft", color: "#9E9E9E" },
@@ -110,9 +111,9 @@ const TaxDetail = ({ order, navigation }) => {
               </View>
             </View>
           ) : null}
-          <DetailRow label="Total Tax" value={`ر.ع.${computedTotalTax.toFixed(3)}`} valueColor="#E65100" />
-          <DetailRow label="Subtotal" value={`ر.ع.${computedSubtotal.toFixed(3)}`} />
-          <DetailRow label="Total Amount" value={`ر.ع.${computedTotalAmount.toFixed(3)}`} valueColor="#2E7D32" />
+          <DetailRow label="Total Tax" value={`${formatCurrency(computedTotalTax)}`} valueColor="#E65100" />
+          <DetailRow label="Subtotal" value={`${formatCurrency(computedSubtotal)}`} />
+          <DetailRow label="Total Amount" value={`${formatCurrency(computedTotalAmount)}`} valueColor="#2E7D32" />
         </View>
       </View>
 
@@ -140,10 +141,10 @@ const TaxDetail = ({ order, navigation }) => {
                 <Text style={[detailStyles.toolCell, { width: 22 }]}>{idx + 1}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 1.5 }]} numberOfLines={1}>{line.tool_name || "-"}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 1 }]}>{line.serial_number || "-"}</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.9 }]}>ر.ع.{rentalCost.toFixed(3)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.9 }]}>{formatCurrency(rentalCost)}</Text>
                 <Text style={[detailStyles.toolCell, { flex: 0.7, color: "#1565C0", fontWeight: "600" }]}>{taxPct.toFixed(1)}%</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.8, color: "#E65100", fontWeight: "600" }]}>ر.ع.{taxAmt.toFixed(3)}</Text>
-                <Text style={[detailStyles.toolCell, { flex: 0.9, fontWeight: "600" }]}>ر.ع.{finalAmt.toFixed(3)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.8, color: "#E65100", fontWeight: "600" }]}>{formatCurrency(taxAmt)}</Text>
+                <Text style={[detailStyles.toolCell, { flex: 0.9, fontWeight: "600" }]}>{formatCurrency(finalAmt)}</Text>
               </View>
             );
           })}
@@ -300,13 +301,13 @@ const TaxDetailsScreen = ({ navigation }) => {
           <View style={styles.vLineData} />
           <Text style={[styles.cell, { flex: 1 }]}>{formatDate(item.date_order)}</Text>
           <View style={styles.vLineData} />
-          <Text style={[styles.cell, { flex: 0.9 }]}>ر.ع.{subtotal.toFixed(3)}</Text>
+          <Text style={[styles.cell, { flex: 0.9 }]}>{formatCurrency(subtotal)}</Text>
           <View style={styles.vLineData} />
           <View style={{ flex: 0.9, alignItems: "center", justifyContent: "center", backgroundColor: "#E3F2FD", borderRadius: 4, marginHorizontal: 1 }}>
-            <Text style={[styles.cell, { color: "#E65100", fontWeight: "600" }]}>+ ر.ع.{taxTotal.toFixed(3)}</Text>
+            <Text style={[styles.cell, { color: "#E65100", fontWeight: "600" }]}>+ {formatCurrency(taxTotal)}</Text>
           </View>
           <View style={styles.vLineData} />
-          <Text style={[styles.cell, { flex: 1, fontWeight: "600", color: "#333" }]}>ر.ع.{totalAmount.toFixed(3)}</Text>
+          <Text style={[styles.cell, { flex: 1, fontWeight: "600", color: "#333" }]}>{formatCurrency(totalAmount)}</Text>
           <View style={styles.vLineData} />
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
             <View style={[styles.statusBadge, { backgroundColor: stateInfo.color }]}>
@@ -336,15 +337,15 @@ const TaxDetailsScreen = ({ navigation }) => {
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#E65100" }]}>
             <Text style={styles.summaryLabel}>TOTAL TAX COLLECTED</Text>
-            <Text style={[styles.summaryNumber, { color: "#E65100" }]}>ر.ع.{summary.totalTax.toFixed(3)}</Text>
+            <Text style={[styles.summaryNumber, { color: "#E65100" }]}>{formatCurrency(summary.totalTax)}</Text>
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#2196F3" }]}>
             <Text style={styles.summaryLabel}>AVG. TAX/ORDER</Text>
-            <Text style={[styles.summaryNumber, { color: "#2196F3" }]}>ر.ع.{summary.avgTax.toFixed(3)}</Text>
+            <Text style={[styles.summaryNumber, { color: "#2196F3" }]}>{formatCurrency(summary.avgTax)}</Text>
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#28a745" }]}>
             <Text style={styles.summaryLabel}>TOTAL REVENUE (INCL. TAX)</Text>
-            <Text style={[styles.summaryNumber, { color: "#28a745" }]}>ر.ع.{summary.totalRevenue.toFixed(3)}</Text>
+            <Text style={[styles.summaryNumber, { color: "#28a745" }]}>{formatCurrency(summary.totalRevenue)}</Text>
           </View>
         </View>
 

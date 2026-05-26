@@ -20,6 +20,7 @@ import NavigationHeader from "@components/Header/NavigationHeader";
 import { COLORS, SPACING, BORDER_RADIUS } from "@constants/theme";
 import useToolStore from "@stores/toolManagement/useToolStore";
 import useAuthStore from "@stores/auth/useAuthStore";
+import { formatCurrency, getActiveCurrency } from "@utils/currency";
 
 const STATUS_OPTIONS = [
   { label: "All", value: "all" },
@@ -78,9 +79,9 @@ const buildReportHtml = (data) => {
       <td style="padding:6px;text-align:center;border:1px solid #ddd;color:#28a745;font-weight:bold;">${r.available_qty}</td>
       <td style="padding:6px;text-align:center;border:1px solid #ddd;color:#dc3545;font-weight:bold;">${r.checked_out_qty}</td>
       <td style="padding:6px;text-align:center;border:1px solid #ddd;">${r.total_rentals}</td>
-      <td style="padding:6px;text-align:right;border:1px solid #ddd;">ر.ع.${r.price_per_day.toFixed(3)}</td>
-      <td style="padding:6px;text-align:right;border:1px solid #ddd;">ر.ع.${r.late_fee_per_day.toFixed(3)}</td>
-      <td style="padding:6px;text-align:right;border:1px solid #ddd;color:#28a745;font-weight:bold;">ر.ع.${r.total_revenue.toFixed(3)}</td>
+      <td style="padding:6px;text-align:right;border:1px solid #ddd;">${formatCurrency(r.price_per_day)}</td>
+      <td style="padding:6px;text-align:right;border:1px solid #ddd;">${formatCurrency(r.late_fee_per_day)}</td>
+      <td style="padding:6px;text-align:right;border:1px solid #ddd;color:#28a745;font-weight:bold;">${formatCurrency(r.total_revenue)}</td>
     </tr>`;
   }).join("");
 
@@ -128,7 +129,7 @@ const buildReportHtml = (data) => {
         <div class="lbl">Total Rentals</div>
       </td>
       <td style="background:#fffbf0;">
-        <div class="num" style="color:#fd7e14;">ر.ع.${sumRevenue.toFixed(3)}</div>
+        <div class="num" style="color:#fd7e14;">${formatCurrency(sumRevenue)}</div>
         <div class="lbl">Total Revenue</div>
       </td>
     </tr>
@@ -162,7 +163,7 @@ const buildReportHtml = (data) => {
         <td style="text-align:center;">${sumRentals}</td>
         <td style="text-align:right;"></td>
         <td style="text-align:right;"></td>
-        <td style="text-align:right;color:#28a745;">ر.ع.${sumRevenue.toFixed(3)}</td>
+        <td style="text-align:right;color:#28a745;">${formatCurrency(sumRevenue)}</td>
       </tr>
     </tfoot>
   </table>
@@ -451,11 +452,11 @@ const ToolAvailabilityScreen = ({ navigation }) => {
       <View style={styles.vLineData} />
       <Text style={[styles.cell, styles.colSmall]}>{item.total_rentals}</Text>
       <View style={styles.vLineData} />
-      <Text style={[styles.cell, styles.colPrice]}>{item.price_per_day.toFixed(3)}</Text>
+      <Text style={[styles.cell, styles.colPrice]}>{formatCurrency(item.price_per_day)}</Text>
       <View style={styles.vLineData} />
-      <Text style={[styles.cell, styles.colPrice]}>{item.late_fee_per_day.toFixed(3)}</Text>
+      <Text style={[styles.cell, styles.colPrice]}>{formatCurrency(item.late_fee_per_day)}</Text>
       <View style={styles.vLineData} />
-      <Text style={[styles.cell, styles.colRevenue, { color: "#4CAF50", fontWeight: "600" }]}>{item.total_revenue.toFixed(3)}</Text>
+      <Text style={[styles.cell, styles.colRevenue, { color: "#4CAF50", fontWeight: "600" }]}>{formatCurrency(item.total_revenue)}</Text>
     </View>
   );
 
@@ -485,7 +486,7 @@ const ToolAvailabilityScreen = ({ navigation }) => {
               <Text style={styles.summaryLabel}>TOTAL RENTALS</Text>
             </View>
             <View style={[styles.summaryCard, { borderLeftColor: "#4CAF50" }]}>
-              <Text style={[styles.summaryNumber, { color: "#4CAF50" }]}>ر.ع.{summary.totalRevenue.toFixed(3)}</Text>
+              <Text style={[styles.summaryNumber, { color: "#4CAF50" }]}>{formatCurrency(summary.totalRevenue)}</Text>
               <Text style={styles.summaryLabel}>TOTAL REVENUE</Text>
             </View>
           </View>
