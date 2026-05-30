@@ -42,3 +42,5 @@ access_rental_expense_split_wizard_user,rental.expense.split.wizard.user,model_r
 access_rental_expense_split_wizard_line_user,rental.expense.split.wizard.line.user,model_rental_expense_split_wizard_line,group_rental_user,1,1,1,1
 access_rental_invoice_settings_user,rental.invoice.settings.user,model_rental_invoice_settings,group_rental_user,1,0,0,0
 access_rental_invoice_settings_manager,rental.invoice.settings.manager,model_rental_invoice_settings,group_rental_manager,1,1,1,1
+access_rental_invoice_terms_line_user,rental.invoice.terms.line.user,model_rental_invoice_terms_line,group_rental_user,1,0,0,0
+access_rental_invoice_terms_line_manager,rental.invoice.terms.line.manager,model_rental_invoice_terms_line,group_rental_manager,1,1,1,1

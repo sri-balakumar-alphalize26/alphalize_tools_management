@@ -223,45 +223,10 @@
                         <div style="margin-top:8px; border-top:1px solid #ccc; padding-top:6px;">
                             <h5 style="font-size:10px; margin:0 0 4px;">Terms &amp; Conditions / الشروط والأحكام</h5>
                             <table style="width:100%; border-collapse:collapse; font-size:8px; color:#444;">
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600; width:3%;">1.</td>
-                                    <td style="padding:1px 4px; width:50%; line-height:1.3;">All tools and equipment are delivered in good working condition.</td>
-                                    <td style="padding:1px 4px; text-align:right; direction:rtl; width:47%; line-height:1.4;">جميع الأدوات والمعدات تُسلَّم في حالة عمل جيدة.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600;">2.</td>
-                                    <td style="padding:1px 4px; line-height:1.3;">The customer must return the equipment in the same condition, except for normal wear and tear.</td>
-                                    <td style="padding:1px 4px; text-align:right; direction:rtl; line-height:1.4;">يجب على العميل إعادة المعدات بنفس الحالة، باستثناء الاستهلاك الطبيعي.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600;">3.</td>
-                                    <td style="padding:1px 4px; line-height:1.3;">The customer is fully responsible for any damage, loss, or missing parts during the rental period.</td>
-                                    <td style="padding:1px 4px; text-align:right; direction:rtl; line-height:1.4;">العميل مسؤول مسؤولية كاملة عن أي ضرر أو فقدان أو أجزاء مفقودة خلال فترة الإيجار.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600;">4.</td>
-                                    <td style="padding:1px 4px; line-height:1.3;">Any damage or loss will be charged to the customer for repair or replacement.</td>
-                                    <td style="padding:1px 4px; text-align:right; direction:rtl; line-height:1.4;">سيتم تحميل العميل تكاليف إصلاح أو استبدال أي ضرر أو خسارة.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600;">5.</td>
-                                    <td style="padding:1px 4px; line-height:1.3;">Equipment must be returned on the agreed date; late returns may incur additional rental charges.</td>
-                                    <td style="padding:1px 4px; text-align:right; direction:rtl; line-height:1.4;">يجب إعادة المعدات في التاريخ المتفق عليه؛ التأخير قد يستوجب رسوم إيجار إضافية.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600;">6.</td>
-                                    <td style="padding:1px 4px; line-height:1.3;">Equipment must not be sub-rented or transferred to another party without permission.</td>
-                                    <td style="padding:1px 4px; text-align:right; direction:rtl; line-height:1.4;">لا يجوز تأجير المعدات من الباطن أو نقلها إلى طرف آخر دون إذن.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600;">7.</td>
-                                    <td style="padding:1px 4px; line-height:1.3;">The supplier is not responsible for accidents or injuries caused by improper use of the equipment.</td>
-                                    <td style="padding:1px 4px; text-align:right; direction:rtl; line-height:1.4;">المورد غير مسؤول عن الحوادث أو الإصابات الناجمة عن الاستخدام غير السليم للمعدات.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600;">8.</td>
-                                    <td style="padding:1px 4px; line-height:1.3;">Any dispute shall be subject to the laws of the Sultanate of Oman.</td>
-                                    <td style="padding:1px 4px; text-align:right; direction:rtl; line-height:1.4;">يخضع أي نزاع لقوانين سلطنة عُمان.</td>
+                                <tr t-foreach="cfg.terms_line_ids" t-as="term" style="border-bottom:1px solid #f0f0f0;">
+                                    <td style="padding:1px 4px; vertical-align:top; font-weight:600; width:3%;"><t t-esc="term_index + 1"/>.</td>
+                                    <td style="padding:1px 4px; width:50%; line-height:1.3;"><t t-esc="term.text_en"/></td>
+                                    <td style="padding:1px 4px; text-align:right; direction:rtl; width:47%; line-height:1.4;"><t t-esc="term.text_ar"/></td>
                                 </tr>
                             </table>
                         </div>
@@ -529,45 +494,10 @@
                         <div style="margin-top:3px; border-top:1px solid #ccc; padding-top:2px;">
                             <h5 style="font-size:6px; margin:0 0 1px;">Terms &amp; Conditions / الشروط والأحكام</h5>
                             <table style="width:100%; border-collapse:collapse; font-size:5px; color:#444;">
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600; width:3%;">1.</td>
-                                    <td style="padding:0px 2px; width:50%; line-height:1.1;">All tools and equipment are delivered in good working condition.</td>
-                                    <td style="padding:0px 2px; text-align:right; direction:rtl; width:47%; line-height:1.2;">جميع الأدوات والمعدات تُسلَّم في حالة عمل جيدة.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600;">2.</td>
-                                    <td style="padding:0px 2px; line-height:1.1;">The customer must return the equipment in the same condition, except for normal wear and tear.</td>
-                                    <td style="padding:0px 2px; text-align:right; direction:rtl; line-height:1.2;">يجب على العميل إعادة المعدات بنفس الحالة، باستثناء الاستهلاك الطبيعي.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600;">3.</td>
-                                    <td style="padding:0px 2px; line-height:1.1;">The customer is fully responsible for any damage, loss, or missing parts during the rental period.</td>
-                                    <td style="padding:0px 2px; text-align:right; direction:rtl; line-height:1.2;">العميل مسؤول مسؤولية كاملة عن أي ضرر أو فقدان أو أجزاء مفقودة خلال فترة الإيجار.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600;">4.</td>
-                                    <td style="padding:0px 2px; line-height:1.1;">Any damage or loss will be charged to the customer for repair or replacement.</td>
-                                    <td style="padding:0px 2px; text-align:right; direction:rtl; line-height:1.2;">سيتم تحميل العميل تكاليف إصلاح أو استبدال أي ضرر أو خسارة.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600;">5.</td>
-                                    <td style="padding:0px 2px; line-height:1.1;">Equipment must be returned on the agreed date; late returns may incur additional rental charges.</td>
-                                    <td style="padding:0px 2px; text-align:right; direction:rtl; line-height:1.2;">يجب إعادة المعدات في التاريخ المتفق عليه؛ التأخير قد يستوجب رسوم إيجار إضافية.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600;">6.</td>
-                                    <td style="padding:0px 2px; line-height:1.1;">Equipment must not be sub-rented or transferred to another party without permission.</td>
-                                    <td style="padding:0px 2px; text-align:right; direction:rtl; line-height:1.2;">لا يجوز تأجير المعدات من الباطن أو نقلها إلى طرف آخر دون إذن.</td>
-                                </tr>
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600;">7.</td>
-                                    <td style="padding:0px 2px; line-height:1.1;">The supplier is not responsible for accidents or injuries caused by improper use of the equipment.</td>
-                                    <td style="padding:0px 2px; text-align:right; direction:rtl; line-height:1.2;">المورد غير مسؤول عن الحوادث أو الإصابات الناجمة عن الاستخدام غير السليم للمعدات.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600;">8.</td>
-                                    <td style="padding:0px 2px; line-height:1.1;">Any dispute shall be subject to the laws of the Sultanate of Oman.</td>
-                                    <td style="padding:0px 2px; text-align:right; direction:rtl; line-height:1.2;">يخضع أي نزاع لقوانين سلطنة عُمان.</td>
+                                <tr t-foreach="cfg.terms_line_ids" t-as="term" style="border-bottom:1px solid #f0f0f0;">
+                                    <td style="padding:0px 2px; vertical-align:top; font-weight:600; width:3%;"><t t-esc="term_index + 1"/>.</td>
+                                    <td style="padding:0px 2px; width:50%; line-height:1.1;"><t t-esc="term.text_en"/></td>
+                                    <td style="padding:0px 2px; text-align:right; direction:rtl; width:47%; line-height:1.2;"><t t-esc="term.text_ar"/></td>
                                 </tr>
                             </table>
                         </div>

@@ -68,6 +68,14 @@
                             <field name="heading_partial_return"/>
                         </group>
                     </group>
+                    <separator string="Terms &amp; Conditions / الشروط والأحكام"/>
+                    <field name="terms_line_ids">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="text_en" string="Term (English)"/>
+                            <field name="text_ar" string="Term (Arabic)"/>
+                        </list>
+                    </field>
                 </sheet>
             </form>
         </field>

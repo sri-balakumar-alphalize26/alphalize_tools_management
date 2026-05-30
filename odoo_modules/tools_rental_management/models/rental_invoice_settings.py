@@ -2,6 +2,29 @@
 from odoo import models, fields, api
 
 
+# The 8 Terms & Conditions that used to be hardcoded in the invoice templates,
+# as (English, Arabic) pairs. Used to seed a new/empty settings record so the
+# printed T&C stays identical until an admin edits them.
+DEFAULT_TERMS = [
+    ('All tools and equipment are delivered in good working condition.',
+     'جميع الأدوات والمعدات تُسلَّم في حالة عمل جيدة.'),
+    ('The customer must return the equipment in the same condition, except for normal wear and tear.',
+     'يجب على العميل إعادة المعدات بنفس الحالة، باستثناء الاستهلاك الطبيعي.'),
+    ('The customer is fully responsible for any damage, loss, or missing parts during the rental period.',
+     'العميل مسؤول مسؤولية كاملة عن أي ضرر أو فقدان أو أجزاء مفقودة خلال فترة الإيجار.'),
+    ('Any damage or loss will be charged to the customer for repair or replacement.',
+     'سيتم تحميل العميل تكاليف إصلاح أو استبدال أي ضرر أو خسارة.'),
+    ('Equipment must be returned on the agreed date; late returns may incur additional rental charges.',
+     'يجب إعادة المعدات في التاريخ المتفق عليه؛ التأخير قد يستوجب رسوم إيجار إضافية.'),
+    ('Equipment must not be sub-rented or transferred to another party without permission.',
+     'لا يجوز تأجير المعدات من الباطن أو نقلها إلى طرف آخر دون إذن.'),
+    ('The supplier is not responsible for accidents or injuries caused by improper use of the equipment.',
+     'المورد غير مسؤول عن الحوادث أو الإصابات الناجمة عن الاستخدام غير السليم للمعدات.'),
+    ('Any dispute shall be subject to the laws of the Sultanate of Oman.',
+     'يخضع أي نزاع لقوانين سلطنة عُمان.'),
+]
+
+
 class RentalInvoiceSettings(models.Model):
     _name = 'rental.invoice.settings'
     _description = 'Rental Invoice Branding Settings'
@@ -53,6 +76,11 @@ class RentalInvoiceSettings(models.Model):
     heading_partial_return = fields.Char(
         string='Partial Return Heading', default='PARTIAL RETURN INVOICE')
 
+    # Bilingual Terms & Conditions (shown on Checkout & Partial Return invoices)
+    terms_line_ids = fields.One2many(
+        'rental.invoice.terms.line', 'settings_id',
+        string='Terms & Conditions')
+
     _sql_constraints = [
         ('company_uniq', 'unique(company_id)',
          'Invoice branding settings already exist for this company.'),
@@ -71,4 +99,30 @@ class RentalInvoiceSettings(models.Model):
             [('company_id', '=', company.id)], limit=1)
         if not settings:
             settings = self.sudo().create({'company_id': company.id})
+        # Backfill the default Terms & Conditions for records that have none yet
+        # (covers brand-new records and settings created before T&C existed), so
+        # the printed terms never go blank.
+        if not settings.terms_line_ids:
+            self.env['rental.invoice.terms.line'].sudo().create([
+                {
+                    'settings_id': settings.id,
+                    'sequence': (idx + 1) * 10,
+                    'text_en': en,
+                    'text_ar': ar,
+                }
+                for idx, (en, ar) in enumerate(DEFAULT_TERMS)
+            ])
         return settings
+
+
+class RentalInvoiceTermsLine(models.Model):
+    _name = 'rental.invoice.terms.line'
+    _description = 'Rental Invoice Terms & Conditions Line'
+    _order = 'sequence, id'
+
+    settings_id = fields.Many2one(
+        'rental.invoice.settings', string='Invoice Settings',
+        ondelete='cascade', required=True)
+    sequence = fields.Integer(default=10)
+    text_en = fields.Char(string='Term (English)')
+    text_ar = fields.Char(string='Term (Arabic)')
