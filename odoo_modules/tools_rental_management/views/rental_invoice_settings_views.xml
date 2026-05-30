@@ -46,6 +46,18 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
+                    <separator string="Arabic Details (يمين)"/>
+                    <group>
+                        <group>
+                            <field name="company_name_ar"/>
+                            <field name="company_subname_ar"/>
+                            <field name="cr_address_ar"/>
+                        </group>
+                        <group>
+                            <field name="phone_numbers_ar"/>
+                            <field name="branch_email_ar"/>
+                        </group>
+                    </group>
                     <separator string="Invoice Headings"/>
                     <group>
                         <group>

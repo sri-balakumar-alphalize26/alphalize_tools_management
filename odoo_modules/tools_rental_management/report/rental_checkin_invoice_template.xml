@@ -48,11 +48,11 @@
                                     </t>
                                 </td>
                                 <td style="width:30%; text-align:right; vertical-align:middle; direction:rtl; padding:4px 10px 4px 8px; border:1px solid #fff;">
-                                    <div style="font-size:18px; font-weight:900; color:#00AEEF;">الرؤية الذكية</div>
-                                    <div style="font-size:12px; font-weight:700; color:#333;">الدولية ش.م.م</div>
-                                    <div style="font-size:7px; color:#333; margin-top:1px;">س.ت: ١١٩٩٢٦٤ ص.ب:٥٣٤، ر.ب:١١١، سلطنة عمان</div>
-                                    <div style="font-size:9px; color:#333;">هاتف: ٩٧١١٧٨٨٠، ٩٩٠٤٧٠٦٦</div>
-                                    <div style="font-size:9px; color:#333;">فرع: الموالح  smartvisionllc1313@gmail.com</div>
+                                    <div style="font-size:18px; font-weight:900; color:#00AEEF;"><t t-esc="cfg.company_name_ar"/></div>
+                                    <div style="font-size:12px; font-weight:700; color:#333;"><t t-esc="cfg.company_subname_ar"/></div>
+                                    <div style="font-size:7px; color:#333; margin-top:1px;"><t t-esc="cfg.cr_address_ar"/></div>
+                                    <div style="font-size:9px; color:#333;"><t t-esc="cfg.phone_numbers_ar"/></div>
+                                    <div style="font-size:9px; color:#333;"><t t-esc="cfg.branch_email_ar"/></div>
                                 </td>
                             </tr>
                         </table>
@@ -520,11 +520,11 @@
                                     </t>
                                 </td>
                                 <td style="width:30%; text-align:right; vertical-align:middle; direction:rtl; padding:3px 8px 3px 6px; border:1px solid #fff;">
-                                    <div style="font-size:10px; font-weight:900; color:#00AEEF;">الرؤية الذكية</div>
-                                    <div style="font-size:7px; font-weight:700; color:#333;">الدولية ش.م.م</div>
-                                    <div style="font-size:6px; color:#333; margin-top:1px;">س.ت: ١١٩٩٢٦٤ ص.ب:٥٣٤، ر.ب:١١١، سلطنة عمان</div>
-                                    <div style="font-size:6px; color:#333;">هاتف: ٩٧١١٧٨٨٠، ٩٩٠٤٧٠٦٦</div>
-                                    <div style="font-size:6px; color:#333;">فرع: الموالح  smartvisionllc1313@gmail.com</div>
+                                    <div style="font-size:10px; font-weight:900; color:#00AEEF;"><t t-esc="cfg.company_name_ar"/></div>
+                                    <div style="font-size:7px; font-weight:700; color:#333;"><t t-esc="cfg.company_subname_ar"/></div>
+                                    <div style="font-size:6px; color:#333; margin-top:1px;"><t t-esc="cfg.cr_address_ar"/></div>
+                                    <div style="font-size:6px; color:#333;"><t t-esc="cfg.phone_numbers_ar"/></div>
+                                    <div style="font-size:6px; color:#333;"><t t-esc="cfg.branch_email_ar"/></div>
                                 </td>
                             </tr>
                         </table>

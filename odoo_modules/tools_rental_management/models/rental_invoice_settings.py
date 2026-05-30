@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import models, fields, api
 
 
@@ -24,6 +25,21 @@ class RentalInvoiceSettings(models.Model):
         string='Branch / Email',
         default='Branch: AI Mawaleh  smartvisionllc1313@gmail.com')
     vat_number = fields.Char(string='VAT Number', default='VAT No: OM110025049X')
+
+    # Arabic header branding text (right-side RTL block). Defaults seeded from
+    # the values that used to be hardcoded in the invoice templates.
+    company_name_ar = fields.Char(
+        string='Company Name (Arabic)', default='الرؤية الذكية')
+    company_subname_ar = fields.Char(
+        string='Company Subname (Arabic)', default='الدولية ش.م.م')
+    cr_address_ar = fields.Char(
+        string='C.R / Address Line (Arabic)',
+        default='س.ت: ١١٩٩٢٦٤ ص.ب:٥٣٤، ر.ب:١١١، سلطنة عمان')
+    phone_numbers_ar = fields.Char(
+        string='Phone (Arabic)', default='هاتف: ٩٧١١٧٨٨٠، ٩٩٠٤٧٠٦٦')
+    branch_email_ar = fields.Char(
+        string='Branch / Email (Arabic)',
+        default='فرع: الموالح  smartvisionllc1313@gmail.com')
 
     # Logos
     center_logo = fields.Binary(string='Center Logo')
