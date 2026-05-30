@@ -77,6 +77,10 @@ class RentalInvoiceSettings(models.Model):
         string='Partial Return Heading', default='PARTIAL RETURN INVOICE')
 
     # Bilingual Terms & Conditions (shown on Checkout & Partial Return invoices)
+    show_terms = fields.Boolean(
+        string='Show Terms & Conditions', default=True,
+        help='When off, the Terms & Conditions section (heading included) is '
+             'hidden on the Checkout and Partial Return invoices.')
     terms_line_ids = fields.One2many(
         'rental.invoice.terms.line', 'settings_id',
         string='Terms & Conditions')

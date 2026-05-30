@@ -22,6 +22,9 @@
         <field name="arch" type="xml">
             <form string="Invoice Branding">
                 <sheet>
+                    <group>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                    </group>
                     <div class="oe_title">
                         <label for="company_name" string="Company Name"/>
                         <h1>
@@ -43,7 +46,6 @@
                             <field name="branch_email"
                                    placeholder="Branch: AI Mawaleh  example@email.com"/>
                             <field name="vat_number" placeholder="VAT No: OM110025049X"/>
-                            <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
                     <separator string="Arabic Details (يمين)"/>
@@ -69,7 +71,10 @@
                         </group>
                     </group>
                     <separator string="Terms &amp; Conditions / الشروط والأحكام"/>
-                    <field name="terms_line_ids">
+                    <group>
+                        <field name="show_terms" widget="boolean_toggle"/>
+                    </group>
+                    <field name="terms_line_ids" invisible="not show_terms">
                         <list editable="bottom">
                             <field name="sequence" widget="handle"/>
                             <field name="text_en" string="Term (English)"/>
