@@ -59,6 +59,7 @@
         'views/rental_sales_report_views.xml',
         'views/rental_expense_category_views.xml',
         'views/rental_expense_views.xml',
+        'views/rental_invoice_settings_views.xml',
         'report/rental_agreement_report.xml',
         'report/rental_agreement_template.xml',
         'report/rental_tool_report_pdf.xml',

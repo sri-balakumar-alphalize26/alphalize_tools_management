@@ -10,3 +10,4 @@ from . import rental_tool_report
 from . import res_partner
 from . import rental_expense_category
 from . import rental_expense
+from . import rental_invoice_settings

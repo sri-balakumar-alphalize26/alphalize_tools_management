@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══ LIST VIEW ═══ -->
+    <record id="view_rental_invoice_settings_tree" model="ir.ui.view">
+        <field name="name">rental.invoice.settings.tree</field>
+        <field name="model">rental.invoice.settings</field>
+        <field name="arch" type="xml">
+            <list string="Invoice Branding">
+                <field name="company_name"/>
+                <field name="company_subname"/>
+                <field name="vat_number"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ═══ FORM VIEW ═══ -->
+    <record id="view_rental_invoice_settings_form" model="ir.ui.view">
+        <field name="name">rental.invoice.settings.form</field>
+        <field name="model">rental.invoice.settings</field>
+        <field name="arch" type="xml">
+            <form string="Invoice Branding">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="company_name" string="Company Name"/>
+                        <h1>
+                            <field name="company_name" placeholder="e.g. SMART VISION"/>
+                        </h1>
+                        <field name="company_subname" placeholder="e.g. INTERNATIONAL L.L.C"/>
+                    </div>
+                    <group>
+                        <group string="Logos">
+                            <field name="center_logo" widget="image" class="oe_avatar"
+                                   options="{'size': [160, 80]}"/>
+                            <field name="right_logo" widget="image" class="oe_avatar"
+                                   options="{'size': [250, 100]}"/>
+                        </group>
+                        <group string="Company Details">
+                            <field name="cr_address"
+                                   placeholder="C.R No: 1199264 P.O:534, PC.:111, Sultanate of oman"/>
+                            <field name="phone_numbers" placeholder="GSM: 97117880, 99047066"/>
+                            <field name="branch_email"
+                                   placeholder="Branch: AI Mawaleh  example@email.com"/>
+                            <field name="vat_number" placeholder="VAT No: OM110025049X"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <separator string="Invoice Headings"/>
+                    <group>
+                        <group>
+                            <field name="heading_checkin"/>
+                            <field name="heading_checkout"/>
+                        </group>
+                        <group>
+                            <field name="heading_partial_return"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ═══ ACTION ═══ -->
+    <record id="action_rental_invoice_settings" model="ir.actions.act_window">
+        <field name="name">Invoice Settings</field>
+        <field name="res_model">rental.invoice.settings</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure your invoice branding
+            </p>
+            <p>
+                Set the logos, company details and heading text that appear on the
+                Check-In, Check-Out and Partial Return invoices for each company.
+            </p>
+        </field>
+    </record>
+
+    <!-- ═══ MENU ═══ -->
+    <menuitem id="menu_rental_invoice_settings"
+              name="Invoice Settings"
+              parent="menu_rental_configuration"
+              action="action_rental_invoice_settings"
+              sequence="20"/>
+
+</odoo>
