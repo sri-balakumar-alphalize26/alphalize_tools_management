@@ -823,7 +823,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
       try {
         if (odooOrderId && odooAuth) {
           // 1. Run checkout action FIRST (changes state to checked_out)
+          console.log("[Check-Out] order", odooOrderId, "— calling action_checkout on server...");
           await storeCheckoutOrder(odooAuth, odooOrderId);
+          console.log("[Check-Out] order", odooOrderId, "— server checkout succeeded (state now checked_out).");
 
           // 2. Convert all images to base64 in parallel
           const [sigB64, idFrontB64, idBackB64, ...lineB64s] = await Promise.all([
@@ -868,15 +870,63 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
           }).filter(Boolean));
 
         }
+        console.log("[Check-Out] order", odooOrderId, "— all checkout data saved. Normal flow complete.");
         showToastMessage("Check-out completed");
       } catch (e) {
-        showToastMessage("Checkout failed: " + e.message);
-        console.warn("confirmCheckout background error:", e.message);
+        // The optimistic UI already flipped to "checked_out", but the server
+        // checkout never landed (so the order is still "confirmed" on Odoo and
+        // no checkout data was saved). Revert the UI so the Check-In button does
+        // not appear for an order that was never really checked out.
+        console.warn("[Check-Out] order", odooOrderId, "— FAILED, reverting UI to 'confirmed':", e.message);
+        setState("confirmed");
+        savedRef.current = false;
+        showAlert("Check-out failed", "The order could not be checked out: " + e.message + "\n\nPlease try Check-Out again.");
       }
     })();
   };
 
-  const openCheckinWizard = () => {
+  const openCheckinWizard = async () => {
+    // Guard: the Check-In button trusts the optimistic local state, which can be
+    // "checked_out" even when the server checkout failed (order still "confirmed"
+    // on Odoo). Verify the REAL server state first so we never hit Odoo's
+    // "Only checked-out orders can be checked in" error.
+    if (odooOrderId && odooAuth) {
+      let serverState = null;
+      try {
+        const fresh = await fetchOrderDataById(odooAuth, odooOrderId);
+        serverState = fresh?.state || null;
+        console.log("[Check-In guard] order", odooOrderId, "local state:", state, "| server state:", serverState);
+      } catch (e) {
+        // If we can't verify (network), fall through and let the normal flow try.
+        console.warn("[Check-In guard] state check failed:", e.message);
+      }
+      if (serverState === "confirmed") {
+        // The earlier checkout never landed on the server (and its data — signature,
+        // ID proof, photos, advance — was never saved). Do NOT auto-checkout; send
+        // the user to do a proper check-out so that data is captured.
+        console.log("[Check-In guard] server is 'confirmed' — redirecting to Check-Out (order was never checked out).");
+        setState("confirmed");
+        showAlert(
+          "Check-out required",
+          "This order was not checked out on the server. Please complete Check-Out first, then check in.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Go to Check-Out", style: "default", onPress: () => openCheckoutWizard() },
+          ]
+        );
+        return;
+      }
+      if (serverState && ["checked_in", "invoiced", "done"].includes(serverState)) {
+        // Already checked in on the server — just sync the screen.
+        console.log("[Check-In guard] server already '" + serverState + "' — syncing UI, skipping check-in.");
+        setState(serverState);
+        showAlert("Already checked in", "This order has already been checked in.");
+        return;
+      }
+      // Normal/happy path: server confirms the order really is checked out.
+      console.log("[Check-In guard] OK — server state '" + (serverState || "unknown") + "' allows check-in. Opening check-in wizard.");
+    }
+
     // Match Odoo formula: actual = max((checkin - checkout).days, 1)
     // extra = max(actual - planned, 0)
     const checkinDate = new Date();
@@ -1069,7 +1119,9 @@ const RentalOrderFormScreen = ({ navigation, route }) => {
 
         if (!isPartial) {
           // Full check-in: all tools returned
+          console.log("[Check-In] order", odooOrderId, "— calling action_checkin on server...");
           await storeCheckinOrder(odooAuth, odooOrderId);
+          console.log("[Check-In] order", odooOrderId, "— server check-in succeeded (state now checked_in).");
           // Set payment status based on payment method: credit = unpaid, others = paid
           const paymentStatus = form.checkin_payment_method === "credit" ? "unpaid" : "paid";
           await updateOrderValues(odooAuth, odooOrderId, { payment_status: paymentStatus });
