@@ -10,9 +10,9 @@
                              even if Odoo report assets (Lato font + Bootstrap grid) fail to load. */
                           .page, .page * { font-family: 'Lato','Helvetica Neue','Segoe UI',Helvetica,Arial,sans-serif !important; }
                           .page { font-size: 10px; color: #333; }
-                          .page .row { display: block !important; width: 100%; }
+                          .page .row { width: 100%; }
                           .page .row:after { content: ""; display: table; clear: both; }
-                          .page .col-6 { float: left; width: 50%; box-sizing: border-box; }
+                          .page .col-6 { width: 50%; box-sizing: border-box; }
                           .page .col-5 { width: 41.6%; box-sizing: border-box; }
                           .page .text-end { text-align: right !important; }
                           .page .text-center { text-align: center !important; }
@@ -233,8 +233,7 @@
 
                         <!-- Totals -->
                         <div class="row">
-                            <div class="col-6"/>
-                            <div class="col-6" style="float:right;">
+                            <div class="col-12">
                                 <table class="totals-table">
                                     <tr>
                                         <td><strong>Subtotal:</strong></td>
@@ -339,9 +338,9 @@
                           /* Force fonts + layout locally so the invoice always renders correctly,
                              even if Odoo report assets (Lato font + Bootstrap grid) fail to load. */
                           .page, .page * { font-family: 'Lato','Helvetica Neue','Segoe UI',Helvetica,Arial,sans-serif !important; }
-                          .page .row { display: block !important; width: 100%; }
+                          .page .row { width: 100%; }
                           .page .row:after { content: ""; display: table; clear: both; }
-                          .page .col-6 { float: left; width: 50%; box-sizing: border-box; }
+                          .page .col-6 { width: 50%; box-sizing: border-box; }
                           .page .col-5 { width: 41.6%; box-sizing: border-box; }
                           .page .text-end { text-align: right !important; }
                           .page .text-center { text-align: center !important; }
@@ -560,8 +559,7 @@
 
                         <!-- Totals -->
                         <div class="row">
-                            <div class="col-6"/>
-                            <div class="col-6" style="float:right;">
+                            <div class="col-12">
                                 <table class="totals-table">
                                     <tr>
                                         <td><strong>Subtotal:</strong></td>
