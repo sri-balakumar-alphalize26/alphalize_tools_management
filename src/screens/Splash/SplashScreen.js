@@ -97,7 +97,23 @@ const SplashScreen = () => {
         }).catch(() => {});
       }
 
+      // Ensure persisted auth state has rehydrated from AsyncStorage before
+      // we read isLoggedIn — otherwise we race the async rehydration and
+      // bounce a logged-in user back to Login on cold start.
+      if (!useAuthStore.persist.hasHydrated()) {
+        console.log("[AUTH] splash waiting for auth rehydration…");
+        await new Promise((resolve) => {
+          const unsub = useAuthStore.persist.onFinishHydration(() => {
+            unsub && unsub();
+            resolve();
+          });
+        });
+      }
+
+      if (cancelled) return;
+
       const isLoggedIn = useAuthStore.getState().isLoggedIn;
+      console.log("[AUTH] splash isLoggedIn =", isLoggedIn);
 
       // If logged in, force a fresh currency fetch from Odoo BEFORE
       // navigating so the first paint already uses the latest symbol.
