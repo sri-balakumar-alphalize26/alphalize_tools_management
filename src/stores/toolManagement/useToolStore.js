@@ -59,7 +59,11 @@ const useToolStore = create(
       // FETCH ALL DATA FROM ODOO
       // =============================================
       fetchAllData: async (auth, force) => {
-        if (!force && isFresh("all")) return;
+        if (!force && isFresh("all")) {
+          console.log("[BRANCH] fetchAllData skipped (cache still fresh)");
+          return;
+        }
+        console.log("[BRANCH] fetchAllData begin — loading rental orders + tools for new branch", { force: !!force });
         set({ loading: true, error: null });
         try {
           const [categories, tools, orders, customers, pricingRules] =
@@ -76,6 +80,14 @@ const useToolStore = create(
             customers: customers.length,
             orders: orders.length,
             pricingRules: pricingRules.length,
+          });
+          console.log("[BRANCH] rental orders loaded", {
+            count: orders.length,
+            sample: orders.slice(0, 5).map((o) => ({ id: o.id, name: o.name })),
+          });
+          console.log("[BRANCH] tools loaded", {
+            count: tools.length,
+            sample: tools.slice(0, 5).map((t) => ({ id: t.id, name: t.name })),
           });
           set({ categories, tools, orders, customers, pricingRules, loading: false });
           markFetched("all"); markFetched("categories"); markFetched("tools");

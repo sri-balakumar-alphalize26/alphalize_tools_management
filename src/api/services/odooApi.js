@@ -154,11 +154,25 @@ export const odooGetDatabases = async () => {
 // =============================================
 
 const callOdoo = async (auth, model, method, args = [], kwargs = {}) => {
+  // Scope every RPC to the selected branch. Odoo's web company switcher
+  // sends `allowed_company_ids` (the `cids` context) on each call; without
+  // it, search_read/read return records across ALL of the user's allowed
+  // companies. Writing company_id on res.users (switchCompany) only sets the
+  // default for new records — it does NOT filter reads. Mirroring the web
+  // client here is what makes per-branch data actually filter in the app.
+  const finalKwargs = { ...kwargs };
+  if (auth.companyId) {
+    finalKwargs.context = {
+      ...(kwargs.context || {}),
+      allowed_company_ids: [auth.companyId],
+      company_id: auth.companyId,
+    };
+  }
   return jsonRpc(
     `${ODOO_URL}/jsonrpc`,
     "object",
     "execute_kw",
-    [auth.db, auth.uid, auth.password, model, method, args, kwargs]
+    [auth.db, auth.uid, auth.password, model, method, args, finalKwargs]
   );
 };
 

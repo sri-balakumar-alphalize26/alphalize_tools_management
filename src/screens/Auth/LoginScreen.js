@@ -22,6 +22,7 @@ import { Button } from "@components/common/Button";
 import Text from "@components/Text";
 import { SafeAreaView } from "@components/containers";
 import { useAuthStore } from "@stores/auth";
+import useToolStore from "@stores/toolManagement/useToolStore";
 import { showToastMessage } from "@components/Toast";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { odooAuthenticate } from "@api/services/odooApi";
@@ -174,6 +175,35 @@ const LoginScreen = ({ navigation }) => {
   // directly (single-branch users) or after the user picks in the
   // BranchPickerSheet (multi-branch users).
   const finalizeLogin = async (userData, odooAuth) => {
+    // Wipe any cached tool/order data from a previous branch/session so the
+    // new branch loads fresh. The tool store keeps an in-memory staleness
+    // cache that survives logout/login (only a full app restart clears it),
+    // so without this a re-login within 30s would show the OLD branch's
+    // rental orders + tools. clearData() resets both the data + timestamps.
+    const company = userData?.company_name || "(none)";
+    const companyId = Array.isArray(userData?.company_id)
+      ? userData.company_id[0]
+      : userData?.company_id;
+    console.log(`[BRANCH] finalizeLogin clearing previous branch cache before loading "${company}" (${companyId})`);
+
+    // Scope every Odoo RPC call to the selected branch. callOdoo reads
+    // auth.companyId and injects the `allowed_company_ids` context — the same
+    // thing Odoo's web company switcher does — so search_read/read return
+    // only THIS branch's records instead of all allowed companies. Set it on
+    // odooAuth (persisted by authStore) BEFORE clearData/fetch so the forced
+    // fetchAllData below already runs company-scoped.
+    odooAuth.companyId = companyId;
+    console.log(`[BRANCH] scoping Odoo calls to company ${companyId}`);
+
+    useToolStore.getState().clearData();
+
+    // Proactively load the NEW branch's data right away (fire-and-forget,
+    // force=true). The landing screen after login is Home/Banner — not
+    // ToolManagement — so without this the rental orders + tools aren't
+    // fetched until the user opens that tab. Forcing it here both preloads
+    // the data and emits the [BRANCH] fetch logs at switch time.
+    useToolStore.getState().fetchAllData(odooAuth, true);
+
     // Set Zustand store FIRST (synchronous) — the rest of the app can
     // start rendering immediately from this. AsyncStorage writes are
     // fire-and-forget so they don't add latency to the navigation.
