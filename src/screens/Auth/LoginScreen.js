@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Animated,
@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
 
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { Button } from "@components/common/Button";
@@ -260,7 +261,12 @@ const LoginScreen = ({ navigation }) => {
     })();
 
     showToastMessage("Logged in");
-    navigation.navigate("AppNavigator");
+    // RESET (not navigate) so LoginScreen is removed from the back stack.
+    // With navigate(), LoginScreen lingered underneath AppNavigator and the
+    // hardware back button popped back to it — showing Login again despite
+    // being logged in. reset() makes back from home exit the app instead.
+    console.log("[AUTH] finalizeLogin reset → AppNavigator (clearing login from back stack)");
+    navigation.reset({ index: 0, routes: [{ name: "AppNavigator" }] });
   };
 
   // Auth + decide single-branch vs multi-branch flow.
@@ -343,6 +349,40 @@ const LoginScreen = ({ navigation }) => {
     const d = Dimensions.get("window");
     console.log("[LOGIN] mount window=", d.width, "x", d.height, "scale=", d.scale);
   }, []);
+
+  // FORCE: never display Login while a session is active. Fires on every
+  // focus — including when back-navigation reveals a leftover LoginScreen or
+  // restored nav state lands here — and bounces straight to the app. Waits
+  // for auth rehydration first so a cold/warm start doesn't misread
+  // isLoggedIn before AsyncStorage has restored it. The ONLY time the form
+  // is allowed to show is when isLoggedIn is false (fresh install / after
+  // an explicit logout, which sets the flag false before routing here).
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        if (!useAuthStore.persist.hasHydrated()) {
+          console.log("[AUTH] LoginScreen waiting for auth rehydration…");
+          await new Promise((resolve) => {
+            const unsub = useAuthStore.persist.onFinishHydration(() => {
+              unsub && unsub();
+              resolve();
+            });
+          });
+        }
+        if (!active) return;
+        const loggedIn = useAuthStore.getState().isLoggedIn;
+        console.log("[AUTH] LoginScreen focus — isLoggedIn =", loggedIn);
+        if (loggedIn) {
+          console.log("[AUTH] LoginScreen redirecting to AppNavigator (already logged in)");
+          navigation.reset({ index: 0, routes: [{ name: "AppNavigator" }] });
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, [navigation])
+  );
 
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
