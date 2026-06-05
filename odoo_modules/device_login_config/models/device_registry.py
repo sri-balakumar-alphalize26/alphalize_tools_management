@@ -59,6 +59,12 @@ class DeviceRegistry(models.Model):
         string='Last Login',
         readonly=True,
     )
+    last_deactivated = fields.Datetime(
+        string='Last Deactivated',
+        readonly=True,
+        help='Set automatically when the device leaves its session '
+             '(when the app re-enters Device Config).',
+    )
 
     # ---------- QR code — includes record ID so scan updates THIS record ----------
     registration_qr_image = fields.Binary(
@@ -88,11 +94,10 @@ class DeviceRegistry(models.Model):
             for rec in self:
                 rec.registration_qr_image = False
 
-    _sql_constraints = [
-        ('mac_address_uniq',
-         'UNIQUE(mac_address)',
-         'This Device ID is already registered.'),
-    ]
+    # NOTE: Device ID (mac_address) is intentionally NOT unique. Each session is
+    # a fresh record (admin taps New → device scans the new QR), so one physical
+    # device accumulates a history of records — one per session — each keeping its
+    # own Last Deactivated time. The old UNIQUE(mac_address) constraint was removed.
 
     @api.constrains('mac_address')
     def _check_device_id(self):

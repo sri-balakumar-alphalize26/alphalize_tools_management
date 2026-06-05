@@ -17,6 +17,7 @@
                        decoration-muted="status == 'deactivated'"
                        decoration-danger="status == 'blocked'"/>
                 <field name="last_login"/>
+                <field name="last_deactivated"/>
             </list>
         </field>
     </record>
@@ -49,6 +50,7 @@
                                    readonly="1"
                                    placeholder="Filled when app activates"/>
                             <field name="last_login" readonly="1"/>
+                            <field name="last_deactivated" readonly="1"/>
                         </group>
                     </group>
 
@@ -122,6 +124,7 @@
     <!-- Menu -->
     <menuitem id="device_registry_menu_root"
               name="Device Registry"
+              web_icon="device_login_config,static/description/icon.png"
               sequence="90"
               groups="base.group_system"/>
 

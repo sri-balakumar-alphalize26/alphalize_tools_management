@@ -92,6 +92,17 @@ const DeviceQRScannerScreen = () => {
         showAlert("Device Blocked", "This device has been blocked by the administrator.", [
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
+      } else if (result.status === "used") {
+        console.log("[DEVICE] QR scan rejected — already used");
+        showAlert(
+          "QR Already Used",
+          result.message ||
+            "This QR code has already been used. In Odoo, tap New to generate a fresh QR, then scan it.",
+          [
+            { text: "Try Again", onPress: resetScanner },
+            { text: "Cancel", onPress: () => navigation.goBack() },
+          ]
+        );
       } else {
         showAlert("Registration Failed", result.message || "Could not register device. Try again.", [
           { text: "Try Again", onPress: resetScanner },

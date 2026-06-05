@@ -190,7 +190,10 @@ class DeviceRegistryController(http.Controller):
                 if burl:
                     scan_vals['base_url'] = burl
 
-                # ── 1. Update the specific record the QR belongs to ──
+                # ── 1. The QR carries the record id it belongs to (the form QR). ──
+                # Single-use rule: ONLY a Pre-Registered record can be claimed.
+                # Once a record is used (active/deactivated), its QR is dead and the
+                # scan is rejected — the admin must tap New for a fresh QR.
                 if record_id:
                     try:
                         rid = int(record_id)
@@ -202,26 +205,20 @@ class DeviceRegistryController(http.Controller):
                         return {'status': 'error', 'message': 'Record not found. It may have been deleted.'}
                     if rec.status == 'blocked':
                         return {'status': 'blocked', 'message': 'This device has been blocked.'}
+                    if rec.status != 'pre_registered':
+                        return {
+                            'status': 'used',
+                            'message': 'This QR code has already been used. In Odoo, tap New to generate a fresh QR, then scan it.',
+                        }
 
                     rec.write(scan_vals)
                     cr.commit()
-                    _logger.info('QR scan: filled record %s → %s (%s) on db %s', rid, identifier, name, db)
+                    _logger.info('QR scan: claimed pre-registered record %s → %s (%s) on db %s', rid, identifier, name, db)
                     return {'status': 'registered', 'message': 'Device registered successfully.'}
 
-                # ── 2. Device already registered with this ID — update it ──
-                existing = env['device.registry'].search(
-                    [('mac_address', '=', identifier)], limit=1
-                )
-                if existing:
-                    if existing.status == 'blocked':
-                        return {'status': 'blocked', 'message': 'This device has been blocked.'}
-                    existing.write(scan_vals)
-                    cr.commit()
-                    return {'status': 'already_registered', 'message': 'Device updated and activated.'}
-
-                # ── 3. Claim the oldest unclaimed Pre-Registered (Pending) record ──
+                # ── 2. Record-less QR: claim the oldest unused Pre-Registered record. ──
                 pending = env['device.registry'].search(
-                    [('mac_address', '=', False), ('status', '=', 'pre_registered')],
+                    [('status', '=', 'pre_registered')],
                     order='id asc', limit=1
                 )
                 if pending:
@@ -231,11 +228,11 @@ class DeviceRegistryController(http.Controller):
                                  pending.id, identifier, name, db)
                     return {'status': 'registered', 'message': 'Device registered successfully.'}
 
-                # ── 4. Last resort: create new record ──
-                env['device.registry'].create(scan_vals)
-                cr.commit()
-                _logger.info('QR scan: created device %s (%s) on db %s', identifier, name, db)
-                return {'status': 'registered', 'message': 'Device registered successfully.'}
+                # ── 3. Nothing available — admin must create a fresh record. ──
+                return {
+                    'status': 'used',
+                    'message': 'No available QR. In Odoo, tap New to generate a fresh QR, then scan it.',
+                }
 
         except Exception:
             _logger.exception('Error during QR-scan registration for db=%s', db)
@@ -317,7 +314,7 @@ class DeviceRegistryController(http.Controller):
                     limit=1,
                 )
                 if rec and rec.status == 'active':
-                    rec.write({'status': 'deactivated'})
+                    rec.write({'status': 'deactivated', 'last_deactivated': datetime.now()})
                     cr.commit()
                     _logger.info('Device deactivated: id=%s db=%s', device_id, db)
                     return {'success': True}
