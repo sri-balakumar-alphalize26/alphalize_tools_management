@@ -62,6 +62,41 @@ const DeviceSetupScreen = () => {
         setDeviceUUID(uuid);
         // Form fields stay blank on every entry — user re-enters URL,
         // database, username, password from scratch.
+
+        // Entering Device Config ends the current session: tell Odoo to flip
+        // this device's registry record from Active -> Deactivated. Fire-and-
+        // forget so it never blocks the setup screen. On a brand-new device
+        // (no prior server/db stored) there is nothing to deactivate.
+        const [prevServerUrl, prevDbName] = await Promise.all([
+          AsyncStorage.getItem("device_server_url"),
+          AsyncStorage.getItem("device_db_name"),
+        ]);
+        console.log("[DEVICE] DeviceSetup mount — deactivate check", {
+          uuid,
+          prevServerUrl,
+          prevDbName,
+        });
+        if (uuid && prevServerUrl && prevDbName) {
+          deviceApi
+            .deactivateDevice({
+              baseUrl: prevServerUrl,
+              databaseName: prevDbName,
+              deviceId: uuid,
+            })
+            .then((r) =>
+              console.log("[DEVICE] DeviceSetup deactivate done", r)
+            )
+            .catch((e) =>
+              console.log(
+                "[DEVICE] DeviceSetup deactivate failed",
+                e?.message || e
+              )
+            );
+        } else {
+          console.log(
+            "[DEVICE] DeviceSetup — no prior config, skipping deactivate"
+          );
+        }
       } catch (_) {}
     }
     init();

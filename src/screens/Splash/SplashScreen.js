@@ -10,6 +10,7 @@ import { setActiveCurrency, setActiveDigits } from "@utils/currency";
 import { refreshCurrencyFromStorage } from "@api/services/currencyApi";
 import * as deviceApi from "@api/services/deviceApi";
 import { getDeviceName } from "@utils/deviceInfo";
+import { showToastMessage } from "@components/Toast";
 
 // One-time diagnostic logs — captured at import time so they fire even if
 // the component fails to mount. Tells us how Metro resolved the asset.
@@ -86,15 +87,42 @@ const SplashScreen = () => {
 
       try { setOdooUrl(deviceServerUrl); } catch (_) {}
 
-      // Fire-and-forget heartbeat so Odoo's device.registry row updates its
-      // last_login timestamp. Never blocks navigation.
+      // Heartbeat + status gate. Odoo bumps last_login AND returns the device's
+      // current registry status. A blocked or deactivated device must not proceed
+      // into the app — it is bounced back to Device Setup and must re-scan its QR.
+      // Bounded by a 6s race so a slow/dead server can't strand the user.
       if (deviceUuid) {
-        deviceApi.initDevice({
-          baseUrl: deviceServerUrl,
-          databaseName: deviceDbName,
-          deviceId: deviceUuid,
-          deviceName: getDeviceName(),
-        }).catch(() => {});
+        try {
+          const initRes = await Promise.race([
+            deviceApi.initDevice({
+              baseUrl: deviceServerUrl,
+              databaseName: deviceDbName,
+              deviceId: deviceUuid,
+              deviceName: getDeviceName(),
+            }),
+            new Promise((resolve) => setTimeout(() => resolve(null), 6000)),
+          ]);
+          console.log("[DEVICE] splash init result =", initRes);
+
+          const status = initRes?.status;
+          if (status === "blocked" || status === "deactivated") {
+            console.log("[DEVICE] splash bounce to DeviceSetup — status =", status);
+            try { await AsyncStorage.removeItem("device_registered"); } catch (_) {}
+            showToastMessage(
+              status === "blocked"
+                ? "This device has been blocked. Contact your administrator."
+                : "This device's session ended. Please reconnect by scanning the QR."
+            );
+            if (!cancelled) {
+              navigation.reset({ index: 0, routes: [{ name: "DeviceSetup" }] });
+            }
+            return;
+          }
+        } catch (e) {
+          // Server unreachable — can't verify status, so proceed as today
+          // (offline tolerance: don't lock the user out on a network blip).
+          console.log("[DEVICE] splash init failed (offline tolerance) —", e?.message || e);
+        }
       }
 
       // Ensure persisted auth state has rehydrated from AsyncStorage before

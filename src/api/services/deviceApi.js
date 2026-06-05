@@ -68,6 +68,28 @@ export async function initDevice({ baseUrl, databaseName, deviceId, deviceName }
   return res.data?.result || { registered: false, error: "Empty response from server" };
 }
 
+export async function deactivateDevice({ baseUrl, databaseName, deviceId }) {
+  const url = `${normalizeUrl(baseUrl)}/device/deactivate`;
+  console.log("[DEVICE] deactivateDevice -> calling", {
+    url,
+    databaseName,
+    deviceId,
+  });
+  try {
+    const res = await axios.post(
+      url,
+      jsonrpcBody({ database_name: databaseName, device_id: deviceId }),
+      { headers: JSONRPC_HEADERS, timeout: TIMEOUT_MS }
+    );
+    const result = res.data?.result || { success: false };
+    console.log("[DEVICE] deactivateDevice <- response", result);
+    return result;
+  } catch (err) {
+    console.log("[DEVICE] deactivateDevice <- error", err?.message || err);
+    throw err;
+  }
+}
+
 export async function registerFromScan({ baseUrl, databaseName, deviceId, deviceName, recordId }) {
   const base = normalizeUrl(baseUrl);
   const res = await axios.post(

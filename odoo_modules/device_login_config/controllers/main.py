@@ -1,5 +1,7 @@
 import json
 import logging
+import re
+from datetime import datetime
 
 import odoo.api
 from odoo import http, SUPERUSER_ID
@@ -7,6 +9,12 @@ from odoo.modules.registry import Registry
 from odoo.http import request, Response
 
 _logger = logging.getLogger(__name__)
+
+# UUID v4 the app generates for each device.
+_DEVICE_UUID_RE = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    re.IGNORECASE,
+)
 
 
 class DeviceRegistryController(http.Controller):
@@ -232,3 +240,88 @@ class DeviceRegistryController(http.Controller):
         except Exception:
             _logger.exception('Error during QR-scan registration for db=%s', db)
             return {'status': 'error', 'message': 'Server error during registration.'}
+
+    @http.route('/device/init', type='json', auth='none', methods=['POST'], csrf=False)
+    def device_init(self, base_url='', database_name='', device_id='', device_name='', **kwargs):
+        """
+        App-startup heartbeat. Bumps last_login AND returns the device's current
+        registry status so the app can enforce blocked/deactivated on boot.
+        Auto-registers a brand-new device. Never changes an existing record's
+        status here — so a deactivated/blocked device is never silently
+        reactivated by the heartbeat.
+
+        Response (known):  { "registered": true, "status": "active|deactivated|blocked|pre_registered" }
+        Response (new):    { "registered": false, "just_registered": true }
+        """
+        if not device_id or not _DEVICE_UUID_RE.match(device_id):
+            return {'registered': False, 'error': 'Invalid device_id.'}
+        if not database_name:
+            return {'registered': False, 'error': 'Missing database_name.'}
+
+        database_name = database_name.strip()
+        base_url = (base_url or '').strip().rstrip('/')
+        device_name = ((device_name or '').strip() or 'Unknown App Device')[:256]
+
+        try:
+            with Registry(database_name).cursor() as cr:
+                env = odoo.api.Environment(cr, SUPERUSER_ID, {})
+                existing = env['device.registry'].search(
+                    [('device_id', '=', device_id), ('database_name', '=', database_name)],
+                    limit=1,
+                )
+                now = datetime.now()
+                if existing:
+                    existing.write({'last_login': now})
+                    cr.commit()
+                    return {'registered': True, 'status': existing.status}
+                if not base_url:
+                    return {'registered': False, 'error': 'Missing base_url for new device.'}
+                env['device.registry'].create({
+                    'device_id': device_id,
+                    'device_name': device_name,
+                    'base_url': base_url,
+                    'database_name': database_name,
+                    'last_login': now,
+                })
+                cr.commit()
+                _logger.info('Device auto-registered via /device/init: id=%s db=%s', device_id, database_name)
+                return {'registered': False, 'just_registered': True}
+        except Exception:
+            _logger.exception('device_init error for db=%s', database_name)
+            return {'registered': False, 'error': 'Server error during init.'}
+
+    @http.route('/device/deactivate', type='json', auth='none', methods=['POST'], csrf=False)
+    def device_deactivate(self, device_id=None, database_name=None, **kwargs):
+        """
+        Ends a device's session — called by the app when the user re-enters
+        Device Config. Flips an 'active' record to 'deactivated'. Leaves
+        'blocked' and 'pre_registered' untouched and never raises.
+
+        A deactivated device cannot silently resume; it must re-scan its QR
+        (/device/register-from-scan sets status back to active).
+
+        Response: { "success": true } if a record was deactivated, else
+                  { "success": false }.
+        """
+        if not device_id or not _DEVICE_UUID_RE.match(device_id):
+            return {'success': False}
+        db = (database_name or request.db or '').strip()
+        if not db:
+            return {'success': False}
+
+        try:
+            with Registry(db).cursor() as cr:
+                env = odoo.api.Environment(cr, SUPERUSER_ID, {})
+                rec = env['device.registry'].search(
+                    [('device_id', '=', device_id), ('database_name', '=', db)],
+                    limit=1,
+                )
+                if rec and rec.status == 'active':
+                    rec.write({'status': 'deactivated'})
+                    cr.commit()
+                    _logger.info('Device deactivated: id=%s db=%s', device_id, db)
+                    return {'success': True}
+            return {'success': False}
+        except Exception:
+            _logger.exception('device_deactivate failed for db=%s', db)
+            return {'success': False}
