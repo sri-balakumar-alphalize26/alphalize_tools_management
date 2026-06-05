@@ -29,6 +29,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { odooAuthenticate } from "@api/services/odooApi";
 import { fetchUserCompanies, switchCompany } from "@api/services/odooService";
 import { getOdooUrl, setOdooUrl } from "@api/config/odooConfig";
+import * as deviceApi from "@api/services/deviceApi";
+import { getDeviceName } from "@utils/deviceInfo";
 import { fetchCompanyCurrency, fetchUserCompanyId, fetchDecimalAccuracy } from "@api/services/currencyApi";
 import { saveCurrencyConfig } from "@utils/currency";
 import BranchPickerSheet from "@components/Auth/BranchPickerSheet";
@@ -370,6 +372,52 @@ const LoginScreen = ({ navigation }) => {
             });
           });
         }
+        if (!active) return;
+
+        // Ask the server for this device's current status. Catches a device
+        // that was Blocked/Deactivated in Odoo while the app sat on Login —
+        // bounce it to Device Setup so it can't log in. Bounded + offline
+        // tolerant: a network error just lets the user stay on Login.
+        try {
+          const [uuid, url, db, registered] = await Promise.all([
+            AsyncStorage.getItem("device_uuid"),
+            AsyncStorage.getItem("device_server_url"),
+            AsyncStorage.getItem("device_db_name"),
+            AsyncStorage.getItem("device_registered"),
+          ]);
+          if (active && uuid && url && db && registered === "true") {
+            const res = await Promise.race([
+              deviceApi.initDevice({
+                baseUrl: url,
+                databaseName: db,
+                deviceId: uuid,
+                deviceName: getDeviceName(),
+              }),
+              new Promise((resolve) => setTimeout(() => resolve(null), 6000)),
+            ]);
+            console.log("[DEVICE] login status check =", res);
+            const status = res?.status;
+            if (active && (status === "blocked" || status === "deactivated")) {
+              if (status === "blocked") {
+                console.log(
+                  `[DEVICE] login blocked — serial=${res?.serial_no || "—"} at=${res?.last_blocked || "—"}`
+                );
+              }
+              console.log("[DEVICE] login bounce to DeviceSetup — status =", status);
+              try { await AsyncStorage.removeItem("device_registered"); } catch (_) {}
+              showToastMessage(
+                status === "blocked"
+                  ? `Device blocked (Serial ${res?.serial_no || "—"}). Contact your administrator.`
+                  : "This device's session ended. Please reconnect by scanning the QR."
+              );
+              navigation.reset({ index: 0, routes: [{ name: "DeviceSetup" }] });
+              return;
+            }
+          }
+        } catch (e) {
+          console.log("[DEVICE] login status check failed (offline tolerance) —", e?.message || e);
+        }
+
         if (!active) return;
         const loggedIn = useAuthStore.getState().isLoggedIn;
         console.log("[AUTH] LoginScreen focus — isLoggedIn =", loggedIn);

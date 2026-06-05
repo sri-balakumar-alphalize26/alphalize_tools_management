@@ -89,15 +89,20 @@ const DeviceQRScannerScreen = () => {
         setStatusMsg("Device registered! Redirecting…");
         navigation.reset({ index: 0, routes: [{ name: "LoginScreen" }] });
       } else if (result.status === "blocked") {
-        showAlert("Device Blocked", "This device has been blocked by the administrator.", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ]);
+        const serial = result.serial_no || "—";
+        console.log(`[DEVICE] QR scan blocked — serial=${serial}`);
+        showAlert(
+          "Device Blocked",
+          `This device has been blocked by the administrator.\n\n` +
+            `Serial: ${serial}\n\n` +
+            `Give this Serial to your admin to unblock the device.`,
+          [{ text: "OK", onPress: () => navigation.goBack() }]
+        );
       } else if (result.status === "used") {
         console.log("[DEVICE] QR scan rejected — already used");
         showAlert(
           "QR Already Used",
-          result.message ||
-            "This QR code has already been used. In Odoo, tap New to generate a fresh QR, then scan it.",
+          "This QR code has already been used. Tap New to generate a fresh QR, then scan it.",
           [
             { text: "Try Again", onPress: resetScanner },
             { text: "Cancel", onPress: () => navigation.goBack() },

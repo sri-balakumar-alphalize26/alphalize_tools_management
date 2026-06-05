@@ -186,9 +186,36 @@ class DeviceRegistryController(http.Controller):
                     'status': 'active',
                     'database_name': db,
                     'last_login': odoo_fields.Datetime.now(),
+                    'awaiting_rescan': False,
                 }
                 if burl:
                     scan_vals['base_url'] = burl
+
+                def _clear_awaiting(dev_id):
+                    # After a successful (re)registration, clear the "tap New and
+                    # scan" banner on this device's older unblocked records.
+                    if dev_id:
+                        env['device.registry'].search([
+                            ('device_id', '=', dev_id),
+                            ('database_name', '=', db),
+                            ('awaiting_rescan', '=', True),
+                        ]).write({'awaiting_rescan': False})
+
+                # ── 0. Device-wide block. If this Device ID is blocked on ANY
+                # record, refuse to (re)register it — even onto a fresh
+                # Pre-Registered QR — so a blocked device cannot reconnect. ──
+                blocked = env['device.registry'].search([
+                    ('device_id', '=', identifier),
+                    ('database_name', '=', db),
+                    ('status', '=', 'blocked'),
+                ], limit=1)
+                if blocked:
+                    return {
+                        'status': 'blocked',
+                        'message': 'This device has been blocked.',
+                        'serial_no': blocked.serial_no or '',
+                        'last_blocked': str(blocked.last_blocked or ''),
+                    }
 
                 # ── 1. The QR carries the record id it belongs to (the form QR). ──
                 # Single-use rule: ONLY a Pre-Registered record can be claimed.
@@ -212,6 +239,7 @@ class DeviceRegistryController(http.Controller):
                         }
 
                     rec.write(scan_vals)
+                    _clear_awaiting(identifier)
                     cr.commit()
                     _logger.info('QR scan: claimed pre-registered record %s → %s (%s) on db %s', rid, identifier, name, db)
                     return {'status': 'registered', 'message': 'Device registered successfully.'}
@@ -223,6 +251,7 @@ class DeviceRegistryController(http.Controller):
                 )
                 if pending:
                     pending.write(scan_vals)
+                    _clear_awaiting(identifier)
                     cr.commit()
                     _logger.info('QR scan: claimed pending record %s → %s (%s) on db %s',
                                  pending.id, identifier, name, db)
@@ -262,15 +291,27 @@ class DeviceRegistryController(http.Controller):
         try:
             with Registry(database_name).cursor() as cr:
                 env = odoo.api.Environment(cr, SUPERUSER_ID, {})
-                existing = env['device.registry'].search(
+                # Fetch ALL records for this device id — blocking is device-wide.
+                recs = env['device.registry'].search(
                     [('device_id', '=', device_id), ('database_name', '=', database_name)],
-                    limit=1,
                 )
                 now = datetime.now()
-                if existing:
-                    existing.write({'last_login': now})
+                if recs:
+                    newest = recs[0]  # _order = create_date desc → newest first
+                    newest.write({'last_login': now})
                     cr.commit()
-                    return {'registered': True, 'status': existing.status}
+                    # Fail closed: if ANY record for this device is blocked, the
+                    # device is blocked; otherwise the newest record's status wins.
+                    blocked = recs.filtered(lambda r: r.status == 'blocked')
+                    if blocked:
+                        b = blocked[0]  # _order = create_date desc → latest blocked
+                        return {
+                            'registered': True,
+                            'status': 'blocked',
+                            'serial_no': b.serial_no or '',
+                            'last_blocked': str(b.last_blocked or ''),
+                        }
+                    return {'registered': True, 'status': newest.status}
                 if not base_url:
                     return {'registered': False, 'error': 'Missing base_url for new device.'}
                 env['device.registry'].create({

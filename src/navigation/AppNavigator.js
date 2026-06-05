@@ -1,10 +1,15 @@
-import React, { useRef } from "react";
-import { View, Text, StyleSheet, Animated, Pressable } from "react-native";
+import React, { useRef, useEffect, useCallback } from "react";
+import { View, Text, StyleSheet, Animated, Pressable, AppState } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { useAuthStore } from "@stores/auth";
 import showAlert from "@components/Modal/alertHost";
+import { showToastMessage } from "@components/Toast";
+import * as deviceApi from "@api/services/deviceApi";
+import { getDeviceName } from "@utils/deviceInfo";
 
 import HomeScreen from "@screens/Home/HomeScreen";
 import ProfileScreen from "@screens/Profile/ProfileScreen";
@@ -55,6 +60,62 @@ const TabBarIcon = ({ focused, iconName, label }) => (
 
 const AppNavigator = () => {
   const logout = useAuthStore((state) => state.logout);
+  const navigation = useNavigation();
+
+  // In-app block/deactivate watcher. Splash + Login already gate on cold start
+  // and login focus; this catches a device blocked/deactivated in Odoo *while
+  // the user is actively using the app*. Polls every 15s + on app foreground.
+  const checkDeviceStatus = useCallback(async () => {
+    try {
+      const [uuid, url, db, registered] = await Promise.all([
+        AsyncStorage.getItem("device_uuid"),
+        AsyncStorage.getItem("device_server_url"),
+        AsyncStorage.getItem("device_db_name"),
+        AsyncStorage.getItem("device_registered"),
+      ]);
+      if (!uuid || !url || !db || registered !== "true") return;
+
+      const res = await deviceApi.initDevice({
+        baseUrl: url,
+        databaseName: db,
+        deviceId: uuid,
+        deviceName: getDeviceName(),
+      });
+      const status = res?.status;
+      console.log("[DEVICE] in-app block check — status =", status);
+      if (status === "blocked" || status === "deactivated") {
+        if (status === "blocked") {
+          console.log(
+            `[DEVICE] in-app blocked — serial=${res?.serial_no || "—"} at=${res?.last_blocked || "—"}`
+          );
+        }
+        console.log("[DEVICE] in-app bounce to DeviceSetup — status =", status);
+        logout();
+        try { await AsyncStorage.removeItem("device_registered"); } catch (_) {}
+        showToastMessage(
+          status === "blocked"
+            ? `Device blocked (Serial ${res?.serial_no || "—"}). Contact your administrator.`
+            : "This device's session ended. Please reconnect by scanning the QR."
+        );
+        navigation.reset({ index: 0, routes: [{ name: "DeviceSetup" }] });
+      }
+    } catch (e) {
+      // Offline / unreachable — can't verify, so don't kick the user out.
+      console.log("[DEVICE] in-app block check failed (offline tolerance) —", e?.message || e);
+    }
+  }, [logout, navigation]);
+
+  useEffect(() => {
+    checkDeviceStatus(); // initial check on entering the app
+    const interval = setInterval(checkDeviceStatus, 5000); // every 5s
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") checkDeviceStatus();
+    });
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [checkDeviceStatus]);
 
   const handleLogout = (navigation) => {
     showAlert("Logout", "Are you sure you want to logout?", [

@@ -106,11 +106,16 @@ const SplashScreen = () => {
 
           const status = initRes?.status;
           if (status === "blocked" || status === "deactivated") {
+            if (status === "blocked") {
+              console.log(
+                `[DEVICE] splash blocked — serial=${initRes?.serial_no || "—"} at=${initRes?.last_blocked || "—"}`
+              );
+            }
             console.log("[DEVICE] splash bounce to DeviceSetup — status =", status);
             try { await AsyncStorage.removeItem("device_registered"); } catch (_) {}
             showToastMessage(
               status === "blocked"
-                ? "This device has been blocked. Contact your administrator."
+                ? `Device blocked (Serial ${initRes?.serial_no || "—"}). Contact your administrator.`
                 : "This device's session ended. Please reconnect by scanning the QR."
             );
             if (!cancelled) {
