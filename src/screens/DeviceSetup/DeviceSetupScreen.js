@@ -154,9 +154,17 @@ const DeviceSetupScreen = () => {
     if (!valid) return;
 
     const base = normalizeUrl(serverUrl);
+    // Log the admin-credentials configure attempt (never log the password value).
+    console.log("[DEVICE] admin configure — authenticating", {
+      url: base,
+      db: selectedDb,
+      username: username.trim(),
+      hasPassword: !!password,
+    });
     setLoadingConfigure(true);
     try {
       const session = await deviceApi.authenticate(base, selectedDb, username.trim(), password);
+      console.log("[DEVICE] admin configure — auth result uid =", session?.uid || false);
       if (!session.uid || session.uid === false) {
         setError("username", "Invalid username or password");
         return;
@@ -182,6 +190,7 @@ const DeviceSetupScreen = () => {
           ["device_admin_password", password],
         ];
         await AsyncStorage.multiSet(writes);
+        console.log("[DEVICE] admin configure — saved admin credentials for", username.trim(), "(dbChanged:", dbChanged, ")");
         if (dbChanged) {
           await AsyncStorage.multiRemove(["last_login_username", "last_login_password"]);
         }
@@ -398,6 +407,8 @@ const DeviceSetupScreen = () => {
               Your Device ID must be pre-registered by your admin.{"\n"}
               You only need to do this once per device.
             </Text>
+
+            <Text style={styles.poweredBy}>Powered by 369ai</Text>
 
           </View>
         </ScrollView>
@@ -624,6 +635,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 18,
     marginTop: 4,
+  },
+  poweredBy: {
+    fontSize: 12,
+    color: "#bbb",
+    textAlign: "center",
+    marginTop: "auto",
+    paddingTop: 16,
+    fontFamily: FONT_FAMILY.urbanistBold,
   },
 });
 

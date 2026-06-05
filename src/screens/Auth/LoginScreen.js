@@ -116,6 +116,13 @@ const LoginScreen = ({ navigation }) => {
 
   const handleOnchange = (text, input) => {
     setInputs((prevState) => ({ ...prevState, [input]: text }));
+    // Clear this field's error as soon as the user types, so only the field
+    // that's actually wrong/empty at submit stays red.
+    setErrors((prev) => {
+      if (!prev[input]) return prev;
+      console.log("[LOGIN] cleared error for", input);
+      return { ...prev, [input]: null };
+    });
   };
 
   const handleAutoFill = async (value) => {
@@ -135,6 +142,8 @@ const LoginScreen = ({ navigation }) => {
         const p = pairs[1][1] || pairs[3][1] || "";
         if (u || p) {
           setInputs((prev) => ({ ...prev, username: u, password: p }));
+          // Clear any stale red lines on the fields we just populated.
+          setErrors((prev) => ({ ...prev, username: null, password: null }));
         } else {
           showToastMessage("No saved credentials yet");
           setAutoFill(false);
@@ -154,6 +163,11 @@ const LoginScreen = ({ navigation }) => {
   const validate = () => {
     Keyboard.dismiss();
     let isValid = true;
+
+    console.log("[LOGIN] validate — invalid", {
+      username: !inputs.username,
+      password: !inputs.password,
+    });
 
     if (!inputs.username) {
       handleError("Please input user name", "username");
