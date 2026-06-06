@@ -30,6 +30,7 @@ class DeviceRegistry(models.Model):
         selection=[
             ('pre_registered', 'Pre-Registered'),
             ('active', 'Active'),
+            ('deactivated', 'Deactivated'),
             ('blocked', 'Blocked'),
         ],
         string='Status',
