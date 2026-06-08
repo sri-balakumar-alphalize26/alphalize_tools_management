@@ -146,11 +146,19 @@ const CalendarPicker = ({ visible, value, onSelect, onClose, minDate }) => {
   const [currentMonth, setCurrentMonth] = useState(initial.getMonth());
   const [viewMode, setViewMode] = useState("days"); // "days" | "months" | "years"
 
-  // Always start on the day grid when the popup opens.
+  // On open, reset to the day grid and jump to the selected date (or today).
   useEffect(() => {
     if (visible) {
-      console.log("[CAL] picker opened", { value, minDate, currentYear, currentMonth });
+      const init = value ? new Date(value + "T00:00:00") : today;
+      setCurrentYear(init.getFullYear());
+      setCurrentMonth(init.getMonth());
       setViewMode("days");
+      console.log("[CAL] picker opened", {
+        value,
+        minDate,
+        currentYear: init.getFullYear(),
+        currentMonth: init.getMonth(),
+      });
     }
   }, [visible]);
 
