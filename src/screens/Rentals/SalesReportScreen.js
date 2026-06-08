@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Modal,
   Platform,
   ActivityIndicator,
@@ -124,6 +123,262 @@ const DropdownPicker = ({ label, value, options, onSelect }) => {
   );
 };
 
+// ── Calendar popup (date <= today only) ─────────────────────────────
+const MONTH_FULL = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const START_YEAR = 2000;
+
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const fmtDate = (y, m, d) =>
+  `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+const CalendarPicker = ({ visible, value, onSelect, onClose, minDate }) => {
+  const today = startOfDay(new Date());
+  const initial = value ? new Date(value + "T00:00:00") : today;
+  const [currentYear, setCurrentYear] = useState(initial.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(initial.getMonth());
+  const [viewMode, setViewMode] = useState("days"); // "days" | "months" | "years"
+
+  // Always start on the day grid when the popup opens.
+  useEffect(() => {
+    if (visible) {
+      console.log("[CAL] picker opened", { value, minDate, currentYear, currentMonth });
+      setViewMode("days");
+    }
+  }, [visible]);
+
+  const min = minDate ? startOfDay(new Date(minDate + "T00:00:00")) : null;
+
+  const weeks = useMemo(() => {
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const out = [];
+    let week = new Array(firstDay).fill(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      week.push(d);
+      if (week.length === 7) {
+        out.push(week);
+        week = [];
+      }
+    }
+    if (week.length > 0) {
+      while (week.length < 7) week.push(null);
+      out.push(week);
+    }
+    return out;
+  }, [currentYear, currentMonth]);
+
+  const isCurrentMonth =
+    currentYear === today.getFullYear() && currentMonth === today.getMonth();
+
+  const goPrev = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(currentYear - 1);
+    } else setCurrentMonth(currentMonth - 1);
+  };
+  const goNext = () => {
+    if (isCurrentMonth) return; // never page into the future
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(currentYear + 1);
+    } else setCurrentMonth(currentMonth + 1);
+  };
+
+  const pickYear = (y) => {
+    console.log("[CAL] year picked", y);
+    setCurrentYear(y);
+    // Clamp into the past so we never land on a future month/year.
+    if (y === today.getFullYear() && currentMonth > today.getMonth()) {
+      setCurrentMonth(today.getMonth());
+    }
+    setViewMode("months");
+  };
+
+  const years = [];
+  for (let y = today.getFullYear(); y >= START_YEAR; y--) years.push(y);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={calStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={calStyles.card} onPress={() => {}}>
+          {/* Header */}
+          <View style={calStyles.navRow}>
+            <TouchableOpacity
+              onPress={goPrev}
+              disabled={viewMode !== "days"}
+              style={calStyles.navBtn}
+            >
+              <Text style={[calStyles.navBtnText, viewMode !== "days" && calStyles.navBtnDisabled]}>
+                {"◀"}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={calStyles.headerCenter}>
+              <TouchableOpacity
+                style={calStyles.headerPick}
+                onPress={() => {
+                  const next = viewMode === "months" ? "days" : "months";
+                  console.log("[CAL] tap month header ->", next);
+                  setViewMode(next);
+                }}
+              >
+                <Text style={calStyles.monthName}>{MONTH_FULL[currentMonth]}</Text>
+                <Text style={calStyles.headerArrow}>{"▾"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={calStyles.headerPick}
+                onPress={() => {
+                  const next = viewMode === "years" ? "days" : "years";
+                  console.log("[CAL] tap year header ->", next);
+                  setViewMode(next);
+                }}
+              >
+                <Text style={calStyles.yearLabel}>{currentYear}</Text>
+                <Text style={calStyles.headerArrow}>{"▾"}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={goNext}
+              disabled={viewMode !== "days" || isCurrentMonth}
+              style={calStyles.navBtn}
+            >
+              <Text
+                style={[
+                  calStyles.navBtnText,
+                  (viewMode !== "days" || isCurrentMonth) && calStyles.navBtnDisabled,
+                ]}
+              >
+                {"▶"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* YEARS VIEW */}
+          {viewMode === "years" && (
+            <ScrollView style={{ maxHeight: 260 }}>
+              <View style={calStyles.pickGrid}>
+                {years.map((y) => {
+                  const isSel = y === currentYear;
+                  return (
+                    <TouchableOpacity
+                      key={y}
+                      style={[calStyles.pickCell, isSel && calStyles.pickCellSelected]}
+                      onPress={() => pickYear(y)}
+                    >
+                      <Text style={[calStyles.pickText, isSel && calStyles.pickTextSelected]}>{y}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          )}
+
+          {/* MONTHS VIEW */}
+          {viewMode === "months" && (
+            <View style={calStyles.pickGrid}>
+              {MONTH_SHORT.map((m, idx) => {
+                const isFutureMonth =
+                  currentYear === today.getFullYear() && idx > today.getMonth();
+                const isSel = idx === currentMonth;
+                return (
+                  <TouchableOpacity
+                    key={m}
+                    disabled={isFutureMonth}
+                    style={[
+                      calStyles.pickCell,
+                      isSel && calStyles.pickCellSelected,
+                      isFutureMonth && calStyles.pickCellDisabled,
+                    ]}
+                    onPress={() => {
+                      console.log("[CAL] month picked", { month: idx, label: m });
+                      setCurrentMonth(idx);
+                      setViewMode("days");
+                    }}
+                  >
+                    <Text
+                      style={[
+                        calStyles.pickText,
+                        isSel && calStyles.pickTextSelected,
+                        isFutureMonth && calStyles.pickTextDisabled,
+                      ]}
+                    >
+                      {m}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {/* DAYS VIEW */}
+          {viewMode === "days" && (
+            <>
+              {/* Day names */}
+              <View style={calStyles.weekRow}>
+                {DAY_NAMES.map((d) => (
+                  <View key={d} style={calStyles.dayNameCell}>
+                    <Text style={calStyles.dayNameText}>{d}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Grid */}
+              {weeks.map((week, wIdx) => (
+                <View key={wIdx} style={calStyles.weekRow}>
+                  {week.map((day, cIdx) => {
+                    if (!day) return <View key={cIdx} style={calStyles.emptyCell} />;
+                    const cellDate = new Date(currentYear, currentMonth, day);
+                    const dateStr = fmtDate(currentYear, currentMonth, day);
+                    const isFuture = cellDate > today;
+                    const isBeforeMin = min && cellDate < min;
+                    const disabled = isFuture || isBeforeMin;
+                    const isSelected = value === dateStr;
+                    return (
+                      <TouchableOpacity
+                        key={cIdx}
+                        disabled={disabled}
+                        activeOpacity={0.7}
+                        style={[
+                          calStyles.dayCell,
+                          isSelected && calStyles.dayCellSelected,
+                          disabled && calStyles.dayCellDisabled,
+                        ]}
+                        onPress={() => {
+                          onSelect(dateStr);
+                          onClose();
+                        }}
+                      >
+                        <Text
+                          style={[
+                            calStyles.dayNum,
+                            isSelected && calStyles.dayNumSelected,
+                            disabled && calStyles.dayNumDisabled,
+                          ]}
+                        >
+                          {day}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))}
+            </>
+          )}
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 const TOP_N_OPTIONS = [
   { label: "Show All", value: 0 },
   { label: "Top 2", value: 2 },
@@ -144,6 +399,8 @@ const SalesReportScreen = ({ navigation }) => {
   const [period, setPeriod] = useState("all");
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
+  const [showFromCal, setShowFromCal] = useState(false);
+  const [showToCal, setShowToCal] = useState(false);
   const [customerLimit, setCustomerLimit] = useState(0);
   const [toolLimit, setToolLimit] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("all");
@@ -515,28 +772,76 @@ const SalesReportScreen = ({ navigation }) => {
           {/* CUSTOM RANGE */}
           <View style={styles.customRow}>
             <Text style={styles.customLabel}>Custom:</Text>
-            <TextInput
+            <TouchableOpacity
               style={styles.dateInput}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#999"
-              value={customDateFrom}
-              onChangeText={(v) => {
-                setCustomDateFrom(v);
-                if (v || customDateTo) setPeriod("custom");
+              onPress={() => {
+                console.log("[CAL] open From picker", { customDateFrom });
+                setShowFromCal(true);
               }}
-            />
+            >
+              <Text style={styles.dateInputIcon}>{"📅"}</Text>
+              <Text style={customDateFrom ? styles.dateInputText : styles.dateInputPlaceholder}>
+                {customDateFrom || "YYYY-MM-DD"}
+              </Text>
+              {!!customDateFrom && (
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => {
+                    console.log("[CAL] clear From");
+                    setCustomDateFrom("");
+                  }}
+                >
+                  <Text style={styles.dateInputClear}>{"✕"}</Text>
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
             <Text style={styles.toLabel}>to</Text>
-            <TextInput
+            <TouchableOpacity
               style={styles.dateInput}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#999"
-              value={customDateTo}
-              onChangeText={(v) => {
-                setCustomDateTo(v);
-                if (v || customDateFrom) setPeriod("custom");
+              onPress={() => {
+                console.log("[CAL] open To picker", { customDateTo, minDate: customDateFrom });
+                setShowToCal(true);
               }}
-            />
+            >
+              <Text style={styles.dateInputIcon}>{"📅"}</Text>
+              <Text style={customDateTo ? styles.dateInputText : styles.dateInputPlaceholder}>
+                {customDateTo || "YYYY-MM-DD"}
+              </Text>
+              {!!customDateTo && (
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => {
+                    console.log("[CAL] clear To");
+                    setCustomDateTo("");
+                  }}
+                >
+                  <Text style={styles.dateInputClear}>{"✕"}</Text>
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
           </View>
+
+          <CalendarPicker
+            visible={showFromCal}
+            value={customDateFrom}
+            onClose={() => setShowFromCal(false)}
+            onSelect={(d) => {
+              console.log("[CAL] From selected", d);
+              setCustomDateFrom(d);
+              setPeriod("custom");
+            }}
+          />
+          <CalendarPicker
+            visible={showToCal}
+            value={customDateTo}
+            minDate={customDateFrom || undefined}
+            onClose={() => setShowToCal(false)}
+            onSelect={(d) => {
+              console.log("[CAL] To selected", d);
+              setCustomDateTo(d);
+              setPeriod("custom");
+            }}
+          />
 
           {/* PAYMENT METHOD PILLS */}
           <View style={styles.pillBar}>
@@ -705,6 +1010,80 @@ const SalesReportScreen = ({ navigation }) => {
   );
 };
 
+const calStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+  },
+  navRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  navBtn: { paddingHorizontal: 16, paddingVertical: 6 },
+  navBtnText: { fontSize: 16, color: "#714B67", fontWeight: "700" },
+  navBtnDisabled: { color: "#ccc" },
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerPick: { flexDirection: "row", alignItems: "center", gap: 3 },
+  monthName: { fontSize: 16, fontWeight: "700", color: "#714B67" },
+  yearLabel: { fontSize: 16, fontWeight: "700", color: "#714B67" },
+  headerArrow: { fontSize: 11, color: "#714B67", fontWeight: "700" },
+  pickGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  pickCell: {
+    width: "30%",
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f7f7f7",
+    borderRadius: 8,
+  },
+  pickCellSelected: { backgroundColor: "#714B67" },
+  pickCellDisabled: { backgroundColor: "#fff" },
+  pickText: { fontSize: 14, fontWeight: "600", color: "#333" },
+  pickTextSelected: { color: "#fff" },
+  pickTextDisabled: { color: "#ccc" },
+  weekRow: { flexDirection: "row", gap: 2, marginBottom: 2 },
+  dayNameCell: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 6,
+    backgroundColor: "#714B67",
+    borderRadius: 4,
+  },
+  dayNameText: { fontSize: 11, fontWeight: "700", color: "#fff" },
+  emptyCell: { flex: 1, aspectRatio: 1 },
+  dayCell: {
+    flex: 1,
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f7f7f7",
+    borderRadius: 6,
+  },
+  dayCellSelected: { backgroundColor: "#714B67" },
+  dayCellDisabled: { backgroundColor: "#fff" },
+  dayNum: { fontSize: 13, fontWeight: "600", color: "#333" },
+  dayNumSelected: { color: "#fff" },
+  dayNumDisabled: { color: "#ccc" },
+});
+
 const dropStyles = StyleSheet.create({
   trigger: {
     flexDirection: "row",
@@ -795,15 +1174,20 @@ const styles = StyleSheet.create({
   dateInput: {
     flex: 1,
     minWidth: 120,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 6,
     paddingHorizontal: 10,
-    paddingVertical: 7,
-    fontSize: 12,
+    paddingVertical: 9,
     backgroundColor: "#fff",
-    color: "#222",
   },
+  dateInputIcon: { fontSize: 13 },
+  dateInputText: { fontSize: 12, color: "#222", flex: 1 },
+  dateInputPlaceholder: { fontSize: 12, color: "#999", flex: 1 },
+  dateInputClear: { fontSize: 13, color: "#999", fontWeight: "700", paddingLeft: 2 },
 
   kpiGrid: {
     flexDirection: "row",
