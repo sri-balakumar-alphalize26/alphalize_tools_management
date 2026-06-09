@@ -292,6 +292,11 @@ const LoginScreen = ({ navigation }) => {
       const odooAuth = await odooAuthenticate(dbName, inputs.username, inputs.password);
       console.log("[BRANCH] login auth ok", { uid: odooAuth?.uid });
 
+      // Real admin status from the Odoo session (not hardcoded) so Profile role
+      // + the requiresAdmin gates reflect the actual user.
+      const isAdmin = !!odooAuth.is_admin;
+      console.log("[AUTH] is_admin", isAdmin);
+
       let companyInfo = { current_company_id: null, current_company_name: "", allowed_companies: [] };
       try {
         companyInfo = await fetchUserCompanies(odooAuth);
@@ -301,7 +306,8 @@ const LoginScreen = ({ navigation }) => {
       const userData = {
         username: inputs.username,
         uid: odooAuth.uid,
-        is_admin: true,
+        is_admin: isAdmin,
+        is_superuser: !!odooAuth.is_system || odooAuth.uid === 1,
         database: dbName,
         company_id: companyInfo.current_company_id,
         company_name: companyInfo.current_company_name,

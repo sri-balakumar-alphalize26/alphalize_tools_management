@@ -119,9 +119,13 @@ export const odooAuthenticate = async (db, username, password) => {
     throw new Error("Invalid username or password");
   }
 
-  // Also create a web session for web-based calls
+  // Also create a web session for web-based calls. Capture its result: Odoo's
+  // session_info includes the server-computed `is_admin` (superuser/erp-manager)
+  // and `is_system` (base.group_system) — the reliable admin signal, since the
+  // privilege module's has_group override makes a direct has_group RPC throw.
+  let session = null;
   try {
-    await webJsonRpc("/web/session/authenticate", {
+    session = await webJsonRpc("/web/session/authenticate", {
       db,
       login: username,
       password,
@@ -131,7 +135,13 @@ export const odooAuthenticate = async (db, username, password) => {
     console.warn("Web session failed:", e.message);
   }
 
-  return { uid, db, username, password };
+  const is_admin = !!(session && (session.is_admin || session.is_system));
+  console.log(
+    "[AUTH] session is_admin=", session?.is_admin,
+    "is_system=", session?.is_system, "=> is_admin", is_admin,
+  );
+
+  return { uid, db, username, password, is_admin, is_system: !!session?.is_system };
 };
 
 export const odooGetDatabases = async () => {

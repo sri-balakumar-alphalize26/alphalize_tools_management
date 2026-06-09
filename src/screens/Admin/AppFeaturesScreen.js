@@ -5,7 +5,8 @@
 //
 // Ported from the Grocery app's AppFeaturesScreen, rewired to this app's
 // conventions: execute_kw via privilegeApi, @expo/vector-icons, built-in Modal,
-// showToastMessage, Alert confirmations, and the Urbanist theme fonts.
+// showToastMessage, the shared styled confirm popup (showAlert), and the
+// Urbanist theme fonts.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -16,7 +17,6 @@ import {
   TextInput,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Modal,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -24,6 +24,7 @@ import Text from "@components/Text";
 import NavigationHeader from "@components/Header/NavigationHeader";
 import { SafeAreaView, RoundedContainer } from "@components/containers";
 import { showToastMessage } from "@components/Toast";
+import showAlert from "@components/Modal/alertHost";
 import { useAuthStore } from "@stores/auth";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import {
@@ -217,7 +218,7 @@ const AppFeaturesScreen = ({ navigation }) => {
 
   const handleDiscard = useCallback(() => {
     if (pendingCount === 0) return;
-    Alert.alert(
+    showAlert(
       "Discard unsaved changes?",
       `You have ${pendingCount} feature${pendingCount === 1 ? "" : "s"} with unsaved visibility changes.`,
       [
@@ -236,7 +237,7 @@ const AppFeaturesScreen = ({ navigation }) => {
   // ── Bulk: Hide all ────────────────────────────────────────────────
   const handleHideAll = useCallback(() => {
     if (!selectedUser || saving) return;
-    Alert.alert(
+    showAlert(
       "Hide every feature?",
       `Mark every defined feature as hidden for ${selectedUser.name}. On their next login every gated UI element disappears.`,
       [
@@ -264,7 +265,7 @@ const AppFeaturesScreen = ({ navigation }) => {
   // ── Bulk: Reset all ───────────────────────────────────────────────
   const handleResetAll = useCallback(() => {
     if (!selectedUser || saving) return;
-    Alert.alert(
+    showAlert(
       "Reset all hides?",
       `Clear every hide for ${selectedUser.name}. Their next login will show every gated UI element again.`,
       [
@@ -299,7 +300,7 @@ const AppFeaturesScreen = ({ navigation }) => {
     const unsubscribe = navigation.addListener("beforeRemove", (e) => {
       if (saving) return;
       e.preventDefault();
-      Alert.alert(
+      showAlert(
         "Discard unsaved changes?",
         `You have ${pendingCount} feature${pendingCount === 1 ? "" : "s"} with unsaved visibility changes.`,
         [

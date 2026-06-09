@@ -15,6 +15,10 @@ const useAuthStore = create(
       serverUrl: null,
       currency: FALLBACK_CURRENCY,
       decimalAccuracy: {},
+      // Privilege gating: feature_key strings hidden for the current user.
+      // Refreshed on Home focus; reset on login/logout so hides never leak
+      // across users.
+      hiddenFeatures: [],
 
       login: (userData, odooAuth, serverUrl) =>
         set({
@@ -22,6 +26,7 @@ const useAuthStore = create(
           user: userData,
           odooAuth: odooAuth || null,
           serverUrl: serverUrl || null,
+          hiddenFeatures: [],
         }),
 
       logout: () =>
@@ -30,7 +35,11 @@ const useAuthStore = create(
           user: null,
           odooAuth: null,
           serverUrl: null,
+          hiddenFeatures: [],
         }),
+
+      setHiddenFeatures: (keys) =>
+        set({ hiddenFeatures: Array.isArray(keys) ? keys : [] }),
 
       updateUser: (userData) =>
         set((state) => ({

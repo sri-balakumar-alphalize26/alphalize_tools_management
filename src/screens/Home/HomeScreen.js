@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   Platform,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Text from "@components/Text";
 import { RoundedContainer, SafeAreaView } from "@components/containers";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { showToastMessage } from "@components/Toast";
 import { useAuthStore } from "@stores/auth";
+import { fetchHiddenFeatureKeys } from "@api/services/privilegeApi";
 import BannerCarousel from "@components/Home/BannerCarousel";
 
 const SECTIONS = [
@@ -22,8 +24,8 @@ const SECTIONS = [
     icon: "business-center",
     accent: "#00BCD4",
     items: [
-      { id: "1", title: "New Rental", screen: "RentalOrderFormScreen", icon: "add-circle", bg: "#E0F7FA", accent: "#00BCD4" },
-      { id: "2", title: "Rental Orders", screen: "RentalOrdersScreen", icon: "assignment", bg: "#E3F2FD", accent: "#2196F3" },
+      { id: "1", title: "New Rental", screen: "RentalOrderFormScreen", icon: "add-circle", bg: "#E0F7FA", accent: "#00BCD4", featureKey: "home.tile.new_rental" },
+      { id: "2", title: "Rental Orders", screen: "RentalOrdersScreen", icon: "assignment", bg: "#E3F2FD", accent: "#2196F3", featureKey: "home.tile.rental_orders" },
     ],
   },
   {
@@ -31,10 +33,10 @@ const SECTIONS = [
     icon: "build",
     accent: "#FF9800",
     items: [
-      { id: "3", title: "Tools & Equipment", screen: "ToolsScreen", icon: "build", bg: "#FFF3E0", accent: "#FF9800" },
-      { id: "4", title: "Pricing Rules", screen: "PricingScreen", icon: "attach-money", bg: "#FFF8E1", accent: "#FFC107" },
-      { id: "5", title: "Tool Categories", screen: "ToolCategoriesScreen", icon: "folder-open", bg: "#E8F5E9", accent: "#4CAF50" },
-      { id: "7", title: "Tool Availability", screen: "ToolAvailabilityScreen", icon: "bar-chart", bg: "#E8EAF6", accent: "#3F51B5" },
+      { id: "3", title: "Tools & Equipment", screen: "ToolsScreen", icon: "build", bg: "#FFF3E0", accent: "#FF9800", featureKey: "home.tile.tools" },
+      { id: "4", title: "Pricing Rules", screen: "PricingScreen", icon: "attach-money", bg: "#FFF8E1", accent: "#FFC107", featureKey: "home.tile.pricing" },
+      { id: "5", title: "Tool Categories", screen: "ToolCategoriesScreen", icon: "folder-open", bg: "#E8F5E9", accent: "#4CAF50", featureKey: "home.tile.tool_categories" },
+      { id: "7", title: "Tool Availability", screen: "ToolAvailabilityScreen", icon: "bar-chart", bg: "#E8EAF6", accent: "#3F51B5", featureKey: "home.tile.tool_availability" },
     ],
   },
   {
@@ -42,9 +44,9 @@ const SECTIONS = [
     icon: "people",
     accent: "#9C27B0",
     items: [
-      { id: "6", title: "Customers", screen: "CustomersScreen", icon: "people", bg: "#F3E5F5", accent: "#9C27B0" },
-      { id: "11", title: "Customer ID Proofs", screen: "CustomersScreen", icon: "badge", bg: "#EFEBE9", accent: "#795548", params: { filterIdProofs: true } },
-      { id: "13", title: "Customer Ratings", screen: "CustomersScreen", icon: "star", bg: "#FFF8E1", accent: "#F57C00", params: { filterRatings: true } },
+      { id: "6", title: "Customers", screen: "CustomersScreen", icon: "people", bg: "#F3E5F5", accent: "#9C27B0", featureKey: "home.tile.customers" },
+      { id: "11", title: "Customer ID Proofs", screen: "CustomersScreen", icon: "badge", bg: "#EFEBE9", accent: "#795548", params: { filterIdProofs: true }, featureKey: "home.tile.customer_id_proofs" },
+      { id: "13", title: "Customer Ratings", screen: "CustomersScreen", icon: "star", bg: "#FFF8E1", accent: "#F57C00", params: { filterRatings: true }, featureKey: "home.tile.customer_ratings" },
     ],
   },
   {
@@ -52,12 +54,12 @@ const SECTIONS = [
     icon: "insights",
     accent: "#3F51B5",
     items: [
-      { id: "14", title: "Sales Report", screen: "SalesReportScreen", icon: "trending-up", bg: "#F3E5F5", accent: "#9C27B0" },
-      { id: "15", title: "Expenses", screen: "ExpensesScreen", icon: "account-balance-wallet", bg: "#F1F8E9", accent: "#7CB342" },
-      { id: "9", title: "Discount Details", screen: "DiscountDetailsScreen", icon: "local-offer", bg: "#FCE4EC", accent: "#E91E63" },
-      { id: "12", title: "Tax Details", screen: "TaxDetailsScreen", icon: "receipt", bg: "#E3F2FD", accent: "#1565C0" },
-      { id: "8", title: "Order Reports", screen: "OrderReportsScreen", icon: "description", bg: "#FBE9E7", accent: "#FF5722" },
-      { id: "10", title: "Rental Dashboard", screen: "RentalDashboardScreen", icon: "trending-up", bg: "#E1F5FE", accent: "#03A9F4" },
+      { id: "14", title: "Sales Report", screen: "SalesReportScreen", icon: "trending-up", bg: "#F3E5F5", accent: "#9C27B0", featureKey: "home.tile.sales_report" },
+      { id: "15", title: "Expenses", screen: "ExpensesScreen", icon: "account-balance-wallet", bg: "#F1F8E9", accent: "#7CB342", featureKey: "home.tile.expenses" },
+      { id: "9", title: "Discount Details", screen: "DiscountDetailsScreen", icon: "local-offer", bg: "#FCE4EC", accent: "#E91E63", featureKey: "home.tile.discount_details" },
+      { id: "12", title: "Tax Details", screen: "TaxDetailsScreen", icon: "receipt", bg: "#E3F2FD", accent: "#1565C0", featureKey: "home.tile.tax_details" },
+      { id: "8", title: "Order Reports", screen: "OrderReportsScreen", icon: "description", bg: "#FBE9E7", accent: "#FF5722", featureKey: "home.tile.order_reports" },
+      { id: "10", title: "Rental Dashboard", screen: "RentalDashboardScreen", icon: "trending-up", bg: "#E1F5FE", accent: "#03A9F4", featureKey: "home.tile.rental_dashboard" },
     ],
   },
   {
@@ -78,8 +80,59 @@ const padItems = (items) => {
 
 const HomeScreen = ({ navigation }) => {
   const user = useAuthStore((state) => state.user);
+  const odooAuth = useAuthStore((state) => state.odooAuth);
+  const hiddenFeatures = useAuthStore((state) => state.hiddenFeatures || []);
+  const setHiddenFeatures = useAuthStore((state) => state.setHiddenFeatures);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [backPressCount, setBackPressCount] = useState(0);
+
+  // Refresh the current user's hidden-feature keys whenever Home gains focus,
+  // so privilege gating stays current after login and after an admin edits
+  // their own hides.
+  useFocusEffect(
+    useCallback(() => {
+      const uid = odooAuth?.uid;
+      if (!odooAuth || !uid || !setHiddenFeatures) return undefined;
+      let active = true;
+      (async () => {
+        console.log("[FeatureGate] fetching hidden features for uid", uid);
+        const keys = await fetchHiddenFeatureKeys(odooAuth, uid);
+        console.log("[FeatureGate] uid", uid, "hidden keys:", keys);
+        if (active) setHiddenFeatures(keys);
+      })();
+      return () => {
+        active = false;
+      };
+    }, [odooAuth, setHiddenFeatures])
+  );
+
+  // Real admin status — admin-only tiles (requiresAdmin) are hidden from
+  // non-admins entirely, not just blocked on tap.
+  const isAdmin = user?.uid === 2 || user?.is_admin === true || user?.is_superuser === true;
+
+  // Drop admin-only tiles for non-admins, and tiles whose feature_key is hidden
+  // for this user; skip sections left empty.
+  const visibleSections = SECTIONS.map((s) => ({
+    ...s,
+    items: s.items.filter(
+      (it) =>
+        (!it.requiresAdmin || isAdmin) &&
+        (!it.featureKey || !hiddenFeatures.includes(it.featureKey)),
+    ),
+  })).filter((s) => s.items.length > 0);
+
+  const hiddenTileKeys = SECTIONS.flatMap((s) => s.items)
+    .filter((it) => it.featureKey && hiddenFeatures.includes(it.featureKey))
+    .map((it) => `${it.title} (${it.featureKey})`);
+  const adminOnlyHidden = SECTIONS.flatMap((s) => s.items)
+    .filter((it) => it.requiresAdmin && !isAdmin)
+    .map((it) => it.title);
+  console.log(
+    "[FeatureGate] isAdmin:", isAdmin,
+    "| hiddenFeatures:", hiddenFeatures,
+    "| hidden tiles:", hiddenTileKeys.length ? hiddenTileKeys : "none",
+    "| admin-only hidden:", adminOnlyHidden.length ? adminOnlyHidden : "none",
+  );
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -216,7 +269,7 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         >
-          {SECTIONS.map(renderSection)}
+          {visibleSections.map(renderSection)}
           <Text style={styles.footer}>
             Powered by 369ai  |  v{require("../../../app.json").expo.version}
           </Text>

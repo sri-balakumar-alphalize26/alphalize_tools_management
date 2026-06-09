@@ -16,11 +16,14 @@ import NavigationHeader from "@components/Header/NavigationHeader";
 import { showToastMessage } from "@components/Toast";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { fetchAllBanners } from "@api/services/bannerApi";
+import { useFeatureHidden } from "@hooks/useFeatureHidden";
 
 const BannersScreen = ({ navigation }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const addHidden = useFeatureHidden("banners.add");
+  console.log("[FeatureGate] BannersScreen banners.add hidden =", addHidden);
 
   useEffect(() => {
     console.log("[BANNER] BannersScreen mount");
@@ -122,16 +125,18 @@ const BannersScreen = ({ navigation }) => {
           />
         )}
 
-        <TouchableOpacity
-          style={styles.fab}
-          activeOpacity={0.85}
-          onPress={() =>
-            navigation.navigate("BannerDetailsScreen", { mode: "create" })
-          }
-        >
-          <MaterialIcons name="add-photo-alternate" size={22} color="#fff" />
-          <Text style={styles.fabText}>New Banner</Text>
-        </TouchableOpacity>
+        {!addHidden ? (
+          <TouchableOpacity
+            style={styles.fab}
+            activeOpacity={0.85}
+            onPress={() =>
+              navigation.navigate("BannerDetailsScreen", { mode: "create" })
+            }
+          >
+            <MaterialIcons name="add-photo-alternate" size={22} color="#fff" />
+            <Text style={styles.fabText}>New Banner</Text>
+          </TouchableOpacity>
+        ) : null}
       </RoundedContainer>
     </SafeAreaView>
   );

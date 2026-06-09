@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "@components/containers";
 import { COLORS, FONT_FAMILY } from "@constants/theme";
 import { useAuthStore } from "@stores/auth";
+import { useFeatureHidden } from "@hooks/useFeatureHidden";
 
 // Responsive sizing. Logo cap is tighter because the oval has 60px
 // padding; header / card-overlap scale with screen height. All values
@@ -15,6 +16,7 @@ const ProfileScreen = () => {
   const navigation = useNavigation();
   const user = useAuthStore((state) => state.user);
   const initial = (user?.username || "U").charAt(0).toUpperCase();
+  const bannersHidden = useFeatureHidden("home.tile.banners");
 
   useEffect(() => {
     const d = Dimensions.get("window");
@@ -102,29 +104,24 @@ const ProfileScreen = () => {
             </View>
           ))}
 
-          {/* App Banners — visually distinct admin shortcut. Tinted pink
-              container, solid icon tile, Admin pill, chevron. */}
-          <TouchableOpacity
-            style={styles.bannersRow}
-            activeOpacity={0.85}
-            onPress={() => {
-              console.log("[PROFILE] banners row tap → BannersScreen");
-              navigation.navigate("BannersScreen");
-            }}
-            onLayout={(e) => console.log("[PROFILE] bannersRow LAYOUT", e?.nativeEvent?.layout)}
-          >
-            <View style={styles.bannersIconBox}>
-              <MaterialIcons name="image" size={22} color="#fff" />
-            </View>
-            <View style={styles.bannersText}>
-              <Text style={styles.bannersTitle}>App Banners</Text>
-              <Text style={styles.bannersSubtitle}>Manage home-screen banners</Text>
-            </View>
-            <View style={styles.adminPill}>
-              <Text style={styles.adminPillText}>Admin</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={22} color="#9CA3AF" />
-          </TouchableOpacity>
+          {/* App Banners — admin shortcut. Hidden per-user via the
+              `home.tile.banners` privilege. */}
+          {!bannersHidden ? (
+            <TouchableOpacity
+              style={styles.bannersRow}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate("BannersScreen")}
+            >
+              <View style={styles.bannersIconBox}>
+                <MaterialIcons name="image" size={22} color="#fff" />
+              </View>
+              <View style={styles.bannersText}>
+                <Text style={styles.bannersTitle}>App Banners</Text>
+                <Text style={styles.bannersSubtitle}>Manage home-screen banners</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={22} color="#9CA3AF" />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Version */}
@@ -268,7 +265,7 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#F0F0F0",
   },
-  // Unique-looking App Banners shortcut row
+  // App Banners shortcut row
   bannersRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -300,19 +297,6 @@ const styles = StyleSheet.create({
     fontFamily: FONT_FAMILY.urbanistMedium,
     color: "#7a4664",
     marginTop: 2,
-  },
-  adminPill: {
-    backgroundColor: "#E91E63",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    marginRight: 6,
-  },
-  adminPillText: {
-    color: "#fff",
-    fontSize: 10,
-    fontFamily: FONT_FAMILY.urbanistBold,
-    letterSpacing: 0.4,
   },
   version: {
     fontSize: 11,

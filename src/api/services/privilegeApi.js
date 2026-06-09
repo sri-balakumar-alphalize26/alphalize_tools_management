@@ -56,6 +56,26 @@ export const fetchUsers = async (auth, searchText = "", offset = 0) => {
   }
 };
 
+// Runtime gating: the feature_key strings hidden for a user (user + role hides
+// merged server-side; returns [] for admins). Tag UI with these keys to gate it.
+export const fetchHiddenFeatureKeys = async (auth, userId) => {
+  if (!userId) return [];
+  try {
+    const keys = await odooExecute(
+      auth,
+      FEATURE_VIS_MODEL,
+      "get_hidden_features_for_user",
+      [Number(userId)],
+    );
+    const result = Array.isArray(keys) ? keys.filter(Boolean) : [];
+    console.log("[FeatureGate] get_hidden_features_for_user(", userId, ") =>", result);
+    return result;
+  } catch (err) {
+    console.warn("[FeatureGate] fetchHiddenFeatureKeys failed:", err?.message || err);
+    return [];
+  }
+};
+
 // Rows of features hidden for a user (admin view): [{id, feature_id, feature_key, ...}].
 export const fetchHiddenFeaturesForUserAdmin = async (auth, userId) => {
   if (!userId) return [];

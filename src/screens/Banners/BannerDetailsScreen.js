@@ -25,11 +25,20 @@ import {
   updateBanner,
   deleteBanner,
 } from "@api/services/bannerApi";
+import { useFeatureHidden } from "@hooks/useFeatureHidden";
 
 const BannerDetailsScreen = ({ navigation, route }) => {
   const mode = route?.params?.mode === "edit" ? "edit" : "create";
   const seedBanner = route?.params?.banner || null;
   const bannerId = seedBanner?.id || null;
+
+  // Privilege gating: create-mode save needs "add", edit-mode save needs
+  // "edit"; delete needs "delete". Hidden capability => button not rendered.
+  const addHidden = useFeatureHidden("banners.add");
+  const editHidden = useFeatureHidden("banners.edit");
+  const deleteHidden = useFeatureHidden("banners.delete");
+  const saveHidden = mode === "create" ? addHidden : editHidden;
+  console.log("[FeatureGate] BannerDetails mode =", mode, "saveHidden =", saveHidden, "deleteHidden =", deleteHidden);
 
   const [form, setForm] = useState({
     name: seedBanner?.name || "",
@@ -200,17 +209,19 @@ const BannerDetailsScreen = ({ navigation, route }) => {
         title={mode === "edit" ? "Edit Banner" : "Create Banner"}
         navigation={navigation}
         rightComponent={
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={isBusy}
-            style={[styles.saveBtn, isBusy && { opacity: 0.5 }]}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.saveBtnText}>{saveLabel}</Text>
-            )}
-          </TouchableOpacity>
+          saveHidden ? null : (
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={isBusy}
+              style={[styles.saveBtn, isBusy && { opacity: 0.5 }]}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.saveBtnText}>{saveLabel}</Text>
+              )}
+            </TouchableOpacity>
+          )
         }
       />
       <RoundedContainer>
@@ -270,7 +281,7 @@ const BannerDetailsScreen = ({ navigation, route }) => {
               </Text>
             </TouchableOpacity>
 
-            {mode === "edit" ? (
+            {mode === "edit" && !deleteHidden ? (
               <TouchableOpacity
                 style={styles.deleteBtn}
                 activeOpacity={0.85}
