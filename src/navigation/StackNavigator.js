@@ -27,6 +27,7 @@ import TaxDetailsScreen from "@screens/ToolManagement/TaxDetailsScreen";
 import RentalDashboardScreen from "@screens/ToolManagement/RentalDashboardScreen";
 import BannersScreen from "@screens/Banners/BannersScreen";
 import BannerDetailsScreen from "@screens/Banners/BannerDetailsScreen";
+import { AppFeaturesScreen } from "@screens/Admin";
 
 const Stack = createNativeStackNavigator();
 
@@ -101,6 +102,9 @@ const StackNavigator = () => {
 
       {/* App Banners (admin) */}
       <Stack.Screen name="BannersScreen" component={BannersScreen} />
+
+      {/* Privilege admin */}
+      <Stack.Screen name="AppFeaturesScreen" component={AppFeaturesScreen} />
       <Stack.Screen
         name="BannerDetailsScreen"
         component={BannerDetailsScreen}

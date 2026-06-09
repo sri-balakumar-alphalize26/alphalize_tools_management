@@ -226,6 +226,14 @@ export const odooCallMethod = async (auth, model, method, ids = [], args = {}) =
   return callOdoo(auth, model, method, [ids], args);
 };
 
+// Call a model method with raw positional args + kwargs. Needed for
+// @api.model methods that take several positional arguments
+// (e.g. toggle_user_hide_admin(user_id, feature_id, hidden)), which
+// odooCallMethod's single-`ids` shape cannot express.
+export const odooExecute = async (auth, model, method, args = [], kwargs = {}) => {
+  return callOdoo(auth, model, method, args, kwargs);
+};
+
 // Fields get (for introspection)
 export const odooFieldsGet = async (auth, model, fields = [], attributes = []) => {
   return callOdoo(auth, model, "fields_get", [fields], { attributes });

@@ -60,6 +60,14 @@ const SECTIONS = [
       { id: "10", title: "Rental Dashboard", screen: "RentalDashboardScreen", icon: "trending-up", bg: "#E1F5FE", accent: "#03A9F4" },
     ],
   },
+  {
+    title: "Administration",
+    icon: "admin-panel-settings",
+    accent: "#9C27B0",
+    items: [
+      { id: "app_privileges", title: "Apps Privileges", screen: "AppFeaturesScreen", icon: "visibility-off", bg: "#F3E5F5", accent: "#9C27B0", requiresAdmin: true },
+    ],
+  },
 ];
 
 // Pad items to even count (for 2-column grid) with invisible placeholders
@@ -109,6 +117,17 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [backPressCount]);
 
+  const handleCardPress = (item) => {
+    if (item.requiresAdmin) {
+      const isAdmin = user?.uid === 2 || user?.is_admin === true || user?.is_superuser === true;
+      if (!isAdmin) {
+        showToastMessage("Only administrators can access this feature");
+        return;
+      }
+    }
+    navigation.navigate(item.screen, item.params || {});
+  };
+
   const renderCard = (item) => {
     if (item.empty) {
       return <View key={item.id} style={[styles.card, styles.cardInvisible]} />;
@@ -118,7 +137,7 @@ const HomeScreen = ({ navigation }) => {
         key={item.id}
         style={styles.card}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate(item.screen, item.params || {})}
+        onPress={() => handleCardPress(item)}
       >
         <View style={[styles.iconWrapper, { backgroundColor: item.bg }]}>
           <MaterialIcons name={item.icon} size={30} color={item.accent} />
